@@ -88,7 +88,8 @@ function pawnMoves(ctx: MoveGenContext, from: Square, piece: Piece): GeneratedMo
   if (oneStep !== null && !board[oneStep]) {
     add(oneStep, 'normal');
     const twoStep = offset(from, 0, dir * 2);
-    const canDouble = !piece.moved && rankOf(from) === pawnStartRank(piece.color);
+    // 강화 폰(중보병)은 시작 2칸 전진을 할 수 없다
+    const canDouble = !piece.moved && !piece.enhanced && rankOf(from) === pawnStartRank(piece.color);
     if (canDouble && twoStep !== null && !board[twoStep]) add(twoStep, 'double');
   }
 

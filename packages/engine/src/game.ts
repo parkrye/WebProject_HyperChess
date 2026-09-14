@@ -75,15 +75,19 @@ function applyMove(state: GameState, move: Move): GameState {
 
   let players = state.players;
   let captured = state.captured;
+  let board = outcome.board;
   if (outcome.captured) {
     captured = { ...captured, [enemy]: [...captured[enemy], outcome.captured] };
     players = withRecovery(players, enemy, 'ownPieceCaptured');
     players = withRecovery(players, color, 'enemyPieceCaptured');
+    if (outcome.captured.type === 'q' && players[enemy].rules.queensRoyal) {
+      ({ board, players } = fallOfEmpress(board, players, enemy));
+    }
   }
 
   const next: GameState = {
     ...state,
-    board: outcome.board,
+    board,
     enPassant: outcome.enPassant,
     halfmoveClock: outcome.irreversible ? 0 : state.halfmoveClock + 1,
     positionKeys: outcome.irreversible ? [] : state.positionKeys,
@@ -101,6 +105,18 @@ function applyMove(state: GameState, move: Move): GameState {
     !anyRoyalAttacked(next, enemy) &&
     hasLegalMove(next, color);
   return hasExtraMove ? next : endTurn(next);
+}
+
+/**
+ * 여제 상태에서 퀸이 잡히면 여제 규칙이 풀린다.
+ * 남은 킹(승급 킹 포함)이 모두 왕족이 되고, 둘 이상이면 하나가 남을 때까지 체크가 없다.
+ * 킹이 없으면 왕족 전멸로 패배한다. 퀸 프로모션과 여제 재사용이 다시 가능해진다.
+ */
+function fallOfEmpress(board: GameState['board'], players: GameState['players'], color: Color) {
+  const nextBoard = board.map((piece) => (piece && piece.color === color && piece.type === 'k' ? { ...piece, royal: true } : piece));
+  const player = players[color];
+  const nextPlayers = { ...players, [color]: { ...player, rules: { ...player.rules, queensRoyal: false, noQueenPromotion: false } } };
+  return { board: nextBoard, players: nextPlayers };
 }
 
 /* ---------- 능력 ---------- */
