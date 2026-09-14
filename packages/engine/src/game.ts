@@ -21,6 +21,8 @@ const COLORS: readonly Color[] = ['w', 'b'];
 export interface GameSetup {
   readonly abilities?: Partial<Record<Color, string | null>>;
   readonly fen?: string;
+  /** 시작 자원 덮어쓰기 (테스트·실험용, 기본은 밸런스의 startResource) */
+  readonly resources?: Partial<Record<Color, number>>;
 }
 
 export class IllegalActionError extends Error {}
@@ -32,7 +34,7 @@ export function createGame(setup: GameSetup = {}): GameState {
     const balance = abilityId ? getAbility(abilityId).balance : null;
     return {
       abilityId,
-      meter: { resource: balance?.startResource ?? 0, cooldown: 0, turnsTaken: 0 },
+      meter: { resource: setup.resources?.[color] ?? balance?.startResource ?? 0, cooldown: 0, turnsTaken: 0 },
       rules: { queensRoyal: false, noQueenPromotion: false },
     };
   };

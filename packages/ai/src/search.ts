@@ -8,7 +8,7 @@ import {
   type GameState,
   type GeneratedMove,
 } from '@hyperchess/engine';
-import { evaluate, PIECE_VALUE } from './evaluate';
+import { evaluate, materialValue, PIECE_VALUE } from './evaluate';
 
 export const MATE_SCORE = 100_000;
 const MATE_THRESHOLD = MATE_SCORE - 1_000;
@@ -111,15 +111,18 @@ const fromTT = (score: number, ply: number) => (score >= MATE_THRESHOLD ? score 
 
 /* ---------- 점수 도우미 ---------- */
 
+/** 승급 킹은 PIECE_VALUE.k(왕족 기준 0)가 아닌 별도 가치로 본다 */
+const promotionValue = (move: GeneratedMove) => (move.promotion === 'k' ? 350 : move.promotion ? PIECE_VALUE[move.promotion] : 0);
+
 const isCapture = (state: GameState, move: GeneratedMove) => move.kind === 'enPassant' || state.board[move.to] !== null;
 
 function captureOrder(state: GameState, move: GeneratedMove): number {
   let score = 0;
   const victim = state.board[move.to];
   const attacker = state.board[move.from];
-  if (victim) score += 10 * PIECE_VALUE[victim.type] - (attacker ? PIECE_VALUE[attacker.type] : 0);
+  if (victim) score += 10 * materialValue(victim) - (attacker ? materialValue(attacker) : 0);
   if (move.kind === 'enPassant') score += 900;
-  if (move.promotion) score += PIECE_VALUE[move.promotion];
+  if (move.promotion) score += promotionValue(move);
   return score;
 }
 
@@ -293,14 +296,14 @@ export class Searcher {
     if (standPat > alpha) alpha = standPat;
 
     const captures = legalMoves(state)
-      .filter((move) => isCapture(state, move) || move.promotion === 'q')
+      .filter((move) => isCapture(state, move) || move.promotion === 'q' || move.promotion === 'k')
       .map((move) => ({ move, order: captureOrder(state, move) }))
       .sort((a, b) => b.order - a.order);
 
     let best = standPat;
     for (const { move } of captures) {
       const victim = state.board[move.to];
-      const gain = (victim ? PIECE_VALUE[victim.type] : PIECE_VALUE.p) + (move.promotion ? PIECE_VALUE[move.promotion] : 0);
+      const gain = (victim ? materialValue(victim) : PIECE_VALUE.p) + promotionValue(move);
       // 델타 가지치기: 잡아도 alpha에 못 미치는 잡기는 건너뛴다 (가속으로 연속 두는 경우는 예외)
       if (standPat + gain + DELTA_MARGIN < alpha && state.turnState.movesAllowed === 1) continue;
 

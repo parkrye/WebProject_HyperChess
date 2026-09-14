@@ -11,7 +11,8 @@
     "dev:client": "npm run dev -w @hyperchess/client",
     "dev:server": "npm run dev -w @hyperchess/server",
     "test": "npm run test --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "balance": "tsx packages/ai/tools/balance.ts"
   },
   "devDependencies": {
     "@types/node": "^26.5.1",

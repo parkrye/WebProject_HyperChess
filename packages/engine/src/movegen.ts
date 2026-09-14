@@ -49,6 +49,16 @@ function slideTargets(board: Board, from: Square, piece: Piece, dirs: readonly D
   return result;
 }
 
+/** 팔라딘: 플레이어 기준 좌우(같은 랭크의 옆 파일) 빈칸으로 한 칸 옆걸음. 잡기는 불가 */
+function sidestepTargets(board: Board, from: Square): Square[] {
+  const result: Square[] = [];
+  for (const df of [-1, 1]) {
+    const step = offset(from, df, 0);
+    if (step !== null && !board[step]) result.push(step);
+  }
+  return result;
+}
+
 function stepTargets(board: Board, from: Square, piece: Piece, deltas: readonly Delta[]): Square[] {
   const result: Square[] = [];
   for (const [df, dr] of deltas) {
@@ -66,8 +76,9 @@ function pushPawnMove(moves: GeneratedMove[], piece: Piece, from: Square, to: Sq
     moves.push({ from, to, kind });
     return;
   }
-  for (const promotion of PROMOTION_PIECES) {
-    if (promotion === 'q' && ctx.noQueenPromotion) continue;
+  for (const piece of PROMOTION_PIECES) {
+    // 여제 규칙: 퀸 대신 승급 킹(royal 아님)으로 프로모션
+    const promotion: PieceType = piece === 'q' && ctx.noQueenPromotion ? 'k' : piece;
     moves.push({ from, to, kind, promotion });
   }
 }
@@ -141,7 +152,7 @@ export function pseudoMovesFrom(
   const piece = ctx.board[from];
   if (!piece) return [];
 
-  const toMoves = (targets: Square[]): GeneratedMove[] => targets.map((to) => ({ from, to, kind: 'normal' }));
+  const toMoves = (targets: Square[]): GeneratedMove[] => [...new Set(targets)].map((to) => ({ from, to, kind: 'normal' }));
   const { board } = ctx;
   switch (piece.type) {
     case 'p':
@@ -151,8 +162,11 @@ export function pseudoMovesFrom(
       if (piece.enhanced) targets.push(...slideTargets(board, from, piece, ORTHOGONAL_DELTAS, false));
       return toMoves(targets);
     }
-    case 'b':
-      return toMoves(slideTargets(board, from, piece, DIAGONAL_DELTAS, jumpsOwnPieces(piece)));
+    case 'b': {
+      const targets = slideTargets(board, from, piece, DIAGONAL_DELTAS, jumpsOwnPieces(piece));
+      if (piece.enhanced) targets.push(...sidestepTargets(board, from));
+      return toMoves(targets);
+    }
     case 'r':
       return toMoves(slideTargets(board, from, piece, ORTHOGONAL_DELTAS, jumpsOwnPieces(piece)));
     case 'q':
@@ -245,5 +259,6 @@ export function isSquareAttacked(board: Board, target: Square, by: Color): boole
     return false;
   };
 
+  // 팔라딘의 옆걸음은 잡기가 불가능하므로 공격 판정에는 영향이 없다
   return rayAttacked(ORTHOGONAL_DELTAS, 'r', true) || rayAttacked(DIAGONAL_DELTAS, 'b', false);
 }

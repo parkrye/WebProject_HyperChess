@@ -2,16 +2,21 @@ import { describe, expect, it } from 'vitest';
 import { BALANCE, COSTS, createGame, isInCheck, legalAbilityOptions, legalMoves, royalSquares, usesCheckRule } from '../src';
 import { game, move, setResource, sq, useAbility } from './helpers';
 
+/** 모든 능력의 시작 자원이 0이므로, 효과 자체를 검증할 때는 자원을 채워 시작한다 */
+const CHARGED = 9;
+const charged = (fen: string, abilities: Parameters<typeof game>[1]) =>
+  setResource(setResource(game(fen, abilities), 'w', CHARGED), 'b', CHARGED);
+
 const targets = (state: Parameters<typeof legalMoves>[0], from: string) =>
   legalMoves(state).filter((m) => m.from === sq(from)).map((m) => m.to).sort((a, b) => a - b);
 
 describe('염동력', () => {
   it('자신의 말을 1칸 옮기고 턴이 넘어간다', () => {
-    let state = game('4k3/8/8/8/8/8/8/R3K3 w - - 0 1', { w: 'telekinesis' });
+    let state = charged('4k3/8/8/8/8/8/8/R3K3 w - - 0 1', { w: 'telekinesis' });
     state = useAbility(state, { from: sq('a1'), to: sq('b2') });
     expect(state.board[sq('b2')]?.type).toBe('r');
     expect(state.turn).toBe('b');
-    expect(state.players.w.meter.resource).toBe(BALANCE.telekinesis.startResource - COSTS.telekinesis);
+    expect(state.players.w.meter.resource).toBe(CHARGED - COSTS.telekinesis);
   });
 
   it('상대 말들에 둘러싸인 말은 옮길 수 없다', () => {
@@ -22,7 +27,7 @@ describe('염동력', () => {
   });
 
   it('자신의 체크를 유발할 수 없다', () => {
-    const state = game('4r1k1/8/8/8/8/8/4B3/4K3 w - - 0 1', { w: 'telekinesis' });
+    const state = charged('4r1k1/8/8/8/8/8/4B3/4K3 w - - 0 1', { w: 'telekinesis' });
     const options = legalAbilityOptions(state).filter((o) => o.from === sq('e2'));
     expect(options.map((o) => o.to)).toEqual([sq('e3')]);
   });
@@ -151,6 +156,7 @@ describe('시간 역행', () => {
     state = move(state, 'f2', 'f3');
     state = move(state, 'e7', 'e5');
     state = move(state, 'g2', 'g4');
+    state = setResource(state, 'w', 1);
     state = move(state, 'd8', 'h4');
     expect(state.result.kind).toBe('ongoing');
   });
@@ -158,7 +164,7 @@ describe('시간 역행', () => {
 
 describe('강화', () => {
   it('중보병: 강화 폰은 킹처럼 움직인다', () => {
-    let state = game('4k3/8/8/8/3P4/8/8/4K3 w - - 0 1', { w: 'heavyInfantry' });
+    let state = charged('4k3/8/8/8/3P4/8/8/4K3 w - - 0 1', { w: 'heavyInfantry' });
     state = useAbility(state, { square: sq('d4') });
     state = move(state, 'e8', 'f8');
     expect(targets(state, 'd4')).toEqual(['c3', 'd3', 'e3', 'c4', 'e4', 'c5', 'd5', 'e5'].map(sq).sort((a, b) => a - b));
@@ -176,7 +182,7 @@ describe('강화', () => {
   });
 
   it('전차: 자신의 말을 뛰어넘고, 그 너머로 체크를 건다', () => {
-    let state = game('4k3/8/8/8/8/8/8/R2QK3 w - - 0 1', { w: 'chariot' });
+    let state = charged('4k3/8/8/8/8/8/8/R2QK3 w - - 0 1', { w: 'chariot' });
     state = useAbility(state, { square: sq('a1') });
     state = move(state, 'e8', 'f8');
     expect(targets(state, 'a1')).toContain(sq('f1'));
@@ -184,10 +190,22 @@ describe('강화', () => {
   });
 
   it('팔라딘: 강화 비숍의 공격은 자신의 말을 통과한다', () => {
-    let state = game('7k/8/8/8/8/2P5/8/B3K3 w - - 0 1', { w: 'paladin' });
+    let state = charged('7k/8/8/8/8/2P5/8/B3K3 w - - 0 1', { w: 'paladin' });
     state = useAbility(state, { square: sq('a1') });
     expect(isInCheck(state, 'b')).toBe(true);
     expect(targets(state, 'h8')).not.toContain(sq('g7'));
+  });
+
+  it('팔라딘: 좌우 빈칸으로 한 칸 옆걸음할 수 있지만 잡기·전후 이동·연속 이동은 불가', () => {
+    let state = charged('7k/8/8/8/8/8/8/1pB1K3 w - - 0 1', { w: 'paladin' });
+    state = useAbility(state, { square: sq('c1') });
+    state = move(state, 'h8', 'g8');
+    const moves = targets(state, 'c1');
+    expect(moves).toContain(sq('d1')); // 오른쪽 빈칸 옆걸음
+    expect(moves).not.toContain(sq('b1')); // 옆칸의 상대 말은 잡을 수 없음
+    expect(moves).not.toContain(sq('c2')); // 앞 칸 이동 불가
+    expect(moves).not.toContain(sq('e2')); // 옆걸음 후 대각선으로 이어갈 수 없음
+    expect(moves).toContain(sq('h6')); // 기존 대각선
   });
 });
 
@@ -211,7 +229,20 @@ describe('여제', () => {
     expect(targets(state, 'e1')).toContain(sq('f1'));
     const promotions = legalMoves(state).filter((m) => m.from === sq('a7')).map((m) => m.promotion);
     expect(promotions).not.toContain('q');
-    expect(promotions).toContain('r');
+    expect(promotions).toEqual(expect.arrayContaining(['k', 'r', 'b', 'n']));
+
+    // 승급 킹은 킹처럼 움직이지만 왕족이 아니다
+    state = move(state, 'a7', 'a8', 'k');
+    expect(state.board[sq('a8')]).toMatchObject({ type: 'k', royal: false });
+    expect(royalSquares(state, 'w')).toEqual([sq('e1')]);
+  });
+
+  it('여제는 한 번만 사용할 수 있다', () => {
+    let state = setResource(game('4k3/8/8/8/8/8/8/3QK3 w - - 0 1', { w: 'empress' }), 'w', 1);
+    state = useAbility(state);
+    state = move(state, 'e8', 'f8');
+    state = setResource(state, 'w', 1);
+    expect(legalAbilityOptions(state)).toEqual([]);
   });
 });
 
@@ -222,7 +253,7 @@ describe('계승자', () => {
   });
 
   it('선왕과 계승자가 모두 잡혀야 패배하고, 하나만 남으면 체크 규칙이 돌아온다', () => {
-    let state = game('4k3/8/8/8/8/8/P7/4K2r w - - 0 1', { w: 'heir' });
+    let state = charged('4k3/8/8/8/8/8/P7/4K2r w - - 0 1', { w: 'heir' });
     expect(legalAbilityOptions(state)).toEqual([{ square: sq('a2') }]);
 
     state = useAbility(state, { square: sq('a2') });
@@ -235,5 +266,21 @@ describe('계승자', () => {
     expect(usesCheckRule(state, 'w')).toBe(true);
     // 1랭크는 룩이 공격 중이므로 계승자는 들어갈 수 없다
     expect(targets(state, 'a2')).toEqual(['b2', 'a3', 'b3', 'a4'].map(sq));
+  });
+  it('왕이 하나만 남아 다시 체크되면 자원을 회복한 뒤 재사용할 수 있다', () => {
+    let state = charged('4k3/8/8/8/8/8/P6P/4K2r w - - 0 1', { w: 'heir' });
+    state = useAbility(state, { square: sq('a2') });
+    state = move(state, 'h1', 'e1'); // 선왕 포획 → 계승자(a2)만 남음
+    state = move(state, 'h2', 'h3');
+    state = move(state, 'e1', 'a1'); // 계승자 체크
+    expect(isInCheck(state, 'w')).toBe(true);
+
+    expect(legalAbilityOptions(setResource(state, 'w', 0))).toEqual([]);
+    state = setResource(state, 'w', 1);
+    expect(legalAbilityOptions(state)).toEqual([{ square: sq('h3') }]);
+    state = useAbility(state, { square: sq('h3') });
+    expect(state.board[sq('a2')]?.title).toBe('oldKing');
+    expect(state.board[sq('h3')]?.title).toBe('heir');
+    expect(isInCheck(state, 'w')).toBe(false);
   });
 });

@@ -57,6 +57,8 @@ interface Badge {
 function pieceBadge(piece: Piece, state: GameState): Badge | null {
   if (piece.title === 'heir') return { icon: 'heir', color: abilityUi('heir').color };
   if (piece.title === 'oldKing') return { icon: 'crown', color: '#9a93ab' };
+  // 여제 규칙의 승급 킹: 왕족이 아닌 킹
+  if (piece.type === 'k' && !piece.royal) return { icon: 'shield', color: abilityUi('empress').color };
   if (piece.enhanced) {
     const spec = abilityUi(ENHANCEMENT_BY_PIECE[piece.type] ?? '');
     return { icon: spec.icon, color: spec.color };

@@ -7,16 +7,15 @@ import type { AbilityDefinition } from './types';
 export const heir: AbilityDefinition = {
   id: 'heir',
   name: '계승자',
-  description: '체크 상태일 때 수를 놓는 대신 사용한다. 킹을 선왕으로, 공격받지 않는 폰 하나를 계승자(킹의 움직임 추가)로 바꾼다. 둘 다 잡혀야 패배한다.',
+  description: '체크 상태일 때 수를 놓는 대신 사용한다. 남은 왕을 선왕으로, 공격받지 않는 폰 하나를 계승자(킹의 움직임 추가)로 바꾼다. 둘 다 잡혀야 패배하며, 자원이 회복되면 다시 쓸 수 있다.',
   timing: 'insteadOfMove',
   balance: BALANCE.heir,
   cost: () => COSTS.heir,
 
   candidates(state, color) {
     if (!isInCheck(state, color)) return [];
-    const royals = royalSquares(state, color);
-    const king = royals.length === 1 ? state.board[royals[0]] : null;
-    if (!king || king.type !== 'k' || king.title) return [];
+    // 왕(킹·선왕·계승자 무엇이든)이 하나만 남아 체크일 때 사용할 수 있다
+    if (royalSquares(state, color).length !== 1) return [];
 
     const enemy = opposite(color);
     const result: AbilityParams[] = [];
@@ -29,13 +28,13 @@ export const heir: AbilityDefinition = {
   },
 
   apply(state, color, params) {
-    const kingSquare = royalSquares(state, color)[0];
+    const rulerSquare = royalSquares(state, color)[0];
     const pawnSquare = Number(params.square);
     const board = state.board.slice();
-    const king = board[kingSquare];
+    const ruler = board[rulerSquare];
     const pawn = board[pawnSquare];
-    if (!king || !pawn) throw new Error('Heir requires a king and a pawn');
-    board[kingSquare] = { ...king, title: 'oldKing' };
+    if (!ruler || !pawn) throw new Error('Heir requires a ruler and a pawn');
+    board[rulerSquare] = { ...ruler, title: 'oldKing' };
     board[pawnSquare] = { ...pawn, royal: true, enhanced: false, title: 'heir' };
     return { ...state, board };
   },
