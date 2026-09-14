@@ -17,7 +17,8 @@ export interface PendingPromotion {
   readonly options: readonly GeneratedMove[];
 }
 
-export function useInteraction(state: GameState, dispatch: (action: Action) => void, busy: boolean) {
+/** canAct: 이 화면의 사용자가 현재 차례를 조작할 수 있는지 (온라인에서 상대 차례면 false) */
+export function useInteraction(state: GameState, dispatch: (action: Action) => void, busy: boolean, canAct = true) {
   const [selected, setSelected] = useState<Square | null>(null);
   const [picks, setPicks] = useState<Picks | null>(null);
   const [promotion, setPromotion] = useState<PendingPromotion | null>(null);
@@ -28,7 +29,7 @@ export function useInteraction(state: GameState, dispatch: (action: Action) => v
     setPromotion(null);
   }, [state]);
 
-  const ongoing = state.result.kind === 'ongoing';
+  const ongoing = state.result.kind === 'ongoing' && canAct;
   const moves = useMemo(() => (ongoing ? legalMoves(state) : []), [state, ongoing]);
   const abilityOptions = useMemo(() => (ongoing ? legalAbilityOptions(state) : []), [state, ongoing]);
 

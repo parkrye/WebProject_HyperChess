@@ -1,4 +1,5 @@
 import type { GameResult, GameState, PieceType } from '@hyperchess/engine';
+import { useEffect, useState, type ReactNode } from 'react';
 import { resultText } from '../abilityUi/text';
 import type { InteractionController } from '../game/useInteraction';
 import { PieceSvg } from './PieceSvg';
@@ -26,22 +27,20 @@ export function PromotionDialog({ state, interaction }: { state: GameState; inte
   );
 }
 
-export function ResultDialog({ result, onRestart, onMenu }: { result: GameResult; onRestart: () => void; onMenu: () => void }) {
-  if (result.kind === 'ongoing') return null;
+export function ResultDialog({ result, children }: { result: GameResult; children: ReactNode }) {
+  const [hidden, setHidden] = useState(false);
+  useEffect(() => setHidden(false), [result]);
+  if (result.kind === 'ongoing' || hidden) return null;
   const { title, detail } = resultText(result);
   return (
     <div className="dialog-backdrop">
       <div className="dialog result-dialog" role="dialog" aria-label="게임 결과">
         <h2>{title}</h2>
         <p>{detail}</p>
-        <div className="dialog-actions">
-          <button type="button" className="btn btn-primary" onClick={onRestart}>
-            다시 하기
-          </button>
-          <button type="button" className="btn btn-ghost" onClick={onMenu}>
-            메뉴로
-          </button>
-        </div>
+        <div className="dialog-actions">{children}</div>
+        <button type="button" className="btn-link" onClick={() => setHidden(true)}>
+          보드 보기
+        </button>
       </div>
     </div>
   );

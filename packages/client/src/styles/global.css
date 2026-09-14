@@ -512,3 +512,214 @@ button {
     transition-duration: 1ms !important;
   }
 }
+
+/* ---------- 온라인 ---------- */
+
+.btn-link {
+  margin-top: 0.8rem;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.notice {
+  margin: 0 0 0.6rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, #ffc94a 14%, var(--bg-elev));
+  border: 1px solid color-mix(in srgb, #ffc94a 45%, transparent);
+  font-size: 0.85rem;
+}
+.notice-error {
+  background: color-mix(in srgb, var(--danger) 14%, var(--bg-elev));
+  border-color: color-mix(in srgb, var(--danger) 50%, transparent);
+  text-align: center;
+}
+
+.seat-tag {
+  font-size: 0.7rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+}
+.seat-offline {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 50%, transparent);
+}
+
+.online-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  margin-bottom: 0.8rem;
+}
+.conn-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #6b6480;
+}
+.conn-dot.on {
+  background: #4ade80;
+  box-shadow: 0 0 8px #4ade80;
+}
+
+.online-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  max-width: 640px;
+  margin: 0 auto 1.4rem;
+}
+.field {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+.field > span {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  width: 4.5rem;
+  flex: none;
+}
+.field input,
+.code-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.6rem 0.8rem;
+  color: var(--text);
+  font: inherit;
+}
+.chosen-ability {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--ability-color);
+}
+.online-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 0.7rem;
+}
+.online-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.9rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+}
+.online-card h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.code-input {
+  text-align: center;
+  letter-spacing: 0.4em;
+  font-size: 1.3rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.segmented {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.segmented button {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 0.5rem;
+  cursor: pointer;
+}
+.segmented button.active {
+  background: color-mix(in srgb, var(--accent) 30%, var(--bg-elev-2));
+  font-weight: 700;
+}
+
+.waiting-card {
+  max-width: 420px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 1.4rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+  text-align: center;
+}
+.waiting-card p {
+  margin: 0;
+  color: var(--text-dim);
+}
+.room-code {
+  font-size: clamp(2.4rem, 12vw, 3.4rem);
+  font-weight: 900;
+  letter-spacing: 0.25em;
+  padding-left: 0.25em;
+  background: linear-gradient(90deg, #b57bff, #3fe0d0);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.seat-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.seat-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  background: var(--bg-elev-2);
+}
+.seat-ability {
+  margin-left: auto;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+.seat-empty {
+  color: var(--text-dim);
+  animation: blink 1.4s ease-in-out infinite;
+}
+
+.room-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+.room-info strong {
+  color: var(--text);
+  letter-spacing: 0.15em;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.45;
+  }
+}
