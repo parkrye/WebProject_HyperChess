@@ -6,6 +6,7 @@ AI 이미지·음악 생성용 프롬프트 모음. 각 프롬프트는 **단독
 
 - **아트 컨셉**: 2D 도트(픽셀 아트) 서브컬처 스타일 · 풍성하고 귀족스러운 색감 · 아기자기한(치비풍) 디자인
 - **공통 팔레트**: 로열 퍼플, 딥 크림슨/버건디, 골드 필리그리, 아이보리, 사파이어·로즈골드 포인트
+- **말 방향**: 모든 말은 **오른쪽을 바라보는 옆모습**(오른쪽 얼굴만 보이는 구도)으로 그린다. 게임은 좌우 배치라 오른쪽 진영(상대) 말은 필요하면 코드에서 좌우 반전해 쓴다
 - **진영 색**: 백 = 아이보리 + 골드, 흑 = 딥 플럼(검보라) + 실버/로즈골드 (순수 흑백 대신 귀족풍 대비)
 - **프롬프트 언어**: 대부분의 이미지 모델이 영어 프롬프트에서 규격·투명 배경 지시를 더 잘 따르므로 본문은 영어로 작성했다. 각 프롬프트 위에 한국어로 용도·셀 배치를 적었다.
 - **길이 제한**: 모든 프롬프트 문단은 1000자 이하 (문단 끝에 글자 수 표기)
@@ -32,9 +33,9 @@ AI 이미지·음악 생성용 프롬프트 모음. 각 프롬프트는 **단독
 | 4 | 백 선왕 | 흑 선왕 | 백 승급 킹 | 흑 승급 킹 |
 
 ```text
-Pixel art sprite sheet of cute chibi chess pieces, 2D subculture game style, rich noble palette. Transparent background (alpha PNG), no floor, no scene. Canvas 1024x1024, exact 4x4 grid of 256x256 cells, one piece per cell, centered, bottom-aligned on a shared baseline, 10% padding, no grid lines, no text. Each piece drawn on a 64x64 pixel grid and upscaled 4x nearest neighbor, crisp 1px dark outline, soft 2-tone shading, top-left light. White side: ivory body with gold filigree and sapphire gems. Black side: deep plum body with silver and rose-gold trim. Round, stubby, adorable proportions with tiny royal details. Row 1: white king, white queen, white rook, white bishop. Row 2: white knight (cute horse), white pawn, black king, black queen. Row 3: black rook, black bishop, black knight, black pawn. Row 4: white old king (faded, gray-silver crown), black old king (faded), white promoted king (small king with shield emblem, no cross), black promoted king.
+Pixel art sprite sheet of cute chibi chess pieces, 2D subculture game style, rich noble palette. Transparent background (alpha PNG), no floor. Canvas 1024x1024, exact 4x4 grid of 256x256 cells, one piece per cell, centered on a shared baseline, 10% padding, no grid lines, no text. Side view: every piece faces the right edge of the canvas in right profile, only its right side visible, none face left or the viewer. 64x64 pixel grid upscaled 4x nearest neighbor, 1px dark outline, 2-tone shading, top-left light. White: ivory, gold filigree, sapphire gems. Black: deep plum, silver and rose-gold trim. Stubby adorable proportions. Row 1: white king, white queen, white rook, white bishop. Row 2: white knight (cute horse), white pawn, black king, black queen. Row 3: black rook, black bishop, black knight, black pawn. Row 4: white old king (faded gray-silver crown), black old king, white promoted king (small king with shield emblem), black promoted king.
 ```
-(968자)
+(958자)
 
 ### 1-2. 변종(강화) 말 (4×4)
 
@@ -46,9 +47,9 @@ Pixel art sprite sheet of cute chibi chess pieces, 2D subculture game style, ric
 | 4 | 흑 계승자 | 흑 여제 퀸 | 흑 여제 킹 | (빈 칸) |
 
 ```text
-Pixel art sprite sheet of cute chibi variant chess pieces for a superpower chess game, 2D subculture style, rich noble palette. Transparent background (alpha PNG). Canvas 1024x1024, exact 4x4 grid of 256x256 cells, centered, shared baseline, 10% padding, no grid lines, no text. 64x64 pixel grid upscaled 4x nearest neighbor, 1px dark outline, top-left light. White: ivory and gold. Black: deep plum with silver and rose-gold. Each variant keeps its base piece silhouette plus a clear upgrade and a soft aura. Row 1 (white): heavy infantry pawn with round shield and helmet (orange aura), lancer knight holding a long lance (red aura), chariot rook on small wheels (bronze aura), paladin bishop with holy cross cape (pale gold aura). Row 2 (white): heir pawn wearing a tiny gold crown, empress queen with tall pink crown and cape, empress king with matching pink crown, last cell fully empty. Rows 3 and 4: the same seven pieces in the black style, last cell fully empty.
+Pixel art sprite sheet of cute chibi variant chess pieces for a superpower chess game, 2D subculture style, rich noble palette. Transparent background (alpha PNG). Canvas 1024x1024, exact 4x4 grid of 256x256 cells, centered, shared baseline, 10% padding, no grid lines, no text. Side view: every piece faces the right edge in right profile, only its right side visible, none face left. 64x64 pixel grid upscaled 4x nearest neighbor, 1px dark outline, top-left light. White: ivory and gold. Black: deep plum, silver, rose-gold. Base silhouette plus clear upgrade and soft aura. Row 1 (white): heavy infantry pawn with shield and helmet (orange aura), lancer knight with lance pointing right (red aura), chariot rook on wheels (bronze aura), paladin bishop with cross cape (pale gold aura). Row 2 (white): heir pawn with tiny gold crown, empress queen with tall pink crown, empress king with pink crown, last cell empty. Rows 3-4: same seven pieces in black style, last cell empty.
 ```
-(971자)
+(979자)
 
 ---
 
