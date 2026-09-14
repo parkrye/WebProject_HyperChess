@@ -85,11 +85,11 @@
 .square.dark .coord {
   color: #a99bc4;
 }
-.coord-file {
+.coord-bottom {
   right: 3px;
   bottom: 1px;
 }
-.coord-rank {
+.coord-left {
   left: 3px;
   top: 1px;
 }

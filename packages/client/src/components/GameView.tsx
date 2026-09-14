@@ -26,10 +26,10 @@ export function GameView(props: GameViewProps) {
   const { state, busy, stageView, dispatch, myColor } = props;
   const canAct = myColor === null || state.turn === myColor;
   const interaction = useInteraction(state, dispatch, busy, canAct);
-  const [flipped, setFlipped] = useState(myColor === 'b');
-
-  const bottom: Color = flipped ? 'b' : 'w';
-  const top = opposite(bottom);
+  // AI 대전/온라인은 항상 내가 왼쪽. 로컬 2인은 백이 왼쪽이고 수동으로만 바꾼다
+  const [localLeft, setLocalLeft] = useState<Color>('w');
+  const left: Color = myColor ?? localLeft;
+  const right = opposite(left);
 
   const status = (() => {
     if (state.result.kind !== 'ongoing') return '게임 종료';
@@ -50,18 +50,22 @@ export function GameView(props: GameViewProps) {
         <span className="game-status" aria-live="polite">
           {status}
         </span>
-        <button type="button" className="btn btn-ghost" onClick={() => setFlipped((v) => !v)} aria-label="보드 뒤집기">
-          ⇅
-        </button>
+        {myColor === null ? (
+          <button type="button" className="btn btn-ghost" onClick={() => setLocalLeft(opposite)} aria-label="보드 좌우 뒤집기">
+            ⇄
+          </button>
+        ) : (
+          <span className="game-header-spacer" />
+        )}
       </header>
 
       <div className="game-layout">
-        <div className="board-column">
-          <PlayerBar state={state} color={top} interaction={interaction} seat={props.seats?.[top]} />
-          <Board state={state} stage={stageView} interaction={interaction} flipped={flipped} busy={busy} />
-          <PlayerBar state={state} color={bottom} interaction={interaction} seat={props.seats?.[bottom]} />
+        <div className="board-row">
+          <PlayerBar className="side-left" state={state} color={left} interaction={interaction} seat={props.seats?.[left]} />
+          <Board state={state} stage={stageView} interaction={interaction} leftColor={left} busy={busy} />
+          <PlayerBar className="side-right" state={state} color={right} interaction={interaction} seat={props.seats?.[right]} />
         </div>
-        <aside className="side-column">
+        <aside className="under-board">
           {props.notice && <p className="notice">{props.notice}</p>}
           <AbilityPanel state={state} color={myColor ?? state.turn} interaction={interaction} busy={busy} />
           {props.sidebar}

@@ -266,7 +266,8 @@ button {
 /* ---------- 게임 화면 ---------- */
 
 .game {
-  --board-size: min(calc(100vw - 24px), calc(100dvh - 300px));
+  --strip: 68px;
+  --board-size: min(calc(100vw - 24px), calc(100dvh - 330px));
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -286,12 +287,19 @@ button {
   width: 100%;
   margin: 0 auto 0.4rem;
 }
+.game-header-spacer {
+  width: 44px;
+}
 .game-status {
   font-weight: 700;
   text-align: center;
   font-size: 0.95rem;
 }
 
+/*
+ * 좌우 대국 배치: 왼쪽 = 나(로컬은 백), 오른쪽 = 상대.
+ * 세로 화면에서는 보드 아래에 두 정보 띠를 좌우로 나란히 둔다.
+ */
 .game-layout {
   display: flex;
   flex-direction: column;
@@ -299,27 +307,83 @@ button {
   gap: 0.6rem;
   margin: 0 auto;
 }
-.board-column {
-  display: flex;
-  flex-direction: column;
+.board-row {
+  display: grid;
+  grid-template-areas:
+    'board board'
+    'left right';
+  grid-template-columns: 1fr 1fr;
   gap: 0.4rem;
   width: max(var(--board-size), 280px);
 }
-.side-column {
+.board-row > .board {
+  grid-area: board;
+}
+.side-left {
+  grid-area: left;
+}
+.side-right {
+  grid-area: right;
+  flex-direction: row-reverse;
+}
+.under-board {
   width: max(var(--board-size), 280px);
 }
 
-@media (min-width: 900px) and (min-aspect-ratio: 1/1) {
+@media (min-width: 700px), (min-aspect-ratio: 1/1) {
   .game {
-    --board-size: min(calc(100dvh - 170px), calc(100vw - 440px));
+    --board-size: min(calc(100dvh - 250px), calc(100vw - 24px - 2 * var(--strip) - 1rem));
+  }
+  .board-row {
+    grid-template-areas: 'left board right';
+    grid-template-columns: var(--strip) var(--board-size) var(--strip);
+    width: auto;
+  }
+  .under-board {
+    width: calc(var(--board-size) + 2 * var(--strip) + 0.8rem);
+    max-width: 760px;
+  }
+  .board-row .player-bar {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    padding: 0.7rem 0.2rem;
+    gap: 0.7rem;
+  }
+  .board-row .player-id {
+    flex-direction: column;
+  }
+  .board-row .player-id strong,
+  .board-row .player-ability,
+  .board-row .seat-tag {
+    writing-mode: vertical-rl;
+  }
+  .board-row .resource {
+    flex-direction: column;
+    gap: 7px;
+  }
+  .board-row .cooldown {
+    margin: 0;
+  }
+  .board-row .captured {
+    display: grid;
+    grid-template-columns: repeat(2, 22px);
+    justify-content: center;
+    margin: auto 0 0;
+  }
+}
+
+/* 가로로 누운 휴대폰: 능력 패널을 보드 옆으로 */
+@media (max-height: 560px) and (min-aspect-ratio: 1/1) {
+  .game {
+    --board-size: min(calc(100dvh - 70px), calc(100vw - 24px - 2 * var(--strip) - 320px));
   }
   .game-layout {
     flex-direction: row;
-    align-items: center;
-    gap: 1.2rem;
+    align-items: flex-start;
   }
-  .side-column {
-    width: 340px;
+  .under-board {
+    width: 290px;
   }
 }
 
@@ -330,12 +394,14 @@ button {
   flex-wrap: wrap;
   padding: 0.35rem 0.6rem;
   border-radius: 10px;
-  border: 1px solid transparent;
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
   min-height: 42px;
 }
 .player-bar.is-active {
-  border-color: color-mix(in srgb, var(--ability-color) 55%, transparent);
-  background: color-mix(in srgb, var(--ability-color) 8%, transparent);
+  border-color: color-mix(in srgb, var(--ability-color) 70%, transparent);
+  background: color-mix(in srgb, var(--ability-color) 12%, var(--bg-elev));
+  box-shadow: 0 0 18px color-mix(in srgb, var(--ability-color) 30%, transparent);
 }
 .player-id {
   display: flex;
@@ -374,6 +440,10 @@ button {
   display: flex;
   flex-wrap: wrap;
   margin-left: auto;
+}
+.side-right .captured {
+  margin-left: 0;
+  margin-right: auto;
 }
 .captured-piece {
   width: 22px;
