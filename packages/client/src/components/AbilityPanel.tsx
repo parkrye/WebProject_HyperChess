@@ -58,7 +58,12 @@ export function AbilityPanel({ state, color, interaction, busy }: AbilityPanelPr
       ) : (
         <div className="ability-actions">
           <p className="ability-desc">{definition.description}</p>
-          <button type="button" className="btn btn-ability" disabled={busy || !!blockReason} onClick={interaction.startAbility}>
+          <button
+            type="button"
+            className={`btn btn-ability ${!busy && !blockReason ? 'is-ready' : ''}`}
+            disabled={busy || !!blockReason}
+            onClick={interaction.startAbility}
+          >
             {blockReason ?? '능력 사용'}
           </button>
         </div>

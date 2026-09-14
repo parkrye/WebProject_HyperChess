@@ -26,7 +26,7 @@ const telekinesis: AbilityEffect = async (ctx) => {
 
 const haste: AbilityEffect = async ({ stage, event }) => {
   const { color } = abilityUi(event.abilityId);
-  stage.overlay({ kind: 'speedlines', color, duration: 1000 });
+  stage.overlay({ kind: 'speedlines', side: event.color, color, duration: 1000 });
   stage.overlay({ kind: 'flash', color, duration: 600 });
   await stage.wait(900);
 };

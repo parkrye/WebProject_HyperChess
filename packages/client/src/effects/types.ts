@@ -1,7 +1,7 @@
-import type { Board, GameEvent, GameState, Square } from '@hyperchess/engine';
+import type { Board, Color, GameEvent, GameState, Piece, Square } from '@hyperchess/engine';
 import type { AbilityIcon } from '../abilityUi/specs';
 
-export type OverlayKind = 'ring' | 'pillar' | 'burst' | 'beam' | 'stamp' | 'flash' | 'speedlines' | 'clock' | 'scanlines';
+export type OverlayKind = 'ring' | 'pillar' | 'burst' | 'beam' | 'stamp' | 'flash' | 'speedlines' | 'clock' | 'scanlines' | 'shatter';
 
 export interface OverlaySpec {
   readonly kind: OverlayKind;
@@ -11,13 +11,17 @@ export interface OverlaySpec {
   /** beam 전용 도착 칸 */
   readonly to?: Square;
   readonly icon?: AbilityIcon;
+  /** 연출 방향 기준 진영 (그 진영의 전진 방향으로 흐름) */
+  readonly side?: Color;
+  /** shatter 전용: 부서지는 말 */
+  readonly piece?: Piece;
 }
 
 export interface Overlay extends OverlaySpec {
   readonly id: number;
 }
 
-export type PieceFx = 'levitate' | 'land' | 'vanish' | 'appear' | 'rise' | 'empower' | 'dim' | 'afterimage';
+export type PieceFx = 'levitate' | 'land' | 'vanish' | 'appear' | 'rise' | 'empower' | 'dim' | 'afterimage' | 'crumble';
 export type ScreenFx = 'rewind';
 
 export interface Stage {
