@@ -723,3 +723,16 @@ button {
     opacity: 0.45;
   }
 }
+
+/* ---------- AI 대전 ---------- */
+
+.ai-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: center;
+  margin-bottom: 0.4rem;
+}
+.ai-options .segmented {
+  min-width: min(100%, 280px);
+}

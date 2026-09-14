@@ -1,5 +1,5 @@
 {
-  "name": "@hyperchess/engine",
+  "name": "@hyperchess/ai",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,9 @@
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
-    "bench": "tsx bench/bench.ts"
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hyperchess/engine": "*"
   }
 }

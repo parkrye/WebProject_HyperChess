@@ -203,10 +203,47 @@ export function attacks(board: Board, from: Square, target: Square): boolean {
   }
 }
 
+/**
+ * target이 by 색에게 공격받는지. 대상 칸에서 거꾸로 훑어 판정한다.
+ * 슬라이딩 경로에서 by 색의 말을 만나면 그 뒤로는 뛰어넘는 강화 룩/비숍만 공격할 수 있다.
+ */
 export function isSquareAttacked(board: Board, target: Square, by: Color): boolean {
-  for (let sq = 0; sq < board.length; sq++) {
-    const piece = board[sq];
-    if (piece && piece.color === by && attacks(board, sq, target)) return true;
+  const enemyAt = (sq: Square | null) => (sq === null ? null : board[sq]?.color === by ? board[sq] : null);
+
+  for (const [df, dr] of KNIGHT_DELTAS) {
+    if (enemyAt(offset(target, df, dr))?.type === 'n') return true;
   }
-  return false;
+
+  for (const [df, dr] of KING_DELTAS) {
+    const piece = enemyAt(offset(target, df, dr));
+    if (piece && (piece.type === 'k' || hasKingSteps(piece))) return true;
+  }
+
+  const pawnRank = -pawnDirection(by);
+  for (const df of [-1, 1]) {
+    if (enemyAt(offset(target, df, pawnRank))?.type === 'p') return true;
+  }
+
+  const rayAttacked = (dirs: readonly Delta[], slider: PieceType, alsoEnhancedKnight: boolean) => {
+    for (const [df, dr] of dirs) {
+      let onlyJumpers = false;
+      let current = offset(target, df, dr);
+      while (current !== null) {
+        const piece = board[current];
+        if (piece) {
+          if (piece.color !== by) break;
+          const isJumper = piece.type === slider && piece.enhanced;
+          if (isJumper) return true;
+          if (!onlyJumpers && (piece.type === slider || piece.type === 'q' || (alsoEnhancedKnight && piece.type === 'n' && piece.enhanced))) {
+            return true;
+          }
+          onlyJumpers = true;
+        }
+        current = offset(current, df, dr);
+      }
+    }
+    return false;
+  };
+
+  return rayAttacked(ORTHOGONAL_DELTAS, 'r', true) || rayAttacked(DIAGONAL_DELTAS, 'b', false);
 }

@@ -43,7 +43,9 @@ export function anyRoyalAttacked(state: Pick<GameState, 'board' | 'players'>, co
 }
 
 export function isInCheck(state: Pick<GameState, 'board' | 'players'>, color: Color): boolean {
-  return usesCheckRule(state, color) && anyRoyalAttacked(state, color);
+  if (state.players[color].rules.queensRoyal) return false;
+  const royals = royalSquares(state, color);
+  return royals.length === 1 && isSquareAttacked(state.board, royals[0], opposite(color));
 }
 
 function moveGenContext(state: GameState, color: Color): MoveGenContext {
@@ -55,14 +57,52 @@ function moveGenContext(state: GameState, color: Color): MoveGenContext {
   };
 }
 
+function boardAttackQuery(board: Board) {
+  return (sq: Square, by: Color) => isSquareAttacked(board, sq, by);
+}
+
 export function pseudoLegalMoves(state: GameState, color: Color): GeneratedMove[] {
   const ctx = moveGenContext(state, color);
-  const isAttacked = (sq: Square, by: Color) => isSquareAttacked(state.board, sq, by);
+  const isAttacked = boardAttackQuery(state.board);
   const moves: GeneratedMove[] = [];
   state.board.forEach((piece, sq) => {
     if (piece && piece.color === color) moves.push(...pseudoMovesFrom(ctx, sq, isAttacked));
   });
   return moves;
+}
+
+/**
+ * 이동 후 자기 체크 여부 검사기. 수는 자기 royal의 수를 바꾸지 못하므로
+ * royal 위치를 한 번만 계산하고, 체크 규칙이 없으면 검사를 생략한다.
+ */
+function legalityChecker(state: GameState, color: Color): (move: GeneratedMove) => boolean {
+  if (state.players[color].rules.queensRoyal) return () => true;
+  const royals = royalSquares(state, color);
+  if (royals.length !== 1) return () => true;
+
+  const royal = royals[0];
+  const enemy = opposite(color);
+  return (move) => {
+    const { board } = executeMove(state.board, move);
+    return !isSquareAttacked(board, move.from === royal ? move.to : royal, enemy);
+  };
+}
+
+function isLegal(state: GameState, color: Color, move: GeneratedMove): boolean {
+  return legalityChecker(state, color)(move);
+}
+
+/** 합법 수가 하나라도 있는지 (전체 목록을 만들지 않고 조기 종료) */
+export function hasLegalMove(state: GameState, color: Color = state.turn): boolean {
+  const ctx = moveGenContext(state, color);
+  const isAttacked = boardAttackQuery(state.board);
+  const legal = legalityChecker(state, color);
+  for (let sq = 0; sq < state.board.length; sq++) {
+    const piece = state.board[sq];
+    if (!piece || piece.color !== color) continue;
+    if (pseudoMovesFrom(ctx, sq, isAttacked).some(legal)) return true;
+  }
+  return false;
 }
 
 export interface MoveOutcome {
@@ -110,15 +150,16 @@ export function executeMove(board: Board, move: GeneratedMove): MoveOutcome {
 
 /** 이동 후 자신이 체크 상태가 되지 않는 이동만 반환 */
 export function legalMoves(state: GameState, color: Color = state.turn): GeneratedMove[] {
-  return pseudoLegalMoves(state, color).filter((move) => {
-    const outcome = executeMove(state.board, move);
-    return !isInCheck({ board: outcome.board, players: state.players }, color);
-  });
+  return pseudoLegalMoves(state, color).filter(legalityChecker(state, color));
 }
 
 export function findLegalMove(state: GameState, move: Move): GeneratedMove | undefined {
-  return legalMoves(state).find(
-    (candidate) => candidate.from === move.from && candidate.to === move.to && candidate.promotion === move.promotion,
+  const color = state.turn;
+  if (state.board[move.from]?.color !== color) return undefined;
+  const candidates = pseudoMovesFrom(moveGenContext(state, color), move.from, boardAttackQuery(state.board));
+  return candidates.find(
+    (candidate) =>
+      candidate.to === move.to && candidate.promotion === move.promotion && isLegal(state, color, candidate),
   );
 }
 
