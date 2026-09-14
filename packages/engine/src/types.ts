@@ -4,7 +4,8 @@ export type PieceType = 'p' | 'n' | 'b' | 'r' | 'q' | 'k';
 /** 0..63, index = rank * 8 + file. rank 0 = 백 진영(1랭크) */
 export type Square = number;
 
-export type PieceTitle = 'oldKing' | 'heir';
+/** promoted: 여제 규칙에서 폰이 승급한 킹 (원래 킹과 구분) */
+export type PieceTitle = 'oldKing' | 'heir' | 'promoted';
 
 export interface Piece {
   readonly id: string;

@@ -138,7 +138,7 @@ export function executeMove(board: Board, move: GeneratedMove): MoveOutcome {
   }
 
   next[move.to] = move.promotion
-    ? { ...piece, type: move.promotion, moved: true, enhanced: false }
+    ? { ...piece, type: move.promotion, moved: true, enhanced: false, ...(move.promotion === 'k' ? { title: 'promoted' as const } : {}) }
     : { ...piece, moved: true };
 
   const enPassant: EnPassant | null =

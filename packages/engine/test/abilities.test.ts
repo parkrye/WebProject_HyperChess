@@ -296,7 +296,7 @@ describe('여제', () => {
 
     // 승급 킹은 킹처럼 움직이지만 왕족이 아니다 (여제 규칙에서는 퀸만 왕족)
     state = move(state, 'a7', 'a8', 'k');
-    expect(state.board[sq('a8')]).toMatchObject({ type: 'k', royal: false });
+    expect(state.board[sq('a8')]).toMatchObject({ type: 'k', royal: false, title: 'promoted' });
     expect(royalSquares(state, 'w')).toEqual([sq('c3')]);
   });
 
