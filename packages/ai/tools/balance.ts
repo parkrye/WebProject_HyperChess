@@ -11,7 +11,7 @@
  *
  * 인자 (없으면 대화형으로 묻는다)
  *   --mode <opponent|league> 측정 방식 (기본 opponent)
- *   --abilities <id,id|all>  측정할 능력 (기본 all)
+ *   --abilities <id,id|all>  측정할 능력 (기본 all, all 에서는 밸런스 예외인 rewind 제외)
  *   --opponent <id|none>     opponent 방식의 상대 능력 (기본 none = 능력 없음)
  *   --include-none           league 방식에 "능력 없음"도 참가
  *   --focus <id,id>          league 방식에서 이 능력이 낀 대진만 새로 대국
@@ -80,9 +80,15 @@ function argValue(name: string): string | undefined {
 
 const hasArgs = () => process.argv.slice(2).some((arg) => arg.startsWith('--') && arg !== '--yes');
 
+/**
+ * 밸런스 예외 능력: "전체"를 고르면 빠진다 (명시적으로 지정하면 측정 가능).
+ * 시간 역행은 AI가 활용하는 방식의 한계가 커서 승률 측정에서 제외한다.
+ */
+const EXCLUDED_FROM_ALL: readonly string[] = ['rewind'];
+
 function parseAbilityList(raw: string, ids: readonly string[]): string[] {
   const text = raw.trim();
-  if (!text || text === 'all') return [...ids];
+  if (!text || text === 'all') return ids.filter((id) => !EXCLUDED_FROM_ALL.includes(id));
   return text
     .split(/[,\s]+/)
     .filter(Boolean)
@@ -166,7 +172,7 @@ async function settingsFromPrompt(ids: readonly string[]): Promise<Settings> {
     console.log('');
     ids.forEach((id, index) => console.log(`  ${String(index + 1).padStart(2)}. ${participantName(id)} (${id})`));
     console.log('');
-    const subjects = parseAbilityList(await rl.question('측정할 능력 번호 (쉼표 구분, 엔터 = 전체): '), ids);
+    const subjects = parseAbilityList(await rl.question(`측정할 능력 번호 (쉼표 구분, 엔터 = 전체 · ${EXCLUDED_FROM_ALL.map(participantName).join(', ')} 제외): `), ids);
 
     let opponent: Participant = null;
     let includeNone = false;

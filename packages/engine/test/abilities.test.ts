@@ -105,13 +105,22 @@ describe('부활', () => {
   it('말을 잃으면 자원을 얻고, 인접 빈칸에 부활시킨다', () => {
     let state = game('4k3/8/8/3p4/4P3/8/8/4K3 b - - 0 1', { w: 'revive' });
     state = move(state, 'd5', 'e4');
-    expect(state.players.w.meter.resource).toBe(BALANCE.revive.recovery[0].amount);
+    expect(state.players.w.meter.resource).toBe(BALANCE.revive.recovery[0].pawnAmount);
     const pawn = state.captured.w[0];
     state = setResource(state, 'w', COSTS.revive.p);
     state = useAbility(state, { pieceId: pawn.id, to: sq('d2') });
     expect(state.board[sq('d2')]?.id).toBe(pawn.id);
     expect(state.captured.w).toEqual([]);
     expect(state.players.w.meter.resource).toBe(0);
+  });
+
+  it('폰을 잃으면 0.5, 다른 기물을 잃으면 1 회복한다', () => {
+    let state = game('4k3/8/8/2p5/1P6/8/2r5/2N1K3 b - - 0 1', { w: 'revive' });
+    state = move(state, 'c5', 'b4'); // 백 폰 잃음 → +0.5
+    expect(state.players.w.meter.resource).toBe(0.5);
+    state = move(state, 'e1', 'f1');
+    state = move(state, 'c2', 'c1'); // 백 나이트 잃음 → +1
+    expect(state.players.w.meter.resource).toBe(1.5);
   });
 
   it('자원이 부족한 말은 부활할 수 없다', () => {
@@ -310,9 +319,13 @@ describe('여제', () => {
 });
 
 describe('계승자', () => {
-  it('체크가 아니면 사용할 수 없다', () => {
-    const state = game('4k3/8/8/8/8/8/P7/4K3 w - - 0 1', { w: 'heir' });
-    expect(legalAbilityOptions(state)).toEqual([]);
+  it('체크가 아니어도 사용할 수 있고, 왕족이 둘 이상이면 사용할 수 없다', () => {
+    let state = charged('4k3/8/8/8/8/8/P7/4K3 w - - 0 1', { w: 'heir' });
+    expect(isInCheck(state, 'w')).toBe(false);
+    expect(legalAbilityOptions(state)).toEqual([{ square: sq('a2') }]);
+    state = useAbility(state, { square: sq('a2') });
+    state = move(state, 'e8', 'f8');
+    expect(legalAbilityOptions(state)).toEqual([]); // 선왕·계승자 공존
   });
 
   it('선왕과 계승자가 모두 잡혀야 패배하고, 하나만 남으면 체크 규칙이 돌아온다', () => {

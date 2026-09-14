@@ -13,6 +13,7 @@ import {
   type GameResult,
   type GameState,
   type Move,
+  type PieceType,
   type PlayerState,
 } from './types';
 
@@ -145,8 +146,8 @@ function applyMove(state: GameState, move: Move): GameState {
   let board = outcome.board;
   if (outcome.captured) {
     captured = { ...captured, [enemy]: [...captured[enemy], outcome.captured] };
-    players = withRecovery(players, enemy, 'ownPieceCaptured');
-    players = withRecovery(players, color, 'enemyPieceCaptured');
+    players = withRecovery(players, enemy, 'ownPieceCaptured', outcome.captured.type);
+    players = withRecovery(players, color, 'enemyPieceCaptured', outcome.captured.type);
     if (outcome.captured.type === 'q' && players[enemy].rules.queensRoyal) {
       ({ board, players } = fallOfEmpress(board, players, enemy));
     }
@@ -291,7 +292,7 @@ function beginTurn(state: GameState): GameState {
   return { ...withHistory, result: evaluateResult(withHistory) };
 }
 
-function withRecovery(players: GameState['players'], color: Color, trigger: RecoveryTrigger): GameState['players'] {
+function withRecovery(players: GameState['players'], color: Color, trigger: RecoveryTrigger, capturedType?: PieceType): GameState['players'] {
   const player = players[color];
   if (!player.abilityId) return players;
 
@@ -300,7 +301,7 @@ function withRecovery(players: GameState['players'], color: Color, trigger: Reco
   for (const rule of balance.recovery) {
     if (rule.trigger !== trigger) continue;
     if (trigger === 'ownTurns' && (!rule.every || player.meter.turnsTaken % rule.every !== 0)) continue;
-    resource += rule.amount;
+    resource += capturedType === 'p' && rule.pawnAmount !== undefined ? rule.pawnAmount : rule.amount;
   }
   resource = Math.min(balance.maxResource, resource);
   if (resource === player.meter.resource) return players;

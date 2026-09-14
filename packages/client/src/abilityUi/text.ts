@@ -38,7 +38,9 @@ function recoveryText(rule: RecoveryRule): string {
     case 'ownTurns':
       return `${rule.every}턴마다 +${rule.amount}`;
     case 'ownPieceCaptured':
-      return `내 말을 잃으면 +${rule.amount}`;
+      return rule.pawnAmount !== undefined
+        ? `내 말을 잃으면 +${rule.amount} (폰 +${rule.pawnAmount})`
+        : `내 말을 잃으면 +${rule.amount}`;
     case 'enemyPieceCaptured':
       return `상대 말을 잡으면 +${rule.amount}`;
   }
