@@ -53,6 +53,7 @@ npm run bench -w @hyperchess/engine  # 엔진 속도 측정
    - **리그전**: 선택한 능력들이 서로 모든 조합으로 n판씩. 능력별 종합 점수율과 상대별 점수율 매트릭스 출력 ("능력 없음" 참가 선택 가능)
 2. 측정할 능력 번호 (쉼표 구분, 엔터 = 전체)
 3. 상대 능력(지정 상대 방식) 또는 "능력 없음" 참가 여부(리그전)
+   - 리그전은 **새로 대국할 능력만 지정**할 수 있다. 지정한 능력이 낀 대진만 새로 두고, 나머지 대진은 가장 최근 리그전 결과를 가져와 합산한다 (수치를 몇 개만 바꿨을 때 시간 단축)
 4. 조합(대진)당 대국 수 (기본 16 / 리그전 8, 백/흑 번갈아)
 5. AI 탐색 깊이 (기본 2, 3 이상은 매우 느림)
 6. CPU 사용량 % (기본 50) — 측정은 항상 낮은 우선순위로 실행되어 다른 작업을 방해하지 않는다
@@ -65,6 +66,7 @@ npm run bench -w @hyperchess/engine  # 엔진 속도 측정
 ```bash
 npm run balance -- --mode opponent --abilities paladin,heir --opponent none --games 24 --yes
 npm run balance -- --mode league --games 8 --include-none --cpu 75 --yes
+npm run balance -- --mode league --include-none --focus paladin,heavyInfantry --base latest --yes
 ```
 
 결과 해석 시 주의: 판 수가 적으면 오차가 크고(95% 신뢰구간 기준 24판 ≈ ±20%p, 96판 ≈ ±10%p), AI가 능력을 쓰는 실력이 결과에 섞여 있다.

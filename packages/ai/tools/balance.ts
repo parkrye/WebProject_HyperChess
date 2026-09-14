@@ -14,6 +14,8 @@
  *   --abilities <id,id|all>  측정할 능력 (기본 all)
  *   --opponent <id|none>     opponent 방식의 상대 능력 (기본 none = 능력 없음)
  *   --include-none           league 방식에 "능력 없음"도 참가
+ *   --focus <id,id>          league 방식에서 이 능력이 낀 대진만 새로 대국
+ *   --base <file.json>       이전 리그전 결과에 합산: focus 능력이 낀 대진만 새 결과로 교체 (--base latest = 가장 최근 리그전)
  *   --games <n>              조합(대진)당 대국 수, 짝수 권장 (기본 opponent 16 / league 8)
  *   --depth <n>              AI 탐색 깊이 (기본 2)
  *   --opening <n>            무작위로 두는 첫 수 (기본 4)
@@ -23,7 +25,7 @@
  *   --yes                    시작 확인 생략
  */
 import { getAbility, listAbilities, opposite, type Color } from '@hyperchess/engine';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { constants, cpus, setPriority } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { createInterface, type Interface } from 'node:readline/promises';
@@ -44,6 +46,10 @@ interface Settings {
   readonly subjects: readonly string[];
   readonly opponent: Participant;
   readonly includeNone: boolean;
+  /** league: 새로 대국할 능력 (비어 있으면 전체 대진) */
+  readonly focus: readonly string[];
+  /** league: 합산할 이전 리그전 결과 json 경로 */
+  readonly basePath: string | null;
   readonly games: number;
   readonly depth: number;
   readonly opening: number;
@@ -116,6 +122,21 @@ function lowerProcessPriority() {
   }
 }
 
+function latestLeagueReport(): string | null {
+  if (!existsSync(REPORT_DIR)) return null;
+  const files = readdirSync(REPORT_DIR)
+    .filter((name) => name.startsWith('balance-league-') && name.endsWith('.json'))
+    .sort();
+  return files.length ? join(REPORT_DIR, files[files.length - 1]) : null;
+}
+
+function resolveBasePath(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const path = raw === 'latest' ? latestLeagueReport() : raw;
+  if (!path || !existsSync(path)) throw new Error(`이전 결과 파일을 찾을 수 없습니다: ${raw}`);
+  return path;
+}
+
 function settingsFromArgs(ids: readonly string[]): Settings {
   const mode: Mode = argValue('mode') === 'league' ? 'league' : 'opponent';
   return {
@@ -123,6 +144,8 @@ function settingsFromArgs(ids: readonly string[]): Settings {
     subjects: parseAbilityList(argValue('abilities') ?? 'all', ids),
     opponent: parseOpponent(argValue('opponent') ?? NONE, ids),
     includeNone: process.argv.includes('--include-none'),
+    focus: argValue('focus') ? parseAbilityList(argValue('focus')!, ids) : [],
+    basePath: resolveBasePath(argValue('base')),
     games: positiveInt(argValue('games'), defaultGames(mode), '대국 수'),
     depth: positiveInt(argValue('depth'), 2, '탐색 깊이'),
     opening: Number(argValue('opening') ?? 4),
@@ -147,10 +170,21 @@ async function settingsFromPrompt(ids: readonly string[]): Promise<Settings> {
 
     let opponent: Participant = null;
     let includeNone = false;
+    let focus: string[] = [];
+    let basePath: string | null = null;
     if (mode === 'opponent') {
       opponent = parseOpponent(await rl.question('상대 능력 번호 (엔터 = 능력 없음): '), ids);
     } else {
       includeNone = /^y/i.test((await rl.question('"능력 없음"도 리그에 참가시킬까요? (y/N): ')).trim());
+      const focusRaw = await rl.question('새로 대국할 능력만 지정 (번호 쉼표 구분, 엔터 = 전체 대진): ');
+      focus = focusRaw.trim() ? parseAbilityList(focusRaw, ids) : [];
+      const latest = latestLeagueReport();
+      if (focus.length > 0 && latest) {
+        const answer = (await rl.question(`나머지 대진은 이전 결과(${relative(REPO_ROOT, latest)})를 쓸까요? (Y/n 또는 json 경로): `)).trim();
+        if (/^n(o)?$/i.test(answer)) basePath = null;
+        else if (answer === '' || /^y(es)?$/i.test(answer)) basePath = latest;
+        else basePath = resolveBasePath(answer);
+      }
     }
 
     const gamesLabel = mode === 'league' ? '대진당' : '조합당';
@@ -165,7 +199,7 @@ async function settingsFromPrompt(ids: readonly string[]): Promise<Settings> {
       DEFAULT_CPU_PERCENT,
       'CPU 사용량',
     );
-    return { mode, subjects, opponent, includeNone, games, depth, opening: 4, maxPlies: 160, workers: workersForCpu(cpuPercent) };
+    return { mode, subjects, opponent, includeNone, focus, basePath, games, depth, opening: 4, maxPlies: 160, workers: workersForCpu(cpuPercent) };
   } finally {
     rl.close();
   }
@@ -180,7 +214,10 @@ async function confirm(settings: Settings, jobCount: number): Promise<boolean> {
   console.log('');
   if (settings.mode === 'league') {
     console.log(`리그전 참가: ${participants.map(participantName).join(', ')}`);
-    console.log(`대진 ${(participants.length * (participants.length - 1)) / 2}개 × ${settings.games}판 / 깊이 ${settings.depth}`);
+    const pairCount = leaguePairs(settings).length;
+    console.log(`새로 대국할 대진 ${pairCount}개 × ${settings.games}판 / 깊이 ${settings.depth}`);
+    if (settings.focus.length) console.log(`재측정 대상: ${settings.focus.map(participantName).join(', ')}`);
+    if (settings.basePath) console.log(`나머지 대진은 이전 결과 사용: ${relative(REPO_ROOT, settings.basePath)}`);
   } else {
     console.log(`측정 대상: ${settings.subjects.map(participantName).join(', ')}`);
     console.log(`상대: ${participantName(settings.opponent)} / 조합당 ${settings.games}판 / 깊이 ${settings.depth}`);
@@ -199,6 +236,21 @@ async function confirm(settings: Settings, jobCount: number): Promise<boolean> {
 
 function leagueParticipants(settings: Settings): Participant[] {
   return settings.includeNone ? [...settings.subjects, null] : [...settings.subjects];
+}
+
+/** 새로 대국할 리그전 대진. focus가 있으면 그 능력이 낀 대진만 */
+function leaguePairs(settings: Settings): [Participant, Participant][] {
+  const participants = leagueParticipants(settings);
+  const pairs: [Participant, Participant][] = [];
+  const focused = (p: Participant) => p !== null && settings.focus.includes(p);
+  for (let i = 0; i < participants.length; i++) {
+    for (let j = i + 1; j < participants.length; j++) {
+      if (settings.focus.length === 0 || focused(participants[i]) || focused(participants[j])) {
+        pairs.push([participants[i], participants[j]]);
+      }
+    }
+  }
+  return pairs;
 }
 
 function buildJobs(settings: Settings): Job[] {
@@ -221,11 +273,8 @@ function buildJobs(settings: Settings): Job[] {
   };
 
   if (settings.mode === 'league') {
-    const participants = leagueParticipants(settings);
-    if (participants.length < 2) throw new Error('리그전은 참가자가 2명 이상이어야 합니다');
-    for (let i = 0; i < participants.length; i++) {
-      for (let j = i + 1; j < participants.length; j++) addMatchup(participants[i], participants[j], false);
-    }
+    if (leagueParticipants(settings).length < 2) throw new Error('리그전은 참가자가 2명 이상이어야 합니다');
+    for (const [a, b] of leaguePairs(settings)) addMatchup(a, b, false);
     return jobs;
   }
 
@@ -340,7 +389,14 @@ interface LeagueSummary {
   readonly whiteRate: number;
 }
 
-function summarizeLeague(jobs: Job[], results: Map<number, MatchResult>): LeagueSummary {
+interface LeagueGame {
+  readonly a: Participant;
+  readonly b: Participant;
+  readonly aColor: Color;
+  readonly result: MatchResult;
+}
+
+function summarizeLeague(entries: readonly LeagueGame[]): LeagueSummary {
   const rows = new Map<Participant, Row>();
   const matrix = new Map<Participant, Map<Participant, { points: number; games: number }>>();
   let whitePoints = 0;
@@ -354,9 +410,8 @@ function summarizeLeague(jobs: Job[], results: Map<number, MatchResult>): League
     return entry;
   };
 
-  for (const job of jobs) {
-    const result = results.get(job.id);
-    if (!result) continue;
+  for (const job of entries) {
+    const { result } = job;
     const bColor = opposite(job.aColor);
     for (const [self, other, color] of [
       [job.a, job.b, job.aColor],
@@ -373,6 +428,35 @@ function summarizeLeague(jobs: Job[], results: Map<number, MatchResult>): League
     games++;
   }
   return { rows: rowsFor(rows), matrix, whiteRate: games ? whitePoints / games : 0 };
+}
+
+/**
+ * 새 대국 결과에 이전 리그전 결과를 합친다.
+ * 이전 결과 중 focus 능력이 낀 대진과, 현재 참가자가 아닌 대진은 버린다.
+ */
+function mergeLeagueGames(settings: Settings, jobs: Job[], results: Map<number, MatchResult>): { games: LeagueGame[]; baseUsed: number } {
+  const games: LeagueGame[] = [];
+  for (const job of jobs) {
+    const result = results.get(job.id);
+    if (result) games.push({ a: job.a, b: job.b, aColor: job.aColor, result });
+  }
+  if (!settings.basePath) return { games, baseUsed: 0 };
+
+  const base = JSON.parse(readFileSync(settings.basePath, 'utf8')) as { settings?: Partial<Settings>; results: MatchResult[] };
+  if (base.settings && (base.settings.games !== settings.games || base.settings.depth !== settings.depth)) {
+    console.warn(`주의: 이전 결과의 대국 수/깊이(${base.settings.games}판/깊이 ${base.settings.depth})가 현재 설정과 다릅니다.`);
+  }
+  const participants = new Set(leagueParticipants(settings));
+  const replaced = (p: Participant) => p !== null && settings.focus.includes(p);
+  let baseUsed = 0;
+  for (const result of base.results) {
+    const { white, black } = result.spec;
+    if (!participants.has(white) || !participants.has(black)) continue;
+    if (replaced(white) || replaced(black)) continue;
+    games.push({ a: white, b: black, aColor: 'w', result });
+    baseUsed++;
+  }
+  return { games, baseUsed };
 }
 
 /* ---------- 출력 ---------- */
@@ -451,12 +535,21 @@ async function main() {
 
   const started = Date.now();
   const results = await runJobs(jobs, settings.workers);
-  const rawResults = [...results.values()];
+  let rawResults = [...results.values()];
 
   let body: string[];
   if (settings.mode === 'league') {
-    const summary = summarizeLeague(jobs, results);
+    const { games, baseUsed } = mergeLeagueGames(settings, jobs, results);
+    rawResults = games.map((game) => game.result);
+    const summary = summarizeLeague(games);
+    const mergeNote = settings.basePath
+      ? [
+          `> 새로 대국: ${results.size}판 (${settings.focus.map(participantName).join(', ')}이(가) 낀 대진) · 이전 결과에서 가져옴: ${baseUsed}판 (${relative(REPO_ROOT, settings.basePath)})`,
+          '',
+        ]
+      : [];
     body = [
+      ...mergeNote,
       '## 종합',
       '',
       ...tableLines(summary.rows),
