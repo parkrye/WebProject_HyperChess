@@ -1,0 +1,21 @@
+{
+  "name": "HyperChess — 초능력 체스",
+  "short_name": "HyperChess",
+  "description": "초능력을 하나 골라 체스판을 뒤흔드는 2D 체스 게임",
+  "lang": "ko",
+  "start_url": "/",
+  "scope": "/",
+  "id": "/",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
+  "background_color": "#14121c",
+  "theme_color": "#14121c",
+  "categories": ["games"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
