@@ -1,7 +1,7 @@
 import { getAbility } from './abilities/registry';
 import type { AbilityDefinition, RecoveryTrigger } from './abilities/types';
 import { parseFen, START_FEN } from './fen';
-import { anyRoyalAttacked, diffBoards, executeMove, findLegalMove, isInCheck, legalMoves, royalSquares, usesCheckRule } from './rules';
+import { anyRoyalAttacked, diffBoards, executeMove, findLegalMove, hasLegalMove, isInCheck, royalSquares, usesCheckRule } from './rules';
 import {
   opposite,
   type AbilityMeter,
@@ -97,7 +97,7 @@ function applyMove(state: GameState, move: Move): GameState {
   const hasExtraMove =
     next.turnState.movesMade < next.turnState.movesAllowed &&
     !anyRoyalAttacked(next, enemy) &&
-    legalMoves(next, color).length > 0;
+    hasLegalMove(next, color);
   return hasExtraMove ? next : endTurn(next);
 }
 
@@ -170,7 +170,7 @@ function applyAbility(state: GameState, params: AbilityParams): GameState {
   if (definition.timing === 'insteadOfMove') {
     return endTurn({ ...next, enPassant: null, halfmoveClock: 0, positionKeys: [] });
   }
-  if (legalMoves(next, color).length === 0) return { ...next, result: noActionResult(next, color) };
+  if (!hasLegalMove(next, color)) return { ...next, result: noActionResult(next, color) };
   return next;
 }
 
@@ -243,7 +243,7 @@ function evaluateResult(state: GameState): GameResult {
   if (royalResult) return royalResult;
 
   const color = state.turn;
-  const hasActions = legalMoves(state, color).length > 0 || legalAbilityOptions(state, color).length > 0;
+  const hasActions = hasLegalMove(state, color) || legalAbilityOptions(state, color).length > 0;
   if (!hasActions) return noActionResult(state, color);
 
   if (state.halfmoveClock >= 100) return { kind: 'draw', reason: 'fiftyMove' };
