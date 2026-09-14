@@ -153,8 +153,10 @@ export class Searcher {
     this.now = options.now ?? (() => performance.now());
   }
 
-  search(root: GameState): SearchResult {
-    if (root.result.kind !== 'ongoing') throw new Error('Game is over');
+  search(input: GameState): SearchResult {
+    if (input.result.kind !== 'ongoing') throw new Error('Game is over');
+    // 탐색 중 가상의 수 적용이 실제 시계를 소모하지 않도록 시간 제한을 끈다
+    const root: GameState = input.clock ? { ...input, clock: null } : input;
     this.nodes = 0;
     this.deadline = Infinity;
     this.killers = [];

@@ -1,5 +1,16 @@
 import { randomUUID } from 'node:crypto';
-import { applyAction, createGame, getAbility, opposite, resign, type Action, type Color, type GameState } from '@hyperchess/engine';
+import {
+  applyAction,
+  checkTimeout,
+  createGame,
+  getAbility,
+  opposite,
+  resign,
+  STANDARD_TIME_CONTROL,
+  type Action,
+  type Color,
+  type GameState,
+} from '@hyperchess/engine';
 import {
   NAME_MAX_LENGTH,
   ROOM_CODE_LENGTH,
@@ -136,7 +147,7 @@ export class RoomManager {
     const { room, color } = this.requireSeat(socketId);
     if (!room.game) throw new RoomError('게임이 시작되지 않았습니다');
     if (room.game.turn !== color) throw new RoomError('상대 차례입니다');
-    room.game = applyAction(room.game, action);
+    room.game = applyAction(room.game, action, this.now());
     return room.code;
   }
 
@@ -180,7 +191,26 @@ export class RoomManager {
       seats: { w: seatInfo('w'), b: seatInfo('b') },
       game: room.game,
       rematchVotes: [...room.rematchVotes],
+      serverTime: this.now(),
     };
+  }
+
+  /** 진행 중인 게임에서 현재 차례가 시간 초과되는 시각. 없으면 null */
+  clockDeadline(code: string): number | null {
+    const game = this.rooms.get(code)?.game;
+    const clock = game?.clock;
+    if (!game || !clock || game.result.kind !== 'ongoing') return null;
+    return clock.turnStartedAt + Math.min(clock.control.turnLimitMs, clock.remainingMs[game.turn]);
+  }
+
+  /** 시간 초과를 반영한다. 게임이 끝났으면 true */
+  expireClock(code: string): boolean {
+    const room = this.rooms.get(code);
+    if (!room?.game) return false;
+    const next = checkTimeout(room.game, this.now());
+    if (next === room.game) return false;
+    room.game = next;
+    return true;
   }
 
   connectedSeats(code: string): SeatBinding[] {
@@ -211,7 +241,7 @@ export class RoomManager {
   private startGameIfReady(room: Room) {
     const { w, b } = room.seats;
     if (!w || !b || room.game) return;
-    room.game = createGame({ abilities: { w: w.abilityId, b: b.abilityId } });
+    room.game = createGame({ abilities: { w: w.abilityId, b: b.abilityId }, timeControl: STANDARD_TIME_CONTROL, now: this.now() });
   }
 
   private detach(socketId: string) {

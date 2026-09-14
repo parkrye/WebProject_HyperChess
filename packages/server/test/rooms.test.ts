@@ -62,6 +62,25 @@ describe('RoomManager', () => {
     ]);
   });
 
+  it('차례 시간을 넘기면 시간 초과로 패배하고, 서버 시각이 스냅샷에 담긴다', () => {
+    let now = 1_000;
+    const manager = new RoomManager({ now: () => now });
+    const { host } = setupRoom(manager);
+    expect(manager.snapshot(host.code).serverTime).toBe(1_000);
+    expect(manager.clockDeadline(host.code)).toBe(1_000 + 120_000);
+
+    now = 60_000;
+    manager.act('s1', move('e2', 'e4'));
+    expect(manager.clockDeadline(host.code)).toBe(60_000 + 120_000);
+
+    now = 179_999;
+    expect(manager.expireClock(host.code)).toBe(false);
+    now = 180_000;
+    expect(manager.expireClock(host.code)).toBe(true);
+    expect(manager.snapshot(host.code).game?.result).toEqual({ kind: 'win', winner: 'w', reason: 'timeout' });
+    expect(manager.clockDeadline(host.code)).toBeNull();
+  });
+
   it('모두 떠난 방은 유휴 시간이 지나면 정리된다', () => {
     let now = 0;
     const manager = new RoomManager({ now: () => now });

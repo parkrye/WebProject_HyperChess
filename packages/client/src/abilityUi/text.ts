@@ -70,6 +70,7 @@ const WIN_REASON: Record<WinReason, string> = {
   checkmate: '체크메이트',
   royalsCaptured: '왕족 전멸',
   resign: '기권',
+  timeout: '시간 초과',
 };
 
 const DRAW_REASON: Record<DrawReason, string> = {

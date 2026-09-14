@@ -1,0 +1,106 @@
+/* ---------- 플레이 타이머 ---------- */
+
+.clock-bar {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto 0.5rem;
+}
+
+.clock-chip {
+  position: relative;
+  overflow: hidden;
+  flex: 1;
+  max-width: 260px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    'name turn'
+    'total turn';
+  align-items: center;
+  column-gap: 0.6rem;
+  padding: 0.35rem 0.7rem 0.45rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+  opacity: 0.75;
+  transition: opacity 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+.clock-right {
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    'turn name'
+    'turn total';
+  text-align: right;
+}
+.clock-chip.is-active {
+  opacity: 1;
+  border-color: color-mix(in srgb, #ffc94a 60%, transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, #ffc94a 25%, transparent);
+}
+
+.clock-name {
+  grid-area: name;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.clock-right .clock-name {
+  justify-content: flex-end;
+}
+.clock-turn {
+  grid-area: turn;
+  font-size: 1.45rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.clock-total {
+  grid-area: total;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.clock-chip.is-low .clock-total {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.clock-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #ffc94a, #ff8a5c);
+  transform-origin: left center;
+  transition: transform 0.25s linear;
+}
+.clock-right .clock-progress {
+  transform-origin: right center;
+}
+
+.clock-chip.is-warning {
+  border-color: var(--danger);
+  animation: clock-warning 0.8s ease-in-out infinite;
+}
+.clock-chip.is-warning .clock-turn {
+  color: var(--danger);
+}
+.clock-chip.is-warning .clock-progress {
+  background: var(--danger);
+}
+
+@keyframes clock-warning {
+  50% {
+    box-shadow: 0 0 18px color-mix(in srgb, var(--danger) 55%, transparent);
+  }
+}

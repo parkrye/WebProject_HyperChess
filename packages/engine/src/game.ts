@@ -4,6 +4,7 @@ import { parseFen, START_FEN } from './fen';
 import { anyRoyalAttacked, diffBoards, executeMove, findLegalMove, hasLegalMove, isInCheck, royalSquares, usesCheckRule } from './rules';
 import {
   opposite,
+  type TimeControl,
   type AbilityMeter,
   type AbilityParams,
   type Action,
@@ -18,9 +19,16 @@ import {
 const HISTORY_LIMIT = 8;
 const COLORS: readonly Color[] = ['w', 'b'];
 
+/** 기본 시간 제한: 차례당 2분, 게임 전체 60분 */
+export const STANDARD_TIME_CONTROL: TimeControl = { turnLimitMs: 2 * 60 * 1000, totalLimitMs: 60 * 60 * 1000 };
+
 export interface GameSetup {
   readonly abilities?: Partial<Record<Color, string | null>>;
   readonly fen?: string;
+  /** 시간 제한 (없으면 무제한) */
+  readonly timeControl?: TimeControl | null;
+  /** 게임 시작 시각 (기본 Date.now()) */
+  readonly now?: number;
   /** 시작 자원 덮어쓰기 (테스트·실험용, 기본은 밸런스의 startResource) */
   readonly resources?: Partial<Record<Color, number>>;
 }
@@ -48,13 +56,72 @@ export function createGame(setup: GameSetup = {}): GameState {
     history: [],
     log: [],
     result: { kind: 'ongoing' },
+    clock: setup.timeControl
+      ? {
+          control: setup.timeControl,
+          remainingMs: { w: setup.timeControl.totalLimitMs, b: setup.timeControl.totalLimitMs },
+          turnStartedAt: setup.now ?? Date.now(),
+        }
+      : null,
   };
   return beginTurn(initial);
 }
 
-export function applyAction(state: GameState, action: Action): GameState {
+/* ---------- 시계 ---------- */
+
+export interface ClockView {
+  readonly turn: Color;
+  /** 현재 차례의 남은 시간 */
+  readonly turnRemainingMs: number;
+  /** 색별 전체 남은 시간 (현재 차례의 경과 시간 반영) */
+  readonly totalRemainingMs: Readonly<Record<Color, number>>;
+}
+
+export function clockView(state: GameState, now: number): ClockView | null {
+  const { clock } = state;
+  if (!clock) return null;
+  const running = state.result.kind === 'ongoing';
+  const elapsed = running ? Math.max(0, now - clock.turnStartedAt) : 0;
+  const total = { ...clock.remainingMs, [state.turn]: Math.max(0, clock.remainingMs[state.turn] - elapsed) };
+  const turnRemainingMs = Math.max(0, Math.min(clock.control.turnLimitMs - elapsed, total[state.turn]));
+  return { turn: state.turn, turnRemainingMs, totalRemainingMs: total };
+}
+
+/** 현재 차례가 시간 제한(차례 2분 또는 전체 시간)을 넘겼으면 그 플레이어의 패배로 끝낸다 */
+export function checkTimeout(state: GameState, now: number): GameState {
+  const { clock } = state;
+  if (!clock || state.result.kind !== 'ongoing') return state;
+  const elapsed = now - clock.turnStartedAt;
+  const remaining = clock.remainingMs[state.turn];
+  if (elapsed < clock.control.turnLimitMs && elapsed < remaining) return state;
+  return {
+    ...state,
+    result: { kind: 'win', winner: opposite(state.turn), reason: 'timeout' },
+    clock: { ...clock, remainingMs: { ...clock.remainingMs, [state.turn]: Math.max(0, remaining - elapsed) }, turnStartedAt: now },
+  };
+}
+
+/** 행동 전후 상태로 시계를 갱신한다. 차례가 넘어가면 사용 시간을 차감하고 새 차례를 시작한다 */
+function settleClock(before: GameState, after: GameState, now: number): GameState {
+  const { clock } = before;
+  if (!clock) return after.clock === null ? after : { ...after, clock: null };
+  const turnEnded = after.turn !== before.turn || after.result.kind !== 'ongoing';
+  if (!turnEnded) return { ...after, clock }; // 가속·시간 역행 등 같은 차례가 이어지면 시계도 이어진다
+  const mover = before.turn;
+  const used = Math.max(0, now - clock.turnStartedAt);
+  return {
+    ...after,
+    clock: { ...clock, remainingMs: { ...clock.remainingMs, [mover]: Math.max(0, clock.remainingMs[mover] - used) }, turnStartedAt: now },
+  };
+}
+
+/** now: 행동 시각 (시간 제한이 있는 게임에서만 의미가 있다) */
+export function applyAction(state: GameState, action: Action, now: number = Date.now()): GameState {
   if (state.result.kind !== 'ongoing') throw new IllegalActionError('Game is over');
-  return action.type === 'move' ? applyMove(state, action.move) : applyAbility(state, action.params);
+  const timed = checkTimeout(state, now);
+  if (timed !== state) return timed;
+  const after = action.type === 'move' ? applyMove(state, action.move) : applyAbility(state, action.params);
+  return settleClock(state, after, now);
 }
 
 export function resign(state: GameState, color: Color): GameState {

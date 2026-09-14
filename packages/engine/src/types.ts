@@ -66,7 +66,7 @@ export interface TurnState {
   readonly abilityUsed: boolean;
 }
 
-export type WinReason = 'checkmate' | 'royalsCaptured' | 'resign';
+export type WinReason = 'checkmate' | 'royalsCaptured' | 'resign' | 'timeout';
 export type DrawReason = 'stalemate' | 'fiftyMove' | 'threefold' | 'insufficientMaterial' | 'noActions';
 
 export type GameResult =
@@ -94,6 +94,20 @@ export type GameEvent =
 
 export type AbilityParams = Readonly<Record<string, number | string>>;
 
+/** 시간 제한: 한 차례 최대 시간 + 게임 전체에서 한 플레이어가 쓸 수 있는 시간 */
+export interface TimeControl {
+  readonly turnLimitMs: number;
+  readonly totalLimitMs: number;
+}
+
+export interface ClockState {
+  readonly control: TimeControl;
+  /** 이번 차례 시작 전까지 남은 전체 시간 */
+  readonly remainingMs: Readonly<Record<Color, number>>;
+  /** 현재 차례가 시작된 시각 (epoch ms) */
+  readonly turnStartedAt: number;
+}
+
 export interface GameState {
   readonly board: Board;
   readonly turn: Color;
@@ -110,6 +124,8 @@ export interface GameState {
   readonly history: readonly GameState[];
   readonly log: readonly GameEvent[];
   readonly result: GameResult;
+  /** 시간 제한이 없으면 null */
+  readonly clock: ClockState | null;
 }
 
 export type Action =
