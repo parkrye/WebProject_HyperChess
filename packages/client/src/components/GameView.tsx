@@ -4,6 +4,7 @@ import { COLOR_NAME } from '../abilityUi/text';
 import type { StageView } from '../game/useStage';
 import { useInteraction } from '../game/useInteraction';
 import { AbilityPanel } from './AbilityPanel';
+import { ClockBar } from './ClockBar';
 import { Board } from './Board';
 import { PromotionDialog, ResultDialog } from './Dialogs';
 import { PlayerBar, type SeatLabel } from './PlayerBar';
@@ -20,6 +21,8 @@ export interface GameViewProps {
   readonly resultActions: ReactNode;
   readonly sidebar?: ReactNode;
   readonly notice?: string | null;
+  /** 시계 표시용 시각 보정 (온라인: 서버 시각 - 로컬 시각) */
+  readonly clockOffsetMs?: number;
 }
 
 export function GameView(props: GameViewProps) {
@@ -58,6 +61,8 @@ export function GameView(props: GameViewProps) {
           <span className="game-header-spacer" />
         )}
       </header>
+
+      <ClockBar state={state} leftColor={left} seats={props.seats} offsetMs={props.clockOffsetMs} />
 
       <div className="game-layout">
         <div className="board-row">

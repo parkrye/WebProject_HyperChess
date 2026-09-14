@@ -20,6 +20,8 @@ export interface RoomSnapshot {
   readonly game: GameState | null;
   /** 재대결에 동의한 색 */
   readonly rematchVotes: readonly Color[];
+  /** 스냅샷을 만든 서버 시각 (클라이언트 시계 보정용, epoch ms) */
+  readonly serverTime: number;
 }
 
 export interface JoinResult {

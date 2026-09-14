@@ -3,7 +3,18 @@ export * from './square';
 export { START_FEN, parseFen, toFen } from './fen';
 export { attacks, isSquareAttacked } from './movegen';
 export { anyRoyalAttacked, diffBoards, isInCheck, isRoyal, legalMoves, royalSquares, usesCheckRule } from './rules';
-export { IllegalActionError, applyAction, createGame, legalAbilityOptions, resign, type GameSetup } from './game';
+export {
+  IllegalActionError,
+  STANDARD_TIME_CONTROL,
+  applyAction,
+  checkTimeout,
+  clockView,
+  createGame,
+  legalAbilityOptions,
+  resign,
+  type ClockView,
+  type GameSetup,
+} from './game';
 export { getAbility, listAbilities, registerAbility } from './abilities/registry';
 export { BALANCE, COSTS, REWIND_MAX_STEPS } from './abilities/balance';
 export { isExposed } from './abilities/telekinesis';

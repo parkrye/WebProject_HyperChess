@@ -1,6 +1,6 @@
 import { getAbility, type Action, type Color, type GameState } from '@hyperchess/engine';
 import { NAME_MAX_LENGTH, ROOM_CODE_LENGTH, type ColorPreference, type RoomSnapshot } from '@hyperchess/protocol';
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { abilityUi } from '../abilityUi/specs';
 import { COLOR_NAME } from '../abilityUi/text';
 import { AbilityGrid } from '../components/AbilityGrid';
@@ -223,6 +223,8 @@ function OnlineGame({ room, snapshot, game, you, onLeave }: OnlineGameProps) {
   const animated = useAnimatedGame(game);
   const { present } = animated;
   const [sending, setSending] = useState(false);
+  // 서버 시각과 로컬 시각의 차이 (스냅샷을 받은 시점 기준)
+  const clockOffsetMs = useMemo(() => snapshot.serverTime - Date.now(), [snapshot]);
 
   useEffect(() => {
     void present(game);
@@ -257,6 +259,7 @@ function OnlineGame({ room, snapshot, game, you, onLeave }: OnlineGameProps) {
       dispatch={(action) => void dispatch(action)}
       myColor={you}
       seats={seats}
+      clockOffsetMs={clockOffsetMs}
       onMenu={onLeave}
       notice={notice}
       sidebar={

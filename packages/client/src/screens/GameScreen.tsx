@@ -1,4 +1,4 @@
-import { opposite } from '@hyperchess/engine';
+import { opposite, STANDARD_TIME_CONTROL } from '@hyperchess/engine';
 import { useMemo } from 'react';
 import { useAiOpponent } from '../ai/useAiOpponent';
 import { GameView } from '../components/GameView';
@@ -15,7 +15,7 @@ interface LocalGameScreenProps {
 
 /** 한 기기에서 진행하는 대국: 핫시트 또는 AI 대전 */
 export function LocalGameScreen({ config, onRestart, onMenu }: LocalGameScreenProps) {
-  const setup = useMemo(() => ({ abilities: config.abilities }), [config.abilities]);
+  const setup = useMemo(() => ({ abilities: config.abilities, timeControl: STANDARD_TIME_CONTROL }), [config.abilities]);
   const { state, busy, stageView, dispatch } = useLocalGame(setup);
   const { ai } = config;
   const { thinking } = useAiOpponent(state, ai, busy, dispatch);

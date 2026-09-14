@@ -22,10 +22,36 @@ function isAction(value: unknown): value is Action {
   return false;
 }
 
+/** 방마다 현재 차례의 시간 초과 시각에 맞춰 건 타이머 */
+const clockTimers = new Map<string, NodeJS.Timeout>();
+
+function scheduleClock(io: GameServer, rooms: RoomManager, code: string) {
+  clearTimeout(clockTimers.get(code));
+  clockTimers.delete(code);
+  const deadline = rooms.clockDeadline(code);
+  if (deadline === null) return;
+
+  const timer = setTimeout(() => {
+    clockTimers.delete(code);
+    if (rooms.expireClock(code)) broadcastRoom(io, rooms, code);
+    else scheduleClock(io, rooms, code);
+  }, Math.max(0, deadline - Date.now()) + 50);
+  clockTimers.set(code, timer);
+}
+
 export function broadcastRoom(io: GameServer, rooms: RoomManager, code: string | null) {
   if (!code) return;
-  const snapshot = rooms.snapshot(code);
+  let snapshot;
+  try {
+    snapshot = rooms.snapshot(code);
+  } catch {
+    // 방이 사라졌으면 타이머만 정리
+    clearTimeout(clockTimers.get(code));
+    clockTimers.delete(code);
+    return;
+  }
   for (const { socketId, color } of rooms.connectedSeats(code)) io.to(socketId).emit('room:state', snapshot, color);
+  scheduleClock(io, rooms, code);
 }
 
 export function registerHandlers(io: GameServer, socket: GameSocket, rooms: RoomManager) {
