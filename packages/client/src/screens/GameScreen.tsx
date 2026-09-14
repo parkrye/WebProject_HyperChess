@@ -23,7 +23,7 @@ export function LocalGameScreen({ config, onRestart, onMenu }: LocalGameScreenPr
   const myColor = ai ? opposite(ai.color) : null;
   const seats = ai
     ? {
-        [myColor!]: { name: '나', connected: true, isMe: true },
+        [myColor!]: { name: '나', connected: true, isMe: false },
         [ai.color]: { name: `AI (${DIFFICULTY_LABEL[ai.difficulty]})`, connected: true, isMe: false },
       }
     : undefined;

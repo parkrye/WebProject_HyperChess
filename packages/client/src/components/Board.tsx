@@ -5,6 +5,7 @@ import {
   royalSquares,
   toAlgebraic,
   type Board as BoardData,
+  type Color,
   type GameEvent,
   type GameState,
   type Piece,
@@ -22,16 +23,21 @@ interface BoardProps {
   readonly state: GameState;
   readonly stage: StageView;
   readonly interaction: InteractionController;
-  readonly flipped: boolean;
+  /** 보드 왼쪽에 진영이 놓이는 색 */
+  readonly leftColor: Color;
   readonly busy: boolean;
 }
 
 const SQUARES = Array.from({ length: 64 }, (_, i) => i);
 
-function position(square: Square, flipped: boolean) {
+/**
+ * 좌우 배치 좌표. leftColor 진영이 왼쪽에서 오른쪽으로 전진한다.
+ * 백이 왼쪽이면 a파일이 위(백의 왼손 쪽), 흑이 왼쪽이면 180° 회전.
+ */
+function position(square: Square, leftColor: Color) {
   const file = fileOf(square);
   const rank = rankOf(square);
-  return { x: flipped ? 7 - file : file, y: flipped ? rank : 7 - rank };
+  return leftColor === 'w' ? { x: rank, y: file } : { x: 7 - rank, y: 7 - file };
 }
 
 function eventSquares(event: GameEvent | undefined): Square[] {
@@ -60,7 +66,7 @@ function pieceBadge(piece: Piece, state: GameState): Badge | null {
   return null;
 }
 
-function OverlayView({ overlay, flipped }: { overlay: Overlay; flipped: boolean }) {
+function OverlayView({ overlay, leftColor }: { overlay: Overlay; leftColor: Color }) {
   const style = { '--fx-color': overlay.color, '--fx-duration': `${overlay.duration}ms` } as CSSProperties;
 
   if (overlay.square === undefined) {
@@ -71,11 +77,11 @@ function OverlayView({ overlay, flipped }: { overlay: Overlay; flipped: boolean 
     );
   }
 
-  const { x, y } = position(overlay.square, flipped);
+  const { x, y } = position(overlay.square, leftColor);
   const placed: CSSProperties = { ...style, left: `${x * 12.5}%`, top: `${y * 12.5}%` };
 
   if (overlay.kind === 'beam' && overlay.to !== undefined) {
-    const target = position(overlay.to, flipped);
+    const target = position(overlay.to, leftColor);
     const dx = target.x - x;
     const dy = target.y - y;
     const beamStyle: CSSProperties = {
@@ -95,7 +101,7 @@ function OverlayView({ overlay, flipped }: { overlay: Overlay; flipped: boolean 
   );
 }
 
-export function Board({ state, stage, interaction, flipped, busy }: BoardProps) {
+export function Board({ state, stage, interaction, leftColor, busy }: BoardProps) {
   const board: BoardData = stage.board ?? state.board;
   const animating = busy || stage.board !== null;
   const turnSpec = abilityUi(state.players[state.turn].abilityId ?? '');
@@ -122,7 +128,7 @@ export function Board({ state, stage, interaction, flipped, busy }: BoardProps) 
     <div className={boardClass} style={{ '--turn-color': turnSpec.color } as CSSProperties}>
       <div className="board-squares">
         {SQUARES.map((square) => {
-          const { x, y } = position(square, flipped);
+          const { x, y } = position(square, leftColor);
           const dark = (fileOf(square) + rankOf(square)) % 2 === 0;
           const target = moveTargets.get(square);
           const classes = [
@@ -145,8 +151,8 @@ export function Board({ state, stage, interaction, flipped, busy }: BoardProps) 
               aria-label={toAlgebraic(square)}
               onClick={() => interaction.onSquare(square)}
             >
-              {y === 7 && <span className="coord coord-file">{toAlgebraic(square)[0]}</span>}
-              {x === 0 && <span className="coord coord-rank">{toAlgebraic(square)[1]}</span>}
+              {y === 7 && <span className="coord coord-bottom">{toAlgebraic(square)[1]}</span>}
+              {x === 0 && <span className="coord coord-left">{toAlgebraic(square)[0]}</span>}
             </button>
           );
         })}
@@ -154,7 +160,7 @@ export function Board({ state, stage, interaction, flipped, busy }: BoardProps) 
 
       <div className="board-pieces">
         {pieces.map(({ piece, square }) => {
-          const { x, y } = position(square, flipped);
+          const { x, y } = position(square, leftColor);
           const badge = pieceBadge(piece, state);
           const fx = stage.pieceFx[piece.id];
           return (
@@ -178,7 +184,7 @@ export function Board({ state, stage, interaction, flipped, busy }: BoardProps) 
 
       <div className="board-fx">
         {stage.overlays.map((overlay) => (
-          <OverlayView key={overlay.id} overlay={overlay} flipped={flipped} />
+          <OverlayView key={overlay.id} overlay={overlay} leftColor={leftColor} />
         ))}
       </div>
     </div>

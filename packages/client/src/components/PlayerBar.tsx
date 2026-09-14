@@ -17,9 +17,10 @@ interface PlayerBarProps {
   readonly color: Color;
   readonly interaction: InteractionController;
   readonly seat?: SeatLabel;
+  readonly className?: string;
 }
 
-export function PlayerBar({ state, color, interaction, seat }: PlayerBarProps) {
+export function PlayerBar({ state, color, interaction, seat, className = '' }: PlayerBarProps) {
   const player = state.players[color];
   const definition = player.abilityId ? getAbility(player.abilityId) : null;
   const spec = abilityUi(player.abilityId ?? '');
@@ -29,7 +30,7 @@ export function PlayerBar({ state, color, interaction, seat }: PlayerBarProps) {
   const pickable = new Set(pickingCaptured ? interaction.stepChoices.map(String) : []);
 
   return (
-    <section className={`player-bar ${active ? 'is-active' : ''}`} style={{ '--ability-color': spec.color } as CSSProperties}>
+    <section className={`player-bar ${className} ${active ? 'is-active' : ''}`} style={{ '--ability-color': spec.color } as CSSProperties}>
       <div className="player-id">
         <span className={`player-dot dot-${color}`} />
         <strong>{seat ? seat.name : COLOR_NAME[color]}</strong>
