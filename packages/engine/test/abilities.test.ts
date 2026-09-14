@@ -100,8 +100,9 @@ describe('부활', () => {
   it('말을 잃으면 자원을 얻고, 인접 빈칸에 부활시킨다', () => {
     let state = game('4k3/8/8/3p4/4P3/8/8/4K3 b - - 0 1', { w: 'revive' });
     state = move(state, 'd5', 'e4');
-    expect(state.players.w.meter.resource).toBe(1);
+    expect(state.players.w.meter.resource).toBe(BALANCE.revive.recovery[0].amount);
     const pawn = state.captured.w[0];
+    state = setResource(state, 'w', COSTS.revive.p);
     state = useAbility(state, { pieceId: pawn.id, to: sq('d2') });
     expect(state.board[sq('d2')]?.id).toBe(pawn.id);
     expect(state.captured.w).toEqual([]);
