@@ -1,0 +1,10 @@
+export * from './types';
+export * from './square';
+export { START_FEN, parseFen, toFen } from './fen';
+export { attacks, isSquareAttacked } from './movegen';
+export { anyRoyalAttacked, diffBoards, isInCheck, isRoyal, legalMoves, royalSquares, usesCheckRule } from './rules';
+export { IllegalActionError, applyAction, createGame, legalAbilityOptions, type GameSetup } from './game';
+export { getAbility, listAbilities, registerAbility } from './abilities/registry';
+export { BALANCE, COSTS, REWIND_MAX_STEPS } from './abilities/balance';
+export { isExposed } from './abilities/telekinesis';
+export type { AbilityBalance, AbilityDefinition, AbilityTiming, RecoveryRule, RecoveryTrigger } from './abilities/types';
