@@ -18,12 +18,13 @@
  *   --depth <n>              AI 탐색 깊이 (기본 2)
  *   --opening <n>            무작위로 두는 첫 수 (기본 4)
  *   --max-plies <n>          최대 수, 넘으면 평가값 판정 (기본 160)
- *   --workers <n>            병렬 워커 수 (기본 CPU 코어 - 2)
+ *   --cpu <1-100>            CPU 사용량 % (기본 50). 논리 코어 수에 비례해 워커 수를 정한다
+ *   --workers <n>            병렬 워커 수를 직접 지정 (--cpu 보다 우선)
  *   --yes                    시작 확인 생략
  */
 import { getAbility, listAbilities, opposite, type Color } from '@hyperchess/engine';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { cpus } from 'node:os';
+import { constants, cpus, setPriority } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { createInterface, type Interface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
@@ -100,8 +101,20 @@ function positiveInt(raw: string | undefined, fallback: number, label: string): 
   return value;
 }
 
-const defaultWorkers = () => Math.max(1, cpus().length - 2);
+const DEFAULT_CPU_PERCENT = 50;
+
+/** CPU 사용량(%)에 맞춘 워커 수. 워커 하나가 논리 코어 하나를 거의 다 쓴다 */
+const workersForCpu = (percent: number) => Math.max(1, Math.floor((cpus().length * Math.min(100, percent)) / 100));
 const defaultGames = (mode: Mode) => (mode === 'league' ? 8 : 16);
+
+/** 측정 중에도 다른 프로그램이 먼저 CPU를 쓰도록 우선순위를 낮춘다 (워커 스레드도 같은 프로세스) */
+function lowerProcessPriority() {
+  try {
+    setPriority(constants.priority.PRIORITY_LOW);
+  } catch {
+    // 권한 문제 등으로 실패해도 측정은 계속한다
+  }
+}
 
 function settingsFromArgs(ids: readonly string[]): Settings {
   const mode: Mode = argValue('mode') === 'league' ? 'league' : 'opponent';
@@ -114,7 +127,7 @@ function settingsFromArgs(ids: readonly string[]): Settings {
     depth: positiveInt(argValue('depth'), 2, '탐색 깊이'),
     opening: Number(argValue('opening') ?? 4),
     maxPlies: positiveInt(argValue('max-plies'), 160, '최대 수'),
-    workers: positiveInt(argValue('workers'), defaultWorkers(), '워커 수'),
+    workers: positiveInt(argValue('workers'), workersForCpu(positiveInt(argValue('cpu'), DEFAULT_CPU_PERCENT, 'CPU 사용량')), '워커 수'),
   };
 }
 
@@ -147,15 +160,20 @@ async function settingsFromPrompt(ids: readonly string[]): Promise<Settings> {
       '대국 수',
     );
     const depth = positiveInt(await rl.question('AI 탐색 깊이 (엔터 = 2, 3 이상은 매우 느림): '), 2, '탐색 깊이');
-    return { mode, subjects, opponent, includeNone, games, depth, opening: 4, maxPlies: 160, workers: defaultWorkers() };
+    const cpuPercent = positiveInt(
+      await rl.question(`CPU 사용량 % (엔터 = ${DEFAULT_CPU_PERCENT}, 높을수록 빠르지만 PC가 무거워짐): `),
+      DEFAULT_CPU_PERCENT,
+      'CPU 사용량',
+    );
+    return { mode, subjects, opponent, includeNone, games, depth, opening: 4, maxPlies: 160, workers: workersForCpu(cpuPercent) };
   } finally {
     rl.close();
   }
 }
 
 async function confirm(settings: Settings, jobCount: number): Promise<boolean> {
-  // 깊이 2 기준 한 판 약 15초, 깊이가 1 늘 때마다 약 4배
-  const secondsPerGame = 15 * Math.pow(4, settings.depth - 2);
+  // 실측: 깊이 2 기준 한 판 CPU 약 30초(Ryzen 7 3700X), 깊이가 1 늘 때마다 약 4배
+  const secondsPerGame = 30 * Math.pow(4, settings.depth - 2);
   const minutes = (jobCount * secondsPerGame) / settings.workers / 60;
   const participants = leagueParticipants(settings);
 
@@ -167,7 +185,8 @@ async function confirm(settings: Settings, jobCount: number): Promise<boolean> {
     console.log(`측정 대상: ${settings.subjects.map(participantName).join(', ')}`);
     console.log(`상대: ${participantName(settings.opponent)} / 조합당 ${settings.games}판 / 깊이 ${settings.depth}`);
   }
-  console.log(`총 ${jobCount}판, 워커 ${settings.workers}개, 예상 약 ${Math.max(1, Math.round(minutes))}분`);
+  const cpuShare = Math.round((settings.workers / cpus().length) * 100);
+  console.log(`총 ${jobCount}판, 워커 ${settings.workers}개(CPU 약 ${cpuShare}%, 낮은 우선순위), 예상 약 ${Math.max(1, Math.round(minutes))}분`);
   if (process.argv.includes('--yes') || !process.stdin.isTTY) return true;
 
   const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -421,6 +440,7 @@ function writeReport(settings: Settings, body: string[], data: unknown, elapsedM
 }
 
 async function main() {
+  lowerProcessPriority();
   const ids = listAbilities().map((ability) => ability.id);
   const settings = hasArgs() || !process.stdin.isTTY ? settingsFromArgs(ids) : await settingsFromPrompt(ids);
   const jobs = buildJobs(settings);

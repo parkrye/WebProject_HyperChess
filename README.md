@@ -55,15 +55,16 @@ npm run bench -w @hyperchess/engine  # 엔진 속도 측정
 3. 상대 능력(지정 상대 방식) 또는 "능력 없음" 참가 여부(리그전)
 4. 조합(대진)당 대국 수 (기본 16 / 리그전 8, 백/흑 번갈아)
 5. AI 탐색 깊이 (기본 2, 3 이상은 매우 느림)
+6. CPU 사용량 % (기본 50) — 측정은 항상 낮은 우선순위로 실행되어 다른 작업을 방해하지 않는다
 
 진행률과 남은 시간이 표시되고, 끝나면 결과가 `reports/balance-방식-날짜-시각.md`(원본 데이터는 `.json`)로 저장된다.
-전체 11개 능력 리그전은 대진 55개라 대진당 8판이면 440판(깊이 2, 16스레드 기준 약 10~15분)이다.
+소요 시간은 깊이 2 기준 판당 CPU 약 30초다. 예) 전체 11개 능력 리그전 · 대진당 8판 = 440판 → CPU 50%(16스레드 PC에서 워커 8개) 약 28분, 100% 약 14분.
 
 명령줄로도 실행할 수 있다.
 
 ```bash
 npm run balance -- --mode opponent --abilities paladin,heir --opponent none --games 24 --yes
-npm run balance -- --mode league --games 8 --include-none --yes
+npm run balance -- --mode league --games 8 --include-none --cpu 75 --yes
 ```
 
 결과 해석 시 주의: 판 수가 적으면 오차가 크고(95% 신뢰구간 기준 24판 ≈ ±20%p, 96판 ≈ ±10%p), AI가 능력을 쓰는 실력이 결과에 섞여 있다.
