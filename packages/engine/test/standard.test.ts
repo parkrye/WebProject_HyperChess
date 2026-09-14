@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyAction, createGame, legalMoves, type GameState } from '../src';
+import { applyAction, createGame, legalMoves, resign, type GameState } from '../src';
 import { game, move } from './helpers';
 
 function perft(state: GameState, depth: number): number {
@@ -28,6 +28,12 @@ describe('perft', () => {
 });
 
 describe('종료 판정', () => {
+  it('기권하면 상대가 승리하고 이후 행동은 불가', () => {
+    const state = resign(createGame(), 'w');
+    expect(state.result).toEqual({ kind: 'win', winner: 'b', reason: 'resign' });
+    expect(() => move(state, 'e2', 'e4')).toThrow();
+  });
+
   it('바보의 메이트는 체크메이트', () => {
     let state = createGame();
     state = move(state, 'f2', 'f3');

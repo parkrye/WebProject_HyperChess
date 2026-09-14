@@ -55,6 +55,11 @@ export function applyAction(state: GameState, action: Action): GameState {
   return action.type === 'move' ? applyMove(state, action.move) : applyAbility(state, action.params);
 }
 
+export function resign(state: GameState, color: Color): GameState {
+  if (state.result.kind !== 'ongoing') throw new IllegalActionError('Game is over');
+  return { ...state, result: { kind: 'win', winner: opposite(color), reason: 'resign' } };
+}
+
 /* ---------- 이동 ---------- */
 
 function applyMove(state: GameState, move: Move): GameState {

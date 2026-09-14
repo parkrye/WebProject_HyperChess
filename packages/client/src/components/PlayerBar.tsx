@@ -6,13 +6,20 @@ import type { InteractionController } from '../game/useInteraction';
 import { AbilityIconView } from './AbilityIconView';
 import { PieceSvg } from './PieceSvg';
 
+export interface SeatLabel {
+  readonly name: string;
+  readonly connected: boolean;
+  readonly isMe: boolean;
+}
+
 interface PlayerBarProps {
   readonly state: GameState;
   readonly color: Color;
   readonly interaction: InteractionController;
+  readonly seat?: SeatLabel;
 }
 
-export function PlayerBar({ state, color, interaction }: PlayerBarProps) {
+export function PlayerBar({ state, color, interaction, seat }: PlayerBarProps) {
   const player = state.players[color];
   const definition = player.abilityId ? getAbility(player.abilityId) : null;
   const spec = abilityUi(player.abilityId ?? '');
@@ -25,7 +32,9 @@ export function PlayerBar({ state, color, interaction }: PlayerBarProps) {
     <section className={`player-bar ${active ? 'is-active' : ''}`} style={{ '--ability-color': spec.color } as CSSProperties}>
       <div className="player-id">
         <span className={`player-dot dot-${color}`} />
-        <strong>{COLOR_NAME[color]}</strong>
+        <strong>{seat ? seat.name : COLOR_NAME[color]}</strong>
+        {seat?.isMe && <span className="seat-tag">나</span>}
+        {seat && !seat.connected && <span className="seat-tag seat-offline">연결 끊김</span>}
         {definition && (
           <span className="player-ability">
             <AbilityIconView icon={spec.icon} size={16} />

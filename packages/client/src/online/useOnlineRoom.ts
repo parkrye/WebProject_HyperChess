@@ -1,0 +1,135 @@
+import type { Action, Color } from '@hyperchess/engine';
+import type {
+  Ack,
+  ClientToServerEvents,
+  CreateRoomRequest,
+  JoinResult,
+  JoinRoomRequest,
+  RoomSnapshot,
+  ServerToClientEvents,
+} from '@hyperchess/protocol';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { io, type Socket } from 'socket.io-client';
+
+type GameSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
+
+const SESSION_KEY = 'hyperchess:online-session';
+const ACK_TIMEOUT_MS = 8000;
+
+interface StoredSession {
+  readonly code: string;
+  readonly token: string;
+}
+
+function loadSession(): StoredSession | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    return raw ? (JSON.parse(raw) as StoredSession) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveSession(session: StoredSession | null) {
+  try {
+    if (session) localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    else localStorage.removeItem(SESSION_KEY);
+  } catch {
+    // 저장소를 쓸 수 없으면 재접속만 불가
+  }
+}
+
+async function request<T>(call: () => Promise<Ack<T>>): Promise<T> {
+  let result: Ack<T>;
+  try {
+    result = await call();
+  } catch {
+    throw new Error('서버 응답이 없습니다');
+  }
+  if (!result.ok) throw new Error(result.error);
+  return result.data;
+}
+
+export function useOnlineRoom() {
+  const socketRef = useRef<GameSocket | null>(null);
+  const [connected, setConnected] = useState(false);
+  const [snapshot, setSnapshot] = useState<RoomSnapshot | null>(null);
+  const [you, setYou] = useState<Color | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [resuming, setResuming] = useState(() => loadSession() !== null);
+
+  useEffect(() => {
+    const socket: GameSocket = io({ transports: ['websocket', 'polling'] });
+    socketRef.current = socket;
+
+    socket.on('connect', async () => {
+      setConnected(true);
+      const session = loadSession();
+      if (!session) return;
+      try {
+        const result = await request(
+          () => socket.timeout(ACK_TIMEOUT_MS).emitWithAck('room:resume', session) as Promise<Ack<JoinResult>>,
+        );
+        setYou(result.color);
+      } catch {
+        saveSession(null);
+        setSnapshot(null);
+      } finally {
+        setResuming(false);
+      }
+    });
+    socket.on('disconnect', () => setConnected(false));
+    socket.on('room:state', (next, color) => {
+      setSnapshot(next);
+      setYou(color);
+    });
+
+    return () => {
+      socket.removeAllListeners();
+      socket.disconnect();
+    };
+  }, []);
+
+  const run = useCallback(async <T,>(call: (socket: GameSocket) => Promise<Ack<T>>): Promise<T | null> => {
+    const socket = socketRef.current;
+    if (!socket?.connected) {
+      setError('서버에 연결되어 있지 않습니다');
+      return null;
+    }
+    try {
+      setError(null);
+      return await request(() => call(socket.timeout(ACK_TIMEOUT_MS) as unknown as GameSocket));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      return null;
+    }
+  }, []);
+
+  const enter = useCallback((result: JoinResult | null) => {
+    if (!result) return;
+    saveSession({ code: result.code, token: result.token });
+    setYou(result.color);
+  }, []);
+
+  return {
+    connected,
+    resuming,
+    snapshot,
+    you,
+    error,
+    clearError: () => setError(null),
+    create: async (req: CreateRoomRequest) => enter(await run((s) => s.emitWithAck('room:create', req))),
+    join: async (req: JoinRoomRequest) => enter(await run((s) => s.emitWithAck('room:join', req))),
+    act: (action: Action) => run((s) => s.emitWithAck('game:action', action)),
+    resign: () => run((s) => s.emitWithAck('game:resign')),
+    rematch: () => run((s) => s.emitWithAck('game:rematch')),
+    leave: () => {
+      socketRef.current?.emit('room:leave');
+      saveSession(null);
+      setSnapshot(null);
+      setYou(null);
+    },
+  };
+}
+
+export type OnlineRoom = ReturnType<typeof useOnlineRoom>;

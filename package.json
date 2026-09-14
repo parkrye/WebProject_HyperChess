@@ -6,6 +6,10 @@
     "packages/*"
   ],
   "scripts": {
+    "build": "npm run build -w @hyperchess/client",
+    "server": "npm run build && npm run start -w @hyperchess/server",
+    "dev:client": "npm run dev -w @hyperchess/client",
+    "dev:server": "npm run dev -w @hyperchess/server",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },

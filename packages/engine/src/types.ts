@@ -66,7 +66,7 @@ export interface TurnState {
   readonly abilityUsed: boolean;
 }
 
-export type WinReason = 'checkmate' | 'royalsCaptured';
+export type WinReason = 'checkmate' | 'royalsCaptured' | 'resign';
 export type DrawReason = 'stalemate' | 'fiftyMove' | 'threefold' | 'insufficientMaterial' | 'noActions';
 
 export type GameResult =

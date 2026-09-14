@@ -1,4 +1,4 @@
-import { getAbility, type GameState } from '@hyperchess/engine';
+import { getAbility, type Color, type GameState } from '@hyperchess/engine';
 import type { CSSProperties } from 'react';
 import { abilityUi } from '../abilityUi/specs';
 import { abilityBlockReason, costLabel, COLOR_NAME, TIMING_LABEL } from '../abilityUi/text';
@@ -7,18 +7,20 @@ import { AbilityIconView } from './AbilityIconView';
 
 interface AbilityPanelProps {
   readonly state: GameState;
+  /** 패널에 표시할 플레이어 (핫시트: 현재 차례, 온라인: 나) */
+  readonly color: Color;
   readonly interaction: InteractionController;
   readonly busy: boolean;
 }
 
-export function AbilityPanel({ state, interaction, busy }: AbilityPanelProps) {
-  const color = state.turn;
+export function AbilityPanel({ state, color, interaction, busy }: AbilityPanelProps) {
   const { abilityId } = state.players[color];
   if (!abilityId || state.result.kind !== 'ongoing') return null;
 
   const definition = getAbility(abilityId);
   const spec = abilityUi(abilityId);
-  const blockReason = abilityBlockReason(state, color, interaction.abilityOptions.length);
+  const usable = state.turn === color ? interaction.abilityOptions.length : 0;
+  const blockReason = abilityBlockReason(state, color, usable);
   const { step } = interaction;
 
   return (
