@@ -430,6 +430,7 @@ button {
 .pip.filled {
   background: var(--ability-color);
   box-shadow: 0 0 8px var(--ability-color);
+  animation: pip-pop 0.45s ease-out;
 }
 .cooldown {
   font-size: 0.75rem;
@@ -805,4 +806,38 @@ button {
 }
 .ai-options .segmented {
   min-width: min(100%, 280px);
+}
+
+/* ---------- 상태 피드백 ---------- */
+
+.btn-ability.is-ready {
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 14px color-mix(in srgb, var(--ability-color) 45%, transparent);
+}
+.btn-ability.is-ready::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 22%) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: shimmer 2.2s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  60%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+@keyframes pip-pop {
+  0% {
+    transform: rotate(45deg) scale(0.4);
+  }
+  60% {
+    transform: rotate(45deg) scale(1.5);
+  }
+  100% {
+    transform: rotate(45deg) scale(1);
+  }
 }

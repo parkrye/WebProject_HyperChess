@@ -58,6 +58,7 @@
 }
 .square.in-check::after {
   background: radial-gradient(circle, rgb(255 60 80 / 85%) 0%, rgb(255 60 80 / 30%) 55%, transparent 75%);
+  animation: check-pulse 1s ease-in-out infinite;
 }
 .square.ability-target::after {
   background: color-mix(in srgb, var(--turn-color) 30%, transparent);
@@ -183,5 +184,11 @@
 @keyframes target-pulse {
   50% {
     background: color-mix(in srgb, var(--turn-color) 12%, transparent);
+  }
+}
+
+@keyframes check-pulse {
+  50% {
+    opacity: 0.45;
   }
 }

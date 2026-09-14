@@ -66,8 +66,15 @@ function pieceBadge(piece: Piece, state: GameState): Badge | null {
   return null;
 }
 
+/** side 진영의 전진 방향 (화면 x축 부호) */
+const forward = (side: Color | undefined, leftColor: Color) => (side === undefined || side === leftColor ? 1 : -1);
+
 function OverlayView({ overlay, leftColor }: { overlay: Overlay; leftColor: Color }) {
-  const style = { '--fx-color': overlay.color, '--fx-duration': `${overlay.duration}ms` } as CSSProperties;
+  const style = {
+    '--fx-color': overlay.color,
+    '--fx-duration': `${overlay.duration}ms`,
+    '--fwd': forward(overlay.side, leftColor),
+  } as CSSProperties;
 
   if (overlay.square === undefined) {
     return (
@@ -94,6 +101,20 @@ function OverlayView({ overlay, leftColor }: { overlay: Overlay; leftColor: Colo
     return <div className="fx fx-beam" style={beamStyle} />;
   }
 
+  if (overlay.kind === 'shatter' && overlay.piece) {
+    const { type, color } = overlay.piece;
+    return (
+      <div className="fx fx-shatter fx-square" style={placed}>
+        <div className="shard shard-a">
+          <PieceSvg type={type} color={color} />
+        </div>
+        <div className="shard shard-b">
+          <PieceSvg type={type} color={color} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`fx fx-${overlay.kind} fx-square`} style={placed}>
       {overlay.icon && <AbilityIconView icon={overlay.icon} size={48} />}
@@ -110,7 +131,7 @@ export function Board({ state, stage, interaction, leftColor, busy }: BoardProps
   const lastEvent = state.log[state.log.length - 1];
   const lastTint = lastEvent?.kind === 'ability' ? abilityUi(lastEvent.abilityId).color : null;
   const checkSquares = !animating && isInCheck(state, state.turn) ? royalSquares(state, state.turn) : [];
-  const moveTargets = new Map(interaction.selectedTargets.map((m) => [m.to, m]));
+  const moveTargets = new Map(animating ? [] : interaction.selectedTargets.map((m) => [m.to, m]));
   const hasteActive = !animating && state.turnState.movesAllowed > 1 && state.result.kind === 'ongoing';
 
   const pieces = board
@@ -135,7 +156,7 @@ export function Board({ state, stage, interaction, leftColor, busy }: BoardProps
             'square',
             dark ? 'dark' : 'light',
             lastSquares.includes(square) ? (lastTint ? 'last-ability' : 'last-move') : '',
-            interaction.selected === square ? 'selected' : '',
+            !animating && interaction.selected === square ? 'selected' : '',
             target ? (board[square] || target.kind === 'enPassant' ? 'capture-target' : 'move-target') : '',
             checkSquares.includes(square) ? 'in-check' : '',
             interaction.targetingSquares.includes(square) ? 'ability-target' : '',
@@ -163,13 +184,21 @@ export function Board({ state, stage, interaction, leftColor, busy }: BoardProps
           const { x, y } = position(square, leftColor);
           const badge = pieceBadge(piece, state);
           const fx = stage.pieceFx[piece.id];
+          const bodyClass = [
+            'piece-body',
+            fx ? `pfx-${fx}` : '',
+            badge ? 'has-aura' : '',
+            piece.title === 'oldKing' ? 'is-old-king' : '',
+            checkSquares.includes(square) ? 'is-checked' : '',
+          ].join(' ');
+          const pieceStyle = {
+            transform: `translate(${x * 100}%, ${y * 100}%)`,
+            '--badge-color': badge?.color,
+            '--fwd': forward(piece.color, leftColor),
+          } as CSSProperties;
           return (
-            <div
-              key={piece.id}
-              className="piece"
-              style={{ transform: `translate(${x * 100}%, ${y * 100}%)`, '--badge-color': badge?.color } as CSSProperties}
-            >
-              <div className={`piece-body ${fx ? `pfx-${fx}` : ''} ${badge ? 'has-aura' : ''} ${piece.title === 'oldKing' ? 'is-old-king' : ''}`}>
+            <div key={piece.id} className="piece" style={pieceStyle}>
+              <div className={bodyClass}>
                 <PieceSvg type={piece.type} color={piece.color} />
                 {badge && (
                   <span className="piece-badge">
