@@ -17,7 +17,7 @@ export const BALANCE = {
   },
   teleport: {
     maxResource: 2, startResource: 0, cooldownTurns: 2,
-    recovery: [{ trigger: 'ownTurns', every: 9, amount: 1 }],
+    recovery: [{ trigger: 'ownTurns', every: 10, amount: 1 }],
   },
   revive: {
     maxResource: 7, startResource: 0, cooldownTurns: 5,
@@ -30,7 +30,7 @@ export const BALANCE = {
   },
   heavyInfantry: {
     maxResource: 1, startResource: 0, cooldownTurns: 0,
-    recovery: [{ trigger: 'ownTurns', every: 12, amount: 1 }],
+    recovery: [{ trigger: 'ownTurns', every: 14, amount: 1 }],
   },
   lancer: {
     maxResource: 2, startResource: 0, cooldownTurns: 0,
@@ -42,11 +42,11 @@ export const BALANCE = {
   },
   paladin: {
     maxResource: 2, startResource: 0, cooldownTurns: 0,
-    recovery: [{ trigger: 'ownTurns', every: 3, amount: 1 }],
+    recovery: [{ trigger: 'ownTurns', every: 2, amount: 1 }],
   },
   empress: {
-    maxResource: 1, startResource: 0, cooldownTurns: 0,
-    recovery: [{ trigger: 'ownTurns', every: 6, amount: 1 }],
+    maxResource: 2, startResource: 0, cooldownTurns: 0,
+    recovery: [{ trigger: 'ownTurns', every: 4, amount: 1 }],
   },
   heir: {
     maxResource: 8, startResource: 0, cooldownTurns: 0,
