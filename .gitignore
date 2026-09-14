@@ -8,3 +8,6 @@ coverage/
 
 # AI 비교용 기준본 (임시)
 packages/ai/tools/baseline/
+
+# 밸런스 측정 보고서
+reports/
