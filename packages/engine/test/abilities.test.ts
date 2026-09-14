@@ -196,19 +196,16 @@ describe('강화', () => {
     expect(targets(state, 'h8')).not.toContain(sq('g7'));
   });
 
-  it('팔라딘: 상하좌우 빈칸으로 옆걸음한 뒤 대각선으로 이어서 움직이고 공격한다', () => {
-    let state = charged('8/7k/8/8/8/8/8/2B1K3 w - - 0 1', { w: 'paladin' });
-    expect(isInCheck(state, 'b')).toBe(false);
+  it('팔라딘: 좌우 빈칸으로 한 칸 옆걸음할 수 있지만 잡기·전후 이동·연속 이동은 불가', () => {
+    let state = charged('7k/8/8/8/8/8/8/1pB1K3 w - - 0 1', { w: 'paladin' });
     state = useAbility(state, { square: sq('c1') });
-    // c1 → 옆걸음 c2 → 대각선 d3·e4·f5·g6·h7(흑 킹)
-    expect(isInCheck(state, 'b')).toBe(true);
-
-    state = move(state, 'h7', 'h8');
+    state = move(state, 'h8', 'g8');
     const moves = targets(state, 'c1');
-    expect(moves).toContain(sq('c2')); // 옆걸음만 하고 멈춤
-    expect(moves).toContain(sq('b3')); // c2 경유 대각선
+    expect(moves).toContain(sq('d1')); // 오른쪽 빈칸 옆걸음
+    expect(moves).not.toContain(sq('b1')); // 옆칸의 상대 말은 잡을 수 없음
+    expect(moves).not.toContain(sq('c2')); // 앞 칸 이동 불가
+    expect(moves).not.toContain(sq('e2')); // 옆걸음 후 대각선으로 이어갈 수 없음
     expect(moves).toContain(sq('h6')); // 기존 대각선
-    expect(moves).not.toContain(sq('c3')); // 옆걸음 두 번은 불가
   });
 });
 

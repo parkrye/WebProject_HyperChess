@@ -19,8 +19,8 @@ const PROMOTED_KING_VALUE = 350;
 export const materialValue = (piece: Piece): number =>
   piece.type === 'k' && !piece.royal ? PROMOTED_KING_VALUE : PIECE_VALUE[piece.type];
 
-/** 강화된 말의 추가 가치 (창기병은 룩 이동이 더해져 퀸급, 팔라딘은 옆걸음으로 칸 색 제약이 풀림) */
-const ENHANCED_BONUS: Readonly<Record<PieceType, number>> = { p: 140, n: 480, b: 220, r: 130, q: 0, k: 0 };
+/** 강화된 말의 추가 가치 (창기병은 룩 이동이 더해져 퀸급, 팔라딘은 옆걸음으로 칸 색을 바꿀 수 있음) */
+const ENHANCED_BONUS: Readonly<Record<PieceType, number>> = { p: 140, n: 480, b: 170, r: 130, q: 0, k: 0 };
 
 /** royal이 여럿일 때 하나를 잃는 손해 */
 const EXTRA_ROYAL_VALUE = 1200;

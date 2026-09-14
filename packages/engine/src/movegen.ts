@@ -49,13 +49,12 @@ function slideTargets(board: Board, from: Square, piece: Piece, dirs: readonly D
   return result;
 }
 
-/** 팔라딘: 상하좌우 빈칸으로 옆걸음한 뒤(멈춰도 됨) 그 자리에서 대각선으로 이어서 이동 */
-function sidestepTargets(board: Board, from: Square, piece: Piece): Square[] {
+/** 팔라딘: 플레이어 기준 좌우(같은 랭크의 옆 파일) 빈칸으로 한 칸 옆걸음. 잡기는 불가 */
+function sidestepTargets(board: Board, from: Square): Square[] {
   const result: Square[] = [];
-  for (const [df, dr] of ORTHOGONAL_DELTAS) {
-    const step = offset(from, df, dr);
-    if (step === null || board[step]) continue;
-    result.push(step, ...slideTargets(board, step, piece, DIAGONAL_DELTAS, true));
+  for (const df of [-1, 1]) {
+    const step = offset(from, df, 0);
+    if (step !== null && !board[step]) result.push(step);
   }
   return result;
 }
@@ -165,7 +164,7 @@ export function pseudoMovesFrom(
     }
     case 'b': {
       const targets = slideTargets(board, from, piece, DIAGONAL_DELTAS, jumpsOwnPieces(piece));
-      if (piece.enhanced) targets.push(...sidestepTargets(board, from, piece));
+      if (piece.enhanced) targets.push(...sidestepTargets(board, from));
       return toMoves(targets);
     }
     case 'r':
@@ -190,14 +189,6 @@ function rayHits(board: Board, from: Square, target: Square, attacker: Piece, di
   return false;
 }
 
-/** 옆걸음은 빈칸으로만 가능하므로 공격은 옆걸음 이후의 대각선 경로에서만 발생한다 */
-function sidestepHits(board: Board, from: Square, target: Square, piece: Piece): boolean {
-  return ORTHOGONAL_DELTAS.some(([df, dr]) => {
-    const step = offset(from, df, dr);
-    return step !== null && !board[step] && rayHits(board, step, target, piece, DIAGONAL_DELTAS, true);
-  });
-}
-
 function stepHits(from: Square, target: Square, deltas: readonly Delta[]): boolean {
   return deltas.some(([df, dr]) => offset(from, df, dr) === target);
 }
@@ -216,7 +207,7 @@ export function attacks(board: Board, from: Square, target: Square): boolean {
     case 'n':
       return stepHits(from, target, KNIGHT_DELTAS) || (piece.enhanced && rayHits(board, from, target, piece, ORTHOGONAL_DELTAS, false));
     case 'b':
-      return rayHits(board, from, target, piece, DIAGONAL_DELTAS, jumpsOwnPieces(piece)) || (piece.enhanced && sidestepHits(board, from, target, piece));
+      return rayHits(board, from, target, piece, DIAGONAL_DELTAS, jumpsOwnPieces(piece));
     case 'r':
       return rayHits(board, from, target, piece, ORTHOGONAL_DELTAS, jumpsOwnPieces(piece));
     case 'q':
@@ -268,12 +259,6 @@ export function isSquareAttacked(board: Board, target: Square, by: Color): boole
     return false;
   };
 
-  if (rayAttacked(ORTHOGONAL_DELTAS, 'r', true) || rayAttacked(DIAGONAL_DELTAS, 'b', false)) return true;
-
-  // 팔라딘의 옆걸음 경유 공격은 역방향 계산이 복잡해 해당 말만 직접 확인한다
-  for (let sq = 0; sq < board.length; sq++) {
-    const piece = board[sq];
-    if (piece?.color === by && piece.type === 'b' && piece.enhanced && sidestepHits(board, sq, target, piece)) return true;
-  }
-  return false;
+  // 팔라딘의 옆걸음은 잡기가 불가능하므로 공격 판정에는 영향이 없다
+  return rayAttacked(ORTHOGONAL_DELTAS, 'r', true) || rayAttacked(DIAGONAL_DELTAS, 'b', false);
 }
