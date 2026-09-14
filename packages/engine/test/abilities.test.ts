@@ -170,6 +170,15 @@ describe('강화', () => {
     expect(targets(state, 'd4')).toEqual(['c3', 'd3', 'e3', 'c4', 'e4', 'c5', 'd5', 'e5'].map(sq).sort((a, b) => a - b));
   });
 
+  it('중보병: 강화 폰은 시작 위치에서도 2칸 전진할 수 없다', () => {
+    let state = charged('4k3/8/8/8/8/8/3P4/4K3 w - - 0 1', { w: 'heavyInfantry' });
+    state = useAbility(state, { square: sq('d2') });
+    state = move(state, 'e8', 'f8');
+    const moves = targets(state, 'd2');
+    expect(moves).toContain(sq('d3'));
+    expect(moves).not.toContain(sq('d4'));
+  });
+
   it('창기병: 나이트와 룩의 움직임을 모두 가진다', () => {
     let state = game('4k3/8/8/8/8/8/8/1N2K3 w - - 0 1', { w: 'lancer' });
     state = setResource(state, 'w', 2);
@@ -238,6 +247,35 @@ describe('여제', () => {
     expect(state.result).toEqual({ kind: 'win', winner: 'b', reason: 'royalsCaptured' });
   });
 
+  it('퀸이 잡히면 여제가 풀리고, 킹이 둘이면 체크 없이 하나 남을 때부터 체크가 적용된다', () => {
+    let state = createGame({ fen: '4k3/P7/8/8/8/8/3r4/3QK3 w - - 0 1', abilities: { w: 'empress' }, resources: { w: 1 } });
+    state = useAbility(state);
+    state = move(state, 'e8', 'f8');
+    state = move(state, 'a7', 'a8', 'k'); // 승급 킹
+    state = move(state, 'd2', 'd1'); // 여제의 퀸 포획
+
+    expect(state.result.kind).toBe('ongoing');
+    expect(state.players.w.rules).toEqual({ queensRoyal: false, noQueenPromotion: false });
+    expect(royalSquares(state, 'w').sort((a, b) => a - b)).toEqual([sq('e1'), sq('a8')].sort((a, b) => a - b));
+    expect(usesCheckRule(state, 'w')).toBe(false); // 킹 둘: 룩이 e1을 공격해도 체크 아님
+    expect(isInCheck(state, 'w')).toBe(false);
+
+    state = move(state, 'a8', 'b8');
+    state = move(state, 'd1', 'e1'); // 킹 하나 포획 → 남은 킹에 체크 규칙
+    expect(state.result.kind).toBe('ongoing');
+    expect(royalSquares(state, 'w')).toEqual([sq('b8')]);
+    expect(usesCheckRule(state, 'w')).toBe(true);
+  });
+
+  it('여제가 풀린 뒤에는 퀸으로 다시 승급할 수 있다', () => {
+    let state = createGame({ fen: '3rk3/1P6/8/8/8/8/7K/3Q4 w - - 0 1', abilities: { w: 'empress' }, resources: { w: 1 } });
+    state = useAbility(state);
+    state = move(state, 'd8', 'd1'); // 퀸 포획 → 여제 해제 (킹 h2는 공격받지 않음)
+    const promotions = legalMoves(state).filter((m) => m.from === sq('b7')).map((m) => m.promotion);
+    expect(promotions).toContain('q');
+    expect(promotions).not.toContain('k');
+  });
+
   it('퀸이 정확히 하나일 때만 사용할 수 있다', () => {
     const noQueen = setResource(game('4k3/8/8/8/8/8/8/R3K3 w - - 0 1', { w: 'empress' }), 'w', 1);
     expect(legalAbilityOptions(noQueen)).toEqual([]);
@@ -292,6 +330,14 @@ describe('계승자', () => {
     // 1랭크는 룩이 공격 중이므로 계승자는 들어갈 수 없다
     expect(targets(state, 'a2')).toEqual(['b2', 'a3', 'b3', 'a4'].map(sq));
   });
+  it('폰이 아닌 아군 기물도 계승자로 지정할 수 있다', () => {
+    let state = charged('4k3/8/8/8/8/8/8/R3K2r w - - 0 1', { w: 'heir' });
+    expect(legalAbilityOptions(state)).toEqual([{ square: sq('a1') }]);
+    state = useAbility(state, { square: sq('a1') });
+    expect(state.board[sq('a1')]).toMatchObject({ type: 'r', royal: true, title: 'heir' });
+    expect(isInCheck(state, 'w')).toBe(false);
+  });
+
   it('왕이 하나만 남아 다시 체크되면 자원을 회복한 뒤 재사용할 수 있다', () => {
     let state = charged('4k3/8/8/8/8/8/P6P/4K2r w - - 0 1', { w: 'heir' });
     state = useAbility(state, { square: sq('a2') });

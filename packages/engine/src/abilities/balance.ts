@@ -17,10 +17,10 @@ export const BALANCE = {
   },
   teleport: {
     maxResource: 2, startResource: 0, cooldownTurns: 2,
-    recovery: [{ trigger: 'ownTurns', every: 7, amount: 1 }],
+    recovery: [{ trigger: 'ownTurns', every: 8, amount: 1 }],
   },
   revive: {
-    maxResource: 6, startResource: 0, cooldownTurns: 5,
+    maxResource: 7, startResource: 0, cooldownTurns: 5,
     recovery: [{ trigger: 'ownPieceCaptured', amount: 1 }],
   },
   rewind: {
@@ -29,7 +29,7 @@ export const BALANCE = {
   },
   heavyInfantry: {
     maxResource: 1, startResource: 0, cooldownTurns: 0,
-    recovery: [{ trigger: 'ownTurns', every: 10, amount: 1 }],
+    recovery: [{ trigger: 'ownTurns', every: 12, amount: 1 }],
   },
   lancer: {
     maxResource: 2, startResource: 0, cooldownTurns: 0,
@@ -48,7 +48,7 @@ export const BALANCE = {
     recovery: [{ trigger: 'ownTurns', every: 6, amount: 1 }],
   },
   heir: {
-    maxResource: 3, startResource: 0, cooldownTurns: 0,
+    maxResource: 8, startResource: 0, cooldownTurns: 0,
     recovery: [{ trigger: 'ownTurns', every: 3, amount: 1 }],
   },
 } as const satisfies Record<string, AbilityBalance>;
@@ -57,7 +57,7 @@ export const COSTS = {
   telekinesis: 1,
   haste: 3,
   teleport: 1,
-  revive: { p: 3, n: 4, b: 4, r: 5, q: 6, k: 99 } satisfies Record<PieceType, number>,
+  revive: { p: 4, n: 5, b: 5, r: 6, q: 7, k: 99 } satisfies Record<PieceType, number>,
   rewindPerStep: 1,
   heavyInfantry: 1,
   lancer: 2,

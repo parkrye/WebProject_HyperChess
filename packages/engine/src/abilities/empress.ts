@@ -4,7 +4,7 @@ import type { AbilityDefinition } from './types';
 export const empress: AbilityDefinition = {
   id: 'empress',
   name: '여제',
-  description: '1회성. 퀸이 하나뿐일 때 수를 놓는 대신 사용한다. 체크/체크메이트가 사라지고 킹이 잡혀도 계속하며, 대신 퀸이 잡히면 패배한다. 이후 프로모션은 퀸 대신 승급 킹으로 한다.',
+  description: '퀸이 하나뿐일 때 수를 놓는 대신 사용한다. 체크가 사라지고 퀸만 왕족이 되며, 프로모션은 퀸 대신 승급 킹으로 한다. 퀸이 잡히면 여제가 풀리고 남은 킹들이 왕족이 된다(킹이 하나 남을 때까지 체크 없음). 퀸을 다시 얻으면 재사용 가능.',
   timing: 'insteadOfMove',
   balance: BALANCE.empress,
   cost: () => COSTS.empress,

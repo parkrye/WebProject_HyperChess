@@ -61,7 +61,7 @@ export const ABILITY_UI: Readonly<Record<string, AbilityUiSpec>> = {
   chariot: { color: '#c9a36b', icon: 'wheel', steps: ENHANCE_PROMPT('룩') },
   paladin: { color: '#f5f0c8', icon: 'cross', steps: ENHANCE_PROMPT('비숍') },
   empress: { color: '#ff5fa2', icon: 'crown', steps: [] },
-  heir: { color: '#ffd76b', icon: 'heir', steps: [squareStep('square', '계승자로 삼을 폰을 선택하세요')] },
+  heir: { color: '#ffd76b', icon: 'heir', steps: [squareStep('square', '계승자로 삼을 기물을 선택하세요')] },
 };
 
 const FALLBACK: AbilityUiSpec = { color: '#aaaaaa', icon: 'crown', steps: [] };
