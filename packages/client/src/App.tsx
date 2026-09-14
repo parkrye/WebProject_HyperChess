@@ -2,48 +2,45 @@ import { useState } from 'react';
 import type { GameMode } from './components/ModeTabs';
 import { LocalGameScreen } from './screens/GameScreen';
 import { OnlineScreen } from './screens/OnlineScreen';
-import { SetupScreen, type AbilityChoice } from './screens/SetupScreen';
+import { DEFAULT_SETUP_PREFS, SetupScreen, type LocalGameConfig, type SetupPrefs } from './screens/SetupScreen';
 
 type Screen =
-  | { kind: 'setup' }
+  | { kind: 'setup'; mode: 'local' | 'ai' }
   | { kind: 'online' }
-  | { kind: 'local'; abilities: AbilityChoice; round: number };
-
-const DEFAULT_CHOICE: AbilityChoice = { w: 'telekinesis', b: 'rewind' };
+  | { kind: 'game'; config: LocalGameConfig; mode: 'local' | 'ai'; round: number };
 
 const initialScreen = (): Screen =>
-  new URLSearchParams(window.location.search).has('room') ? { kind: 'online' } : { kind: 'setup' };
+  new URLSearchParams(window.location.search).has('room') ? { kind: 'online' } : { kind: 'setup', mode: 'local' };
 
 export function App() {
   const [screen, setScreen] = useState<Screen>(initialScreen);
-  const [lastChoice, setLastChoice] = useState<AbilityChoice>(DEFAULT_CHOICE);
+  const [prefs, setPrefs] = useState<SetupPrefs>(DEFAULT_SETUP_PREFS);
 
-  const changeMode = (mode: GameMode) => {
-    if (mode === 'online') setScreen({ kind: 'online' });
-    if (mode === 'local') setScreen({ kind: 'setup' });
-  };
+  const changeMode = (mode: GameMode) => setScreen(mode === 'online' ? { kind: 'online' } : { kind: 'setup', mode });
 
   switch (screen.kind) {
     case 'setup':
       return (
         <SetupScreen
-          initial={lastChoice}
+          key={screen.mode}
+          mode={screen.mode}
+          prefs={prefs}
           onModeChange={changeMode}
-          onStart={(abilities) => {
-            setLastChoice(abilities);
-            setScreen({ kind: 'local', abilities, round: 0 });
+          onStart={(config, nextPrefs) => {
+            setPrefs(nextPrefs);
+            setScreen({ kind: 'game', config, mode: screen.mode, round: 0 });
           }}
         />
       );
     case 'online':
       return <OnlineScreen onModeChange={changeMode} />;
-    case 'local':
+    case 'game':
       return (
         <LocalGameScreen
           key={screen.round}
-          abilities={screen.abilities}
+          config={screen.config}
           onRestart={() => setScreen({ ...screen, round: screen.round + 1 })}
-          onMenu={() => setScreen({ kind: 'setup' })}
+          onMenu={() => setScreen({ kind: 'setup', mode: screen.mode })}
         />
       );
   }
