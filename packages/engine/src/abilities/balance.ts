@@ -9,7 +9,7 @@ import type { AbilityBalance } from './types';
 export const BALANCE = {
   telekinesis: {
     maxResource: 3, startResource: 0, cooldownTurns: 0,
-    recovery: [{ trigger: 'ownTurns', every: 4, amount: 1 }],
+    recovery: [{ trigger: 'ownTurns', every: 3, amount: 1 }],
   },
   haste: {
     maxResource: 3, startResource: 0, cooldownTurns: 3,
@@ -20,7 +20,7 @@ export const BALANCE = {
     recovery: [{ trigger: 'ownTurns', every: 7, amount: 1 }],
   },
   revive: {
-    maxResource: 6, startResource: 0, cooldownTurns: 3,
+    maxResource: 6, startResource: 0, cooldownTurns: 5,
     recovery: [{ trigger: 'ownPieceCaptured', amount: 1 }],
   },
   rewind: {
@@ -28,7 +28,7 @@ export const BALANCE = {
     recovery: [{ trigger: 'ownTurns', every: 4, amount: 1 }],
   },
   heavyInfantry: {
-    maxResource: 2, startResource: 0, cooldownTurns: 0,
+    maxResource: 1, startResource: 0, cooldownTurns: 0,
     recovery: [{ trigger: 'ownTurns', every: 10, amount: 1 }],
   },
   lancer: {
@@ -37,18 +37,18 @@ export const BALANCE = {
   },
   chariot: {
     maxResource: 2, startResource: 0, cooldownTurns: 0,
-    recovery: [{ trigger: 'ownTurns', every: 4, amount: 1 }],
+    recovery: [{ trigger: 'ownTurns', every: 3, amount: 1 }],
   },
   paladin: {
     maxResource: 2, startResource: 0, cooldownTurns: 0,
-    recovery: [{ trigger: 'ownTurns', every: 4, amount: 1 }],
+    recovery: [{ trigger: 'ownTurns', every: 3, amount: 1 }],
   },
   empress: {
     maxResource: 1, startResource: 0, cooldownTurns: 0,
     recovery: [{ trigger: 'ownTurns', every: 6, amount: 1 }],
   },
   heir: {
-    maxResource: 1, startResource: 0, cooldownTurns: 0,
+    maxResource: 3, startResource: 0, cooldownTurns: 0,
     recovery: [{ trigger: 'ownTurns', every: 3, amount: 1 }],
   },
 } as const satisfies Record<string, AbilityBalance>;

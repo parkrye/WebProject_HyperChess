@@ -223,20 +223,28 @@ describe('강화', () => {
 });
 
 describe('여제', () => {
-  it('체크 중에도 사용 가능하고, 이후 체크 없이 킹과 퀸이 모두 잡혀야 패배한다', () => {
-    let state = setResource(game('4k3/8/8/8/8/8/8/3QK2r w - - 0 1', { w: 'empress' }), 'w', 1);
+  it('체크 중에도 사용 가능하고, 이후 킹이 잡혀도 계속되며 퀸이 모두 잡히면 패배한다', () => {
+    let state = createGame({ fen: '4k3/8/8/8/8/8/r7/3QK2r w - - 0 1', abilities: { w: 'empress' }, resources: { w: 1 } });
     expect(isInCheck(state, 'w')).toBe(true);
     state = useAbility(state);
     expect(usesCheckRule(state, 'w')).toBe(false);
     expect(isInCheck(state, 'w')).toBe(false);
+    expect(royalSquares(state, 'w')).toEqual([sq('d1')]); // 킹은 왕족에서 빠짐
 
-    state = move(state, 'h1', 'e1');
+    state = move(state, 'h1', 'e1'); // 킹 포획
     expect(state.result.kind).toBe('ongoing');
-    expect(royalSquares(state, 'w')).toEqual([sq('d1')]);
+    state = move(state, 'd1', 'd2');
+    state = move(state, 'a2', 'd2'); // 마지막 퀸 포획
+    expect(state.result).toEqual({ kind: 'win', winner: 'b', reason: 'royalsCaptured' });
+  });
+
+  it('퀸이 없으면 사용할 수 없다', () => {
+    const state = setResource(game('4k3/8/8/8/8/8/8/R3K3 w - - 0 1', { w: 'empress' }), 'w', 1);
+    expect(legalAbilityOptions(state)).toEqual([]);
   });
 
   it('킹이 공격받는 칸으로 이동할 수 있고, 퀸 프로모션은 금지된다', () => {
-    let state = setResource(game('4k3/P7/8/8/8/8/8/4K2r w - - 0 1', { w: 'empress' }), 'w', 1);
+    let state = setResource(game('4k3/P7/8/8/8/2Q5/8/4K2r w - - 0 1', { w: 'empress' }), 'w', 1);
     state = useAbility(state);
     state = move(state, 'e8', 'd8');
     expect(targets(state, 'e1')).toContain(sq('f1'));
@@ -244,10 +252,10 @@ describe('여제', () => {
     expect(promotions).not.toContain('q');
     expect(promotions).toEqual(expect.arrayContaining(['k', 'r', 'b', 'n']));
 
-    // 승급 킹은 킹처럼 움직이지만 왕족이 아니다
+    // 승급 킹은 킹처럼 움직이지만 왕족이 아니다 (여제 규칙에서는 퀸만 왕족)
     state = move(state, 'a7', 'a8', 'k');
     expect(state.board[sq('a8')]).toMatchObject({ type: 'k', royal: false });
-    expect(royalSquares(state, 'w')).toEqual([sq('e1')]);
+    expect(royalSquares(state, 'w')).toEqual([sq('c3')]);
   });
 
   it('여제는 한 번만 사용할 수 있다', () => {

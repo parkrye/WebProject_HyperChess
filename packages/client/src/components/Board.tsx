@@ -64,7 +64,7 @@ function pieceBadge(piece: Piece, state: GameState): Badge | null {
     return { icon: spec.icon, color: spec.color };
   }
   const rules = state.players[piece.color].rules;
-  if (rules.queensRoyal && (piece.type === 'q' || piece.royal)) return { icon: 'crown', color: abilityUi('empress').color };
+  if (rules.queensRoyal && piece.type === 'q') return { icon: 'crown', color: abilityUi('empress').color };
   return null;
 }
 

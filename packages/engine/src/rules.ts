@@ -15,7 +15,8 @@ import {
 } from './types';
 
 export function isRoyal(piece: Piece, rules: PlayerRules): boolean {
-  return piece.royal || (rules.queensRoyal && piece.type === 'q');
+  // 여제 규칙: 킹은 왕족에서 빠지고 퀸만 왕족이 된다
+  return rules.queensRoyal ? piece.type === 'q' : piece.royal;
 }
 
 export function royalSquares(state: Pick<GameState, 'board' | 'players'>, color: Color): Square[] {
