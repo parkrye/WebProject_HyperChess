@@ -49,6 +49,17 @@ function slideTargets(board: Board, from: Square, piece: Piece, dirs: readonly D
   return result;
 }
 
+/** 팔라딘: 상하좌우 빈칸으로 옆걸음한 뒤(멈춰도 됨) 그 자리에서 대각선으로 이어서 이동 */
+function sidestepTargets(board: Board, from: Square, piece: Piece): Square[] {
+  const result: Square[] = [];
+  for (const [df, dr] of ORTHOGONAL_DELTAS) {
+    const step = offset(from, df, dr);
+    if (step === null || board[step]) continue;
+    result.push(step, ...slideTargets(board, step, piece, DIAGONAL_DELTAS, true));
+  }
+  return result;
+}
+
 function stepTargets(board: Board, from: Square, piece: Piece, deltas: readonly Delta[]): Square[] {
   const result: Square[] = [];
   for (const [df, dr] of deltas) {
@@ -66,8 +77,9 @@ function pushPawnMove(moves: GeneratedMove[], piece: Piece, from: Square, to: Sq
     moves.push({ from, to, kind });
     return;
   }
-  for (const promotion of PROMOTION_PIECES) {
-    if (promotion === 'q' && ctx.noQueenPromotion) continue;
+  for (const piece of PROMOTION_PIECES) {
+    // 여제 규칙: 퀸 대신 승급 킹(royal 아님)으로 프로모션
+    const promotion: PieceType = piece === 'q' && ctx.noQueenPromotion ? 'k' : piece;
     moves.push({ from, to, kind, promotion });
   }
 }
@@ -141,7 +153,7 @@ export function pseudoMovesFrom(
   const piece = ctx.board[from];
   if (!piece) return [];
 
-  const toMoves = (targets: Square[]): GeneratedMove[] => targets.map((to) => ({ from, to, kind: 'normal' }));
+  const toMoves = (targets: Square[]): GeneratedMove[] => [...new Set(targets)].map((to) => ({ from, to, kind: 'normal' }));
   const { board } = ctx;
   switch (piece.type) {
     case 'p':
@@ -151,8 +163,11 @@ export function pseudoMovesFrom(
       if (piece.enhanced) targets.push(...slideTargets(board, from, piece, ORTHOGONAL_DELTAS, false));
       return toMoves(targets);
     }
-    case 'b':
-      return toMoves(slideTargets(board, from, piece, DIAGONAL_DELTAS, jumpsOwnPieces(piece)));
+    case 'b': {
+      const targets = slideTargets(board, from, piece, DIAGONAL_DELTAS, jumpsOwnPieces(piece));
+      if (piece.enhanced) targets.push(...sidestepTargets(board, from, piece));
+      return toMoves(targets);
+    }
     case 'r':
       return toMoves(slideTargets(board, from, piece, ORTHOGONAL_DELTAS, jumpsOwnPieces(piece)));
     case 'q':
@@ -175,6 +190,14 @@ function rayHits(board: Board, from: Square, target: Square, attacker: Piece, di
   return false;
 }
 
+/** 옆걸음은 빈칸으로만 가능하므로 공격은 옆걸음 이후의 대각선 경로에서만 발생한다 */
+function sidestepHits(board: Board, from: Square, target: Square, piece: Piece): boolean {
+  return ORTHOGONAL_DELTAS.some(([df, dr]) => {
+    const step = offset(from, df, dr);
+    return step !== null && !board[step] && rayHits(board, step, target, piece, DIAGONAL_DELTAS, true);
+  });
+}
+
 function stepHits(from: Square, target: Square, deltas: readonly Delta[]): boolean {
   return deltas.some(([df, dr]) => offset(from, df, dr) === target);
 }
@@ -193,7 +216,7 @@ export function attacks(board: Board, from: Square, target: Square): boolean {
     case 'n':
       return stepHits(from, target, KNIGHT_DELTAS) || (piece.enhanced && rayHits(board, from, target, piece, ORTHOGONAL_DELTAS, false));
     case 'b':
-      return rayHits(board, from, target, piece, DIAGONAL_DELTAS, jumpsOwnPieces(piece));
+      return rayHits(board, from, target, piece, DIAGONAL_DELTAS, jumpsOwnPieces(piece)) || (piece.enhanced && sidestepHits(board, from, target, piece));
     case 'r':
       return rayHits(board, from, target, piece, ORTHOGONAL_DELTAS, jumpsOwnPieces(piece));
     case 'q':
@@ -245,5 +268,12 @@ export function isSquareAttacked(board: Board, target: Square, by: Color): boole
     return false;
   };
 
-  return rayAttacked(ORTHOGONAL_DELTAS, 'r', true) || rayAttacked(DIAGONAL_DELTAS, 'b', false);
+  if (rayAttacked(ORTHOGONAL_DELTAS, 'r', true) || rayAttacked(DIAGONAL_DELTAS, 'b', false)) return true;
+
+  // 팔라딘의 옆걸음 경유 공격은 역방향 계산이 복잡해 해당 말만 직접 확인한다
+  for (let sq = 0; sq < board.length; sq++) {
+    const piece = board[sq];
+    if (piece?.color === by && piece.type === 'b' && piece.enhanced && sidestepHits(board, sq, target, piece)) return true;
+  }
+  return false;
 }
