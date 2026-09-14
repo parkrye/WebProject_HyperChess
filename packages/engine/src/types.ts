@@ -49,7 +49,7 @@ export interface AbilityMeter {
 
 /** 능력으로 바뀌는 플레이어 규칙. 시간 역행 시 함께 되돌아간다 */
 export interface PlayerRules {
-  /** 퀸도 royal로 취급하고 체크 규칙을 쓰지 않음 (여제) */
+  /** 여제: 퀸만 royal (킹 제외), 체크 규칙을 쓰지 않음 */
   readonly queensRoyal: boolean;
   readonly noQueenPromotion: boolean;
 }

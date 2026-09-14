@@ -292,10 +292,36 @@ function formatDuration(ms: number): string {
   return minutes > 0 ? `${minutes}분 ${total % 60}초` : `${total}초`;
 }
 
+const PROGRESS_FILE = join(REPORT_DIR, 'progress.txt');
+
+/** 중간 순위 (지금까지 끝난 판 기준). 진행 파일에만 쓴다 */
+function interimStandings(jobs: Job[], results: Map<number, MatchResult>): string[] {
+  const rows = new Map<string, { points: number; games: number }>();
+  for (const job of jobs) {
+    const result = results.get(job.id);
+    if (!result || job.control) continue;
+    const sides: [Participant, Color][] = [[job.a, job.aColor], [job.b, opposite(job.aColor)]];
+    for (const [participant, color] of sides) {
+      const label = participantName(participant);
+      const row = rows.get(label) ?? { points: 0, games: 0 };
+      row.points += pointsFor(result, color);
+      row.games++;
+      rows.set(label, row);
+    }
+  }
+  return [...rows.entries()]
+    .sort(([, x], [, y]) => y.points / y.games - x.points / x.games)
+    .map(([label, row], index) => `${String(index + 1).padStart(2)}. ${label.padEnd(8)} ${percent(row.points / row.games).padStart(4)}  (${row.games}판)`);
+}
+
 async function runJobs(jobs: Job[], workers: number): Promise<Map<number, MatchResult>> {
   const results = new Map<number, MatchResult>();
   const queue = [...jobs];
   const started = Date.now();
+  const interactive = process.stdout.isTTY;
+  // 콘솔이 아닐 때(백그라운드 실행 등)는 약 5%마다 한 줄씩 출력
+  const lineEvery = Math.max(1, Math.floor(jobs.length / 20));
+  mkdirSync(REPORT_DIR, { recursive: true });
 
   const report = () => {
     const elapsed = Date.now() - started;
@@ -305,7 +331,19 @@ async function runJobs(jobs: Job[], workers: number): Promise<Map<number, MatchR
     const filled = Math.round((done / jobs.length) * width);
     const bar = '#'.repeat(filled) + '-'.repeat(width - filled);
     const remaining = done ? formatDuration(eta) : '계산 중';
-    process.stdout.write(`\r[${bar}] ${done}/${jobs.length}  경과 ${formatDuration(elapsed)}  남은 시간 ${remaining}   `);
+    const line = `[${bar}] ${done}/${jobs.length} (${percent(done / jobs.length)})  경과 ${formatDuration(elapsed)}  남은 시간 ${remaining}`;
+
+    if (interactive) process.stdout.write(`\r${line}   `);
+    else if (done % lineEvery === 0 || done === jobs.length) console.log(line);
+
+    try {
+      writeFileSync(
+        PROGRESS_FILE,
+        [`밸런스 측정 진행 상황 (${new Date().toLocaleTimeString('ko-KR')} 갱신)`, '', line, '', '중간 순위 (끝난 판 기준, 오차 큼)', ...interimStandings(jobs, results), ''].join('\n'),
+      );
+    } catch {
+      // 진행 파일을 못 써도 측정은 계속한다
+    }
   };
   report();
 
