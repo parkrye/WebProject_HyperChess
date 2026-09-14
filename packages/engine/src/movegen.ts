@@ -49,16 +49,6 @@ function slideTargets(board: Board, from: Square, piece: Piece, dirs: readonly D
   return result;
 }
 
-/** 팔라딘: 플레이어 기준 좌우(같은 랭크의 옆 파일) 빈칸으로 한 칸 옆걸음. 잡기는 불가 */
-function sidestepTargets(board: Board, from: Square): Square[] {
-  const result: Square[] = [];
-  for (const df of [-1, 1]) {
-    const step = offset(from, df, 0);
-    if (step !== null && !board[step]) result.push(step);
-  }
-  return result;
-}
-
 function stepTargets(board: Board, from: Square, piece: Piece, deltas: readonly Delta[]): Square[] {
   const result: Square[] = [];
   for (const [df, dr] of deltas) {
@@ -164,7 +154,8 @@ export function pseudoMovesFrom(
     }
     case 'b': {
       const targets = slideTargets(board, from, piece, DIAGONAL_DELTAS, jumpsOwnPieces(piece));
-      if (piece.enhanced) targets.push(...sidestepTargets(board, from));
+      // 팔라딘: 상하좌우 한 칸 이동(잡기 가능)이 추가된다
+      if (piece.enhanced) targets.push(...stepTargets(board, from, piece, ORTHOGONAL_DELTAS));
       return toMoves(targets);
     }
     case 'r':
@@ -207,7 +198,7 @@ export function attacks(board: Board, from: Square, target: Square): boolean {
     case 'n':
       return stepHits(from, target, KNIGHT_DELTAS) || (piece.enhanced && rayHits(board, from, target, piece, ORTHOGONAL_DELTAS, false));
     case 'b':
-      return rayHits(board, from, target, piece, DIAGONAL_DELTAS, jumpsOwnPieces(piece));
+      return rayHits(board, from, target, piece, DIAGONAL_DELTAS, jumpsOwnPieces(piece)) || (piece.enhanced && stepHits(from, target, ORTHOGONAL_DELTAS));
     case 'r':
       return rayHits(board, from, target, piece, ORTHOGONAL_DELTAS, jumpsOwnPieces(piece));
     case 'q':
@@ -259,6 +250,11 @@ export function isSquareAttacked(board: Board, target: Square, by: Color): boole
     return false;
   };
 
-  // 팔라딘의 옆걸음은 잡기가 불가능하므로 공격 판정에는 영향이 없다
+  // 팔라딘은 상하좌우 인접 칸도 공격한다
+  for (const [df, dr] of ORTHOGONAL_DELTAS) {
+    const piece = enemyAt(offset(target, df, dr));
+    if (piece?.type === 'b' && piece.enhanced) return true;
+  }
+
   return rayAttacked(ORTHOGONAL_DELTAS, 'r', true) || rayAttacked(DIAGONAL_DELTAS, 'b', false);
 }

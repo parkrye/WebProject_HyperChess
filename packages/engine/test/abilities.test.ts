@@ -196,16 +196,29 @@ describe('강화', () => {
     expect(targets(state, 'h8')).not.toContain(sq('g7'));
   });
 
-  it('팔라딘: 좌우 빈칸으로 한 칸 옆걸음할 수 있지만 잡기·전후 이동·연속 이동은 불가', () => {
+  it('팔라딘: 상하좌우로 한 칸 이동·잡기할 수 있고, 이어서 대각선으로 움직이지는 못한다', () => {
     let state = charged('7k/8/8/8/8/8/8/1pB1K3 w - - 0 1', { w: 'paladin' });
     state = useAbility(state, { square: sq('c1') });
     state = move(state, 'h8', 'g8');
     const moves = targets(state, 'c1');
-    expect(moves).toContain(sq('d1')); // 오른쪽 빈칸 옆걸음
-    expect(moves).not.toContain(sq('b1')); // 옆칸의 상대 말은 잡을 수 없음
-    expect(moves).not.toContain(sq('c2')); // 앞 칸 이동 불가
-    expect(moves).not.toContain(sq('e2')); // 옆걸음 후 대각선으로 이어갈 수 없음
+    expect(moves).toContain(sq('d1')); // 오른쪽 한 칸
+    expect(moves).toContain(sq('c2')); // 앞 한 칸
+    expect(moves).toContain(sq('b1')); // 옆칸의 상대 말 잡기
+    expect(moves).not.toContain(sq('c3')); // 두 칸 직진 불가
+    expect(moves).not.toContain(sq('e2')); // 한 칸 이동 후 대각선으로 이어갈 수 없음
     expect(moves).toContain(sq('h6')); // 기존 대각선
+  });
+
+  it('팔라딘: 상하좌우 인접 칸의 킹에 체크를 건다', () => {
+    let state = charged('8/8/8/8/8/8/2k5/2B1K3 w - - 0 1', { w: 'paladin' });
+    expect(isInCheck(state, 'b')).toBe(false); // 일반 비숍은 바로 앞 칸을 공격하지 않음
+    state = useAbility(state, { square: sq('c1') });
+    expect(isInCheck(state, 'b')).toBe(true);
+    // 흑 킹: 보호받지 않는 팔라딘(c1)은 잡을 수 있고, 팔라딘의 옆 칸(b1·d1)으로는 갈 수 없다
+    const kingMoves = targets(state, 'c2');
+    expect(kingMoves).toContain(sq('c1'));
+    expect(kingMoves).not.toContain(sq('b1'));
+    expect(kingMoves).not.toContain(sq('d1'));
   });
 });
 

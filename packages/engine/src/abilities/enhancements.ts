@@ -71,7 +71,7 @@ export const chariot = createEnhancement({
 export const paladin = createEnhancement({
   id: 'paladin',
   name: '팔라딘',
-  description: '수를 놓는 대신, 자신의 비숍 하나를 강화한다. 강화 비숍은 자신의 말을 뛰어넘어 대각선으로 움직이거나, 좌우 빈칸으로 한 칸 옆걸음할 수 있다.',
+  description: '수를 놓는 대신, 자신의 비숍 하나를 강화한다. 강화 비숍은 자신의 말을 뛰어넘어 대각선으로 움직이거나, 상하좌우로 한 칸 움직일 수 있다(잡기 가능).',
   pieceType: 'b',
   balance: BALANCE.paladin,
   cost: COSTS.paladin,
