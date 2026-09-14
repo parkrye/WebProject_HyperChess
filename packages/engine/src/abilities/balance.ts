@@ -3,7 +3,7 @@ import type { AbilityBalance } from './types';
 
 /**
  * 능력 밸런싱 수치. 모든 능력은 시작 자원 0 (시작하자마자 쓰지 않음). 수치 조정은 이 파일에서만 한다.
- * 근거와 측정 결과는 .docs/rules.md 의 밸런싱 표 참고
+ * 버전별 수치·측정 결과는 .docs/balance.md 에 기록한다
  * (측정: npm run balance -w @hyperchess/ai).
  */
 export const BALANCE = {
