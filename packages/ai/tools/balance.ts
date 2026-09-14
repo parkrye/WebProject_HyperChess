@@ -66,7 +66,7 @@ async function runJobs(jobs: Job[]): Promise<Map<number, MatchResult>> {
 
   await Promise.all(
     Array.from({ length: workerCount }, () => {
-      const worker = new Worker(new URL('./worker-bootstrap.mjs', import.meta.url));
+      const worker = new Worker(new URL('./worker-bootstrap.mjs', import.meta.url), { workerData: { entry: import.meta.url } });
       return new Promise<void>((resolve, reject) => {
         const next = () => {
           const job = queue.shift();

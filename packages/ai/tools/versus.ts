@@ -1,0 +1,120 @@
+/**
+ * AI 버전 비교: 현재 src 탐색기 vs tools/baseline(이전 버전) 을 같은 시간 제한으로 대국시킨다.
+ *
+ * 사용: npx tsx tools/versus.ts [--games 40] [--ms 500]
+ * 준비: 비교할 이전 버전의 search.ts, evaluate.ts 를 tools/baseline/ 에 복사 (git 추적 안 함)
+ */
+import { applyAction, createGame, listAbilities, type Color, type GameState } from '@hyperchess/engine';
+import { cpus } from 'node:os';
+import { isMainThread, parentPort, Worker } from 'node:worker_threads';
+import { Searcher as CurrentSearcher } from '../src/search';
+import { evaluate } from '../src/evaluate';
+import { seededRandom } from './match';
+
+interface Job {
+  readonly id: number;
+  readonly currentColor: Color;
+  readonly abilities: Record<Color, string>;
+  readonly seed: number;
+  readonly ms: number;
+}
+
+interface Outcome {
+  readonly id: number;
+  readonly currentScore: number;
+  readonly reason: string;
+  readonly plies: number;
+  readonly depth: Record<'current' | 'baseline', number>;
+}
+
+const MAX_PLIES = 160;
+
+async function playVersus(job: Job): Promise<Outcome> {
+  // 기준본은 git에 없으므로 타입 검사가 경로를 해석하지 않도록 변수로 가져온다
+  const baselinePath = './baseline/search.ts';
+  const { Searcher: BaselineSearcher } = (await import(baselinePath)) as { Searcher: typeof CurrentSearcher };
+  const options = { maxDepth: 12, timeLimitMs: job.ms, quiescence: true, abilityBranchLimit: 4, noise: 0 };
+  const random = seededRandom(job.seed);
+  const current = new CurrentSearcher({ ...options, random });
+  const baseline = new BaselineSearcher({ ...options, random });
+  const depthSum = { current: 0, baseline: 0 };
+  const moves = { current: 0, baseline: 0 };
+
+  let state: GameState = createGame({ abilities: job.abilities });
+  let plies = 0;
+  while (state.result.kind === 'ongoing' && plies < MAX_PLIES) {
+    const side = state.turn === job.currentColor ? 'current' : 'baseline';
+    const result = (side === 'current' ? current : baseline).search(state);
+    depthSum[side] += result.depth;
+    moves[side]++;
+    state = applyAction(state, result.action);
+    plies++;
+  }
+
+  let currentScore = 0.5;
+  let reason: string = state.result.kind === 'ongoing' ? 'adjudicated' : state.result.kind === 'win' ? state.result.reason : state.result.reason;
+  if (state.result.kind === 'win') currentScore = state.result.winner === job.currentColor ? 1 : 0;
+  if (state.result.kind === 'ongoing') {
+    const score = evaluate(state, job.currentColor);
+    currentScore = score > 250 ? 1 : score < -250 ? 0 : 0.5;
+  }
+  return {
+    id: job.id,
+    currentScore,
+    reason,
+    plies,
+    depth: { current: depthSum.current / Math.max(1, moves.current), baseline: depthSum.baseline / Math.max(1, moves.baseline) },
+  };
+}
+
+if (!isMainThread) {
+  parentPort!.on('message', async (job: Job) => parentPort!.postMessage(await playVersus(job)));
+} else {
+  const arg = (name: string, fallback: number) => {
+    const index = process.argv.indexOf(`--${name}`);
+    return index >= 0 ? Number(process.argv[index + 1]) : fallback;
+  };
+  const games = arg('games', 40);
+  const ms = arg('ms', 500);
+  const abilities = listAbilities().map((a) => a.id);
+  const pick = seededRandom(99);
+
+  const jobs: Job[] = [];
+  for (let i = 0; i < games; i += 2) {
+    const pair = { w: abilities[Math.floor(pick() * abilities.length)], b: abilities[Math.floor(pick() * abilities.length)] };
+    for (const currentColor of ['w', 'b'] as const) {
+      jobs.push({ id: jobs.length, currentColor, abilities: pair, seed: 500 + i, ms });
+    }
+  }
+
+  const queue = [...jobs];
+  const outcomes: Outcome[] = [];
+  const workerCount = Math.min(jobs.length, cpus().length - 2);
+  console.log(`대국 ${jobs.length}판 (수당 ${ms}ms), 워커 ${workerCount}개`);
+
+  await Promise.all(
+    Array.from({ length: workerCount }, () => {
+      const worker = new Worker(new URL('./worker-bootstrap.mjs', import.meta.url), { workerData: { entry: import.meta.url } });
+      return new Promise<void>((resolve, reject) => {
+        const next = () => {
+          const job = queue.shift();
+          if (job) worker.postMessage(job);
+          else void worker.terminate().then(() => resolve());
+        };
+        worker.on('message', (outcome: Outcome) => {
+          outcomes.push(outcome);
+          next();
+        });
+        worker.on('error', reject);
+        next();
+      });
+    }),
+  );
+
+  const score = outcomes.reduce((sum, o) => sum + o.currentScore, 0);
+  const wins = outcomes.filter((o) => o.currentScore === 1).length;
+  const draws = outcomes.filter((o) => o.currentScore === 0.5).length;
+  const avg = (key: 'current' | 'baseline') => (outcomes.reduce((s, o) => s + o.depth[key], 0) / outcomes.length).toFixed(2);
+  console.log(`현재 vs 기준본: ${wins}승 ${draws}무 ${outcomes.length - wins - draws}패, 점수율 ${((score / outcomes.length) * 100).toFixed(0)}%`);
+  console.log(`평균 탐색 깊이: 현재 ${avg('current')} / 기준본 ${avg('baseline')}`);
+}
