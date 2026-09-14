@@ -17,11 +17,12 @@ export const BALANCE = {
   },
   teleport: {
     maxResource: 2, startResource: 0, cooldownTurns: 2,
-    recovery: [{ trigger: 'ownTurns', every: 8, amount: 1 }],
+    recovery: [{ trigger: 'ownTurns', every: 9, amount: 1 }],
   },
   revive: {
     maxResource: 7, startResource: 0, cooldownTurns: 5,
-    recovery: [{ trigger: 'ownPieceCaptured', amount: 1 }],
+    // 폰을 잃으면 0.5, 그 외 기물을 잃으면 1 회복
+    recovery: [{ trigger: 'ownPieceCaptured', amount: 1, pawnAmount: 0.5 }],
   },
   rewind: {
     maxResource: 3, startResource: 0, cooldownTurns: 2,

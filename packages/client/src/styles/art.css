@@ -285,3 +285,10 @@
     background-position: 100% 0;
   }
 }
+
+/* 0.5 자원 (부활: 폰을 잃을 때) */
+.pip.half {
+  opacity: 1;
+  clip-path: inset(0 50% 0 0);
+  filter: drop-shadow(0 0 3px var(--ability-color));
+}

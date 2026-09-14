@@ -1,5 +1,5 @@
 import { isSquareAttacked } from '../movegen';
-import { isInCheck, royalSquares } from '../rules';
+import { royalSquares } from '../rules';
 import { opposite, type AbilityParams } from '../types';
 import { BALANCE, COSTS } from './balance';
 import type { AbilityDefinition } from './types';
@@ -7,14 +7,13 @@ import type { AbilityDefinition } from './types';
 export const heir: AbilityDefinition = {
   id: 'heir',
   name: '계승자',
-  description: '체크 상태일 때 수를 놓는 대신 사용한다. 남은 왕을 선왕으로, 공격받지 않는 아군 기물 하나를 계승자로 바꾼다(폰 계승자는 킹의 움직임 추가). 둘 다 잡혀야 패배하며, 자원이 회복되면 다시 쓸 수 있다.',
+  description: '수를 놓는 대신 사용한다(체크가 아니어도 가능). 남은 왕을 선왕으로, 공격받지 않는 아군 기물 하나를 계승자로 바꾼다(폰 계승자는 킹의 움직임 추가). 둘 다 잡혀야 패배하며, 자원이 회복되면 다시 쓸 수 있다.',
   timing: 'insteadOfMove',
   balance: BALANCE.heir,
   cost: () => COSTS.heir,
 
   candidates(state, color) {
-    if (!isInCheck(state, color)) return [];
-    // 왕(킹·선왕·계승자 무엇이든)이 하나만 남아 체크일 때 사용할 수 있다
+    // 왕(킹·선왕·계승자 무엇이든)이 하나만 남았을 때 사용할 수 있다 (체크 여부 무관)
     if (royalSquares(state, color).length !== 1) return [];
 
     const enemy = opposite(color);

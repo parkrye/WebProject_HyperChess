@@ -48,8 +48,9 @@ export function PlayerBar({ state, color, interaction, seat, className = '' }: P
       {definition && (
         <div className="resource" aria-label={`자원 ${player.meter.resource}/${definition.balance.maxResource}`}>
           {Array.from({ length: definition.balance.maxResource }, (_, i) => {
-            const filled = i < player.meter.resource;
-            return <img key={i} className={`pip ${filled ? 'filled' : ''}`} src={filled ? uiSprite.gemFull : uiSprite.gemEmpty} alt="" draggable={false} />;
+            const amount = Math.max(0, Math.min(1, player.meter.resource - i));
+            const state = amount >= 1 ? 'filled' : amount > 0 ? 'half' : '';
+            return <img key={i} className={`pip ${state}`} src={amount > 0 ? uiSprite.gemFull : uiSprite.gemEmpty} alt="" draggable={false} />;
           })}
           {player.meter.cooldown > 0 && (
             <span className="cooldown">

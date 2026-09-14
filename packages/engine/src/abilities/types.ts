@@ -13,6 +13,8 @@ export interface RecoveryRule {
   readonly amount: number;
   /** ownTurns 전용: N번째 자신의 턴마다 회복 */
   readonly every?: number;
+  /** ownPieceCaptured·enemyPieceCaptured 전용: 잡힌 말이 폰일 때의 회복량 (없으면 amount) */
+  readonly pawnAmount?: number;
 }
 
 export interface AbilityBalance {
