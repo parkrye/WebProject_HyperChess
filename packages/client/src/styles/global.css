@@ -19,6 +19,8 @@
 html,
 body {
   margin: 0;
+  /* 모바일: 당겨서 새로고침·바운스 스크롤 방지 */
+  overscroll-behavior: none;
   min-height: 100%;
   background: radial-gradient(circle at 50% -20%, #2a2140 0%, var(--bg) 60%);
   background-color: var(--bg);
@@ -840,4 +842,16 @@ button {
   100% {
     transform: rotate(45deg) scale(1);
   }
+}
+
+/* ---------- PWA ---------- */
+
+.install-button {
+  margin-top: 0.7rem;
+  font-size: 0.85rem;
+  border-color: color-mix(in srgb, #ffc94a 55%, transparent);
+}
+.install-hint {
+  font-size: 0.78rem;
+  margin-top: 0.5rem !important;
 }

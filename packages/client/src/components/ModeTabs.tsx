@@ -1,3 +1,5 @@
+import { useInstallPrompt } from '../pwa/useInstallPrompt';
+
 export type GameMode = 'local' | 'ai' | 'online';
 
 const MODES: readonly { id: GameMode; label: string; enabled: boolean }[] = [
@@ -33,6 +35,21 @@ export function Hero() {
         HYPER<span>CHESS</span>
       </h1>
       <p>초능력을 하나 골라 체스판을 뒤흔드세요</p>
+      <InstallButton />
     </header>
   );
+}
+
+/** 홈 화면 설치 버튼 (설치 가능할 때만), iOS는 수동 추가 안내 */
+function InstallButton() {
+  const { canInstall, showIosHint, install } = useInstallPrompt();
+  if (canInstall) {
+    return (
+      <button type="button" className="btn install-button" onClick={() => void install()}>
+        📲 앱으로 설치
+      </button>
+    );
+  }
+  if (showIosHint) return <p className="install-hint">Safari 공유 버튼 → "홈 화면에 추가"로 앱처럼 실행할 수 있어요</p>;
+  return null;
 }
