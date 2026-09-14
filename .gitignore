@@ -5,3 +5,6 @@ coverage/
 .DS_Store
 .vscode/
 .idea/
+
+# AI 비교용 기준본 (임시)
+packages/ai/tools/baseline/
