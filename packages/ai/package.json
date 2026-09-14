@@ -10,9 +10,13 @@
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "balance": "tsx tools/balance.ts"
   },
   "dependencies": {
     "@hyperchess/engine": "*"
+  },
+  "devDependencies": {
+    "tsx": "*"
   }
 }

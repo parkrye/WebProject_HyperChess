@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createGame, isInCheck, legalAbilityOptions, legalMoves, royalSquares, usesCheckRule } from '../src';
+import { BALANCE, COSTS, createGame, isInCheck, legalAbilityOptions, legalMoves, royalSquares, usesCheckRule } from '../src';
 import { game, move, setResource, sq, useAbility } from './helpers';
 
 const targets = (state: Parameters<typeof legalMoves>[0], from: string) =>
@@ -11,7 +11,7 @@ describe('염동력', () => {
     state = useAbility(state, { from: sq('a1'), to: sq('b2') });
     expect(state.board[sq('b2')]?.type).toBe('r');
     expect(state.turn).toBe('b');
-    expect(state.players.w.meter.resource).toBe(0);
+    expect(state.players.w.meter.resource).toBe(BALANCE.telekinesis.startResource - COSTS.telekinesis);
   });
 
   it('상대 말들에 둘러싸인 말은 옮길 수 없다', () => {
@@ -27,13 +27,26 @@ describe('염동력', () => {
     expect(options.map((o) => o.to)).toEqual([sq('e3')]);
   });
 
-  it('쿨다운 동안 다음 자신의 턴에 사용할 수 없다', () => {
-    let state = setResource(game('4k3/8/8/8/8/8/8/R3K3 w - - 0 1', { w: 'telekinesis' }), 'w', 3);
-    state = useAbility(state, { from: sq('a1'), to: sq('a2') });
-    state = move(state, 'e8', 'd8');
-    expect(legalAbilityOptions(state)).toEqual([]);
-    state = move(state, 'e1', 'f1');
-    state = move(state, 'd8', 'e8');
+});
+
+describe('쿨다운', () => {
+  it('사용 후 쿨다운 턴 수만큼 자신의 턴에 사용할 수 없다', () => {
+    const cooldown = BALANCE.haste.cooldownTurns;
+    expect(cooldown).toBeGreaterThan(0);
+    let state = setResource(game('7k/8/8/8/8/8/8/R3K3 w - - 0 1', { w: 'haste' }), 'w', 99);
+    state = useAbility(state);
+    state = move(state, 'a1', 'a2');
+    state = move(state, 'a2', 'a1');
+
+    const shuffle = [['h8', 'g8'], ['g8', 'h8']];
+    for (let turn = 0; turn < cooldown; turn++) {
+      const [from, to] = shuffle[turn % 2];
+      state = move(state, from, to);
+      state = setResource(state, 'w', 99);
+      expect(legalAbilityOptions(state)).toEqual([]);
+      state = move(state, turn % 2 === 0 ? 'e1' : 'd1', turn % 2 === 0 ? 'd1' : 'e1');
+    }
+    state = move(state, cooldown % 2 === 0 ? 'h8' : 'g8', cooldown % 2 === 0 ? 'g8' : 'h8');
     expect(legalAbilityOptions(state).length).toBeGreaterThan(0);
   });
 });
@@ -56,27 +69,29 @@ describe('가속', () => {
     expect(isInCheck(state, 'b')).toBe(true);
   });
 
-  it('자신의 턴 3번마다 자원 1 회복', () => {
+  it('설정된 자신의 턴 주기마다 자원 회복', () => {
+    const rule = BALANCE.haste.recovery[0];
     let state = createGame({ abilities: { w: 'haste' } });
-    state = move(state, 'e2', 'e4');
-    state = move(state, 'e7', 'e5');
-    expect(state.players.w.meter.resource).toBe(0);
-    state = move(state, 'g1', 'f3');
-    state = move(state, 'b8', 'c6');
-    expect(state.players.w.meter.resource).toBe(1);
+    const files = 'abcdefgh';
+    for (let round = 1; round < rule.every; round++) {
+      expect(state.players.w.meter.resource).toBe(BALANCE.haste.startResource);
+      state = move(state, files[round] + '2', files[round] + '3');
+      state = move(state, files[round] + '7', files[round] + '6');
+    }
+    expect(state.players.w.meter.resource).toBe(BALANCE.haste.startResource + rule.amount);
   });
 });
 
 describe('순간 이동', () => {
   it('자신의 말 두 개의 위치를 바꾼다', () => {
-    let state = game('4k3/8/8/8/8/8/8/R3K3 w - - 0 1', { w: 'teleport' });
+    let state = setResource(game('4k3/8/8/8/8/8/8/R3K3 w - - 0 1', { w: 'teleport' }), 'w', 1);
     state = useAbility(state, { a: sq('a1'), b: sq('e1') });
     expect(state.board[sq('a1')]?.type).toBe('k');
     expect(state.board[sq('e1')]?.type).toBe('r');
   });
 
   it('자신의 체크를 유발하는 교환은 불가', () => {
-    const state = game('r3k3/8/8/8/8/8/8/N3K3 w - - 0 1', { w: 'teleport' });
+    const state = setResource(game('r3k3/8/8/8/8/8/8/N3K3 w - - 0 1', { w: 'teleport' }), 'w', 1);
     expect(legalAbilityOptions(state)).toEqual([]);
   });
 });
@@ -85,8 +100,9 @@ describe('부활', () => {
   it('말을 잃으면 자원을 얻고, 인접 빈칸에 부활시킨다', () => {
     let state = game('4k3/8/8/3p4/4P3/8/8/4K3 b - - 0 1', { w: 'revive' });
     state = move(state, 'd5', 'e4');
-    expect(state.players.w.meter.resource).toBe(1);
+    expect(state.players.w.meter.resource).toBe(BALANCE.revive.recovery[0].amount);
     const pawn = state.captured.w[0];
+    state = setResource(state, 'w', COSTS.revive.p);
     state = useAbility(state, { pieceId: pawn.id, to: sq('d2') });
     expect(state.board[sq('d2')]?.id).toBe(pawn.id);
     expect(state.captured.w).toEqual([]);
