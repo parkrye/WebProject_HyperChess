@@ -3,8 +3,9 @@ import type { CSSProperties } from 'react';
 import { abilityUi } from '../abilityUi/specs';
 import { COLOR_NAME } from '../abilityUi/text';
 import type { InteractionController } from '../game/useInteraction';
+import { uiSprite } from '../assets/sprites';
 import { AbilityIconView } from './AbilityIconView';
-import { PieceSvg } from './PieceSvg';
+import { PieceSprite } from './PieceSprite';
 
 export interface SeatLabel {
   readonly name: string;
@@ -46,10 +47,16 @@ export function PlayerBar({ state, color, interaction, seat, className = '' }: P
 
       {definition && (
         <div className="resource" aria-label={`자원 ${player.meter.resource}/${definition.balance.maxResource}`}>
-          {Array.from({ length: definition.balance.maxResource }, (_, i) => (
-            <span key={i} className={`pip ${i < player.meter.resource ? 'filled' : ''}`} />
-          ))}
-          {player.meter.cooldown > 0 && <span className="cooldown">⏳{player.meter.cooldown}</span>}
+          {Array.from({ length: definition.balance.maxResource }, (_, i) => {
+            const filled = i < player.meter.resource;
+            return <img key={i} className={`pip ${filled ? 'filled' : ''}`} src={filled ? uiSprite.gemFull : uiSprite.gemEmpty} alt="" draggable={false} />;
+          })}
+          {player.meter.cooldown > 0 && (
+            <span className="cooldown">
+              <img className="cooldown-icon" src={uiSprite.hourglass} alt="재사용 대기" draggable={false} />
+              {player.meter.cooldown}
+            </span>
+          )}
         </div>
       )}
 
@@ -64,7 +71,7 @@ export function PlayerBar({ state, color, interaction, seat, className = '' }: P
               disabled={!canPick}
               onClick={() => interaction.pick('pieceId', piece.id)}
             >
-              <PieceSvg type={piece.type} color={piece.color} />
+              <PieceSprite type={piece.type} color={piece.color} />
             </button>
           );
         })}

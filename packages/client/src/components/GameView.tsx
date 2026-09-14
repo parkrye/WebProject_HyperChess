@@ -1,9 +1,12 @@
 import { getAbility, isInCheck, opposite, type Action, type Color, type GameState } from '@hyperchess/engine';
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { COLOR_NAME } from '../abilityUi/text';
 import type { StageView } from '../game/useStage';
 import { useInteraction } from '../game/useInteraction';
+import { useBgm, type BgmTrack } from '../audio/bgm';
+import { uiIconSprite } from '../assets/sprites';
 import { AbilityPanel } from './AbilityPanel';
+import { SoundToggle } from './SoundToggle';
 import { ClockBar } from './ClockBar';
 import { Board } from './Board';
 import { PromotionDialog, ResultDialog } from './Dialogs';
@@ -34,6 +37,8 @@ export function GameView(props: GameViewProps) {
   const left: Color = myColor ?? localLeft;
   const right = opposite(left);
 
+  useBgm(useBattleTrack(state, myColor));
+
   const status = (() => {
     if (state.result.kind !== 'ongoing') return '게임 종료';
     const turnName = myColor === null ? `${COLOR_NAME[state.turn]} 차례` : canAct ? '내 차례' : '상대 차례';
@@ -47,19 +52,21 @@ export function GameView(props: GameViewProps) {
   return (
     <div className={`game ${stageView.screenFx ? `screen-${stageView.screenFx}` : ''}`}>
       <header className="game-header">
-        <button type="button" className="btn btn-ghost" onClick={props.onMenu}>
-          ← 나가기
+        <button type="button" className="btn btn-ghost btn-icon-text" onClick={props.onMenu}>
+          <img className="ui-icon" src={uiIconSprite('exit')} alt="" draggable={false} />
+          나가기
         </button>
         <span className="game-status" aria-live="polite">
           {status}
         </span>
-        {myColor === null ? (
-          <button type="button" className="btn btn-ghost" onClick={() => setLocalLeft(opposite)} aria-label="보드 좌우 뒤집기">
-            ⇄
-          </button>
-        ) : (
-          <span className="game-header-spacer" />
-        )}
+        <span className="game-header-actions">
+          <SoundToggle />
+          {myColor !== null ? null : (
+            <button type="button" className="btn btn-ghost btn-icon" onClick={() => setLocalLeft(opposite)} aria-label="보드 좌우 뒤집기">
+              <img className="ui-icon" src={uiIconSprite('flip')} alt="" draggable={false} />
+            </button>
+          )}
+        </span>
       </header>
 
       <ClockBar state={state} leftColor={left} seats={props.seats} offsetMs={props.clockOffsetMs} />
@@ -81,4 +88,22 @@ export function GameView(props: GameViewProps) {
       {!busy && <ResultDialog result={state.result}>{props.resultActions}</ResultDialog>}
     </div>
   );
+}
+
+const TENSION_PIECE_COUNT = 12;
+const TENSION_HOLD_MS = 20_000;
+
+/** 대국 배경음악: 기본 → (체크·종반) 긴장 → 결과에 따라 승리/패배 */
+function useBattleTrack(state: GameState, myColor: Color | null): BgmTrack {
+  const lastTension = useRef(0);
+  const { result } = state;
+  if (result.kind === 'win') return myColor === null || result.winner === myColor ? 'victory' : 'defeat';
+  if (result.kind === 'draw') return 'defeat';
+
+  const pieces = state.board.filter(Boolean).length;
+  const tense = isInCheck(state, state.turn) || pieces <= TENSION_PIECE_COUNT;
+  const now = Date.now();
+  if (tense) lastTension.current = now;
+  // 체크가 잠깐 풀려도 곡이 바로 되돌아가지 않도록 잠시 유지한다
+  return tense || now - lastTension.current < TENSION_HOLD_MS ? 'tension' : 'battle';
 }

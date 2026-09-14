@@ -7,6 +7,7 @@ import { AbilityGrid } from '../components/AbilityGrid';
 import { AbilityIconView } from '../components/AbilityIconView';
 import { GameView } from '../components/GameView';
 import { Hero, ModeTabs, type GameMode } from '../components/ModeTabs';
+import { useBgm } from '../audio/bgm';
 import { useAnimatedGame } from '../game/useAnimatedGame';
 import { useOnlineRoom, type OnlineRoom } from '../online/useOnlineRoom';
 
@@ -90,6 +91,7 @@ function Lobby({ room, onModeChange }: { room: OnlineRoom; onModeChange: (mode: 
 
   const spec = abilityUi(prefs.abilityId);
   const disabled = pending || !room.connected || room.resuming;
+  useBgm('lobby');
 
   return (
     <main className="setup">
@@ -162,6 +164,7 @@ function Lobby({ room, onModeChange }: { room: OnlineRoom; onModeChange: (mode: 
 
 function WaitingRoom({ snapshot, you, onLeave }: { snapshot: RoomSnapshot; you: Color; onLeave: () => void }) {
   const [copied, setCopied] = useState(false);
+  useBgm('lobby');
   const link = `${window.location.origin}${window.location.pathname}?room=${snapshot.code}`;
 
   const copy = async () => {

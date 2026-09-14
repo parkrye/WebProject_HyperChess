@@ -1,4 +1,6 @@
+import { uiSprite } from '../assets/sprites';
 import { useInstallPrompt } from '../pwa/useInstallPrompt';
+import { SoundToggle } from './SoundToggle';
 
 export type GameMode = 'local' | 'ai' | 'online';
 
@@ -31,8 +33,9 @@ export function ModeTabs({ active, onChange }: { active: GameMode; onChange: (mo
 export function Hero() {
   return (
     <header className="setup-hero">
-      <h1>
-        HYPER<span>CHESS</span>
+      <SoundToggle className="hero-sound" />
+      <h1 className="logo">
+        <img src={uiSprite.logo} alt="HyperChess" draggable={false} />
       </h1>
       <p>초능력을 하나 골라 체스판을 뒤흔드세요</p>
       <InstallButton />

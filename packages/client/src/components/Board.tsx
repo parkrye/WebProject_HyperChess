@@ -12,12 +12,13 @@ import {
   type Square,
 } from '@hyperchess/engine';
 import type { CSSProperties } from 'react';
-import { abilityUi, ENHANCEMENT_BY_PIECE, type AbilityIcon } from '../abilityUi/specs';
+import { abilityUi } from '../abilityUi/specs';
+import { badgeSprite, effectStripSprite, pieceSprite, type BadgeSprite, type EffectStrip } from '../assets/sprites';
 import type { Overlay } from '../effects/types';
 import type { InteractionController } from '../game/useInteraction';
 import type { StageView } from '../game/useStage';
 import { AbilityIconView } from './AbilityIconView';
-import { PieceSvg } from './PieceSvg';
+import { PieceSprite } from './PieceSprite';
 
 interface BoardProps {
   readonly state: GameState;
@@ -49,22 +50,22 @@ function eventSquares(event: GameEvent | undefined): Square[] {
   });
 }
 
-interface Badge {
-  readonly icon: AbilityIcon;
-  readonly color: string;
+/**
+ * 스프라이트만으로 표현되지 않는 상태의 배지.
+ * 강화 말·폰 계승자·선왕·승급 킹·여제 말은 전용 스프라이트가 있어 배지를 달지 않는다.
+ */
+function pieceBadge(piece: Piece): BadgeSprite | null {
+  if (piece.title === 'heir' && piece.type !== 'p') return 'heir';
+  if (piece.title === 'oldKing' && piece.type !== 'k') return 'oldking';
+  return null;
 }
 
-function pieceBadge(piece: Piece, state: GameState): Badge | null {
-  if (piece.title === 'heir') return { icon: 'heir', color: abilityUi('heir').color };
-  if (piece.title === 'oldKing') return { icon: 'crown', color: '#9a93ab' };
-  // 여제 규칙의 승급 킹: 왕족이 아닌 킹
-  if (piece.type === 'k' && !piece.royal) return { icon: 'shield', color: abilityUi('empress').color };
-  if (piece.enhanced) {
-    const spec = abilityUi(ENHANCEMENT_BY_PIECE[piece.type] ?? '');
-    return { icon: spec.icon, color: spec.color };
-  }
-  const rules = state.players[piece.color].rules;
-  if (rules.queensRoyal && piece.type === 'q') return { icon: 'crown', color: abilityUi('empress').color };
+/** 이펙트 오버레이 종류 → 스프라이트 스트립 (없으면 CSS 연출) */
+function effectStrip(overlay: Overlay): EffectStrip | null {
+  if (overlay.kind === 'burst') return 'burst';
+  if (overlay.kind === 'ring') return 'ring';
+  if (overlay.kind === 'pillar') return 'pillar';
+  if (overlay.kind === 'stamp' && overlay.icon === 'crown') return 'crown';
   return null;
 }
 
@@ -89,6 +90,16 @@ function OverlayView({ overlay, leftColor }: { overlay: Overlay; leftColor: Colo
   const { x, y } = position(overlay.square, leftColor);
   const placed: CSSProperties = { ...style, left: `${x * 12.5}%`, top: `${y * 12.5}%` };
 
+  const strip = effectStrip(overlay);
+  if (strip) {
+    const spriteStyle = { ...placed, '--fx-sprite': `url(${effectStripSprite(strip)})` } as CSSProperties;
+    return (
+      <div className="fx fx-square" style={spriteStyle}>
+        <div className={`fx-sprite fx-sprite-${strip}`} />
+      </div>
+    );
+  }
+
   if (overlay.kind === 'beam' && overlay.to !== undefined) {
     const target = position(overlay.to, leftColor);
     const dx = target.x - x;
@@ -108,10 +119,10 @@ function OverlayView({ overlay, leftColor }: { overlay: Overlay; leftColor: Colo
     return (
       <div className="fx fx-shatter fx-square" style={placed}>
         <div className="shard shard-a">
-          <PieceSvg type={type} color={color} />
+          <PieceSprite type={type} color={color} faceLeft={color !== leftColor} />
         </div>
         <div className="shard shard-b">
-          <PieceSvg type={type} color={color} />
+          <PieceSprite type={type} color={color} faceLeft={color !== leftColor} />
         </div>
       </div>
     );
@@ -184,29 +195,19 @@ export function Board({ state, stage, interaction, leftColor, busy }: BoardProps
       <div className="board-pieces">
         {pieces.map(({ piece, square }) => {
           const { x, y } = position(square, leftColor);
-          const badge = pieceBadge(piece, state);
+          const badge = pieceBadge(piece);
           const fx = stage.pieceFx[piece.id];
-          const bodyClass = [
-            'piece-body',
-            fx ? `pfx-${fx}` : '',
-            badge ? 'has-aura' : '',
-            piece.title === 'oldKing' ? 'is-old-king' : '',
-            checkSquares.includes(square) ? 'is-checked' : '',
-          ].join(' ');
+          const bodyClass = ['piece-body', fx ? `pfx-${fx}` : '', checkSquares.includes(square) ? 'is-checked' : ''].join(' ');
           const pieceStyle = {
             transform: `translate(${x * 100}%, ${y * 100}%)`,
-            '--badge-color': badge?.color,
             '--fwd': forward(piece.color, leftColor),
           } as CSSProperties;
+          const sprite = pieceSprite(piece, state.players[piece.color].rules);
           return (
             <div key={piece.id} className="piece" style={pieceStyle}>
               <div className={bodyClass}>
-                <PieceSvg type={piece.type} color={piece.color} />
-                {badge && (
-                  <span className="piece-badge">
-                    <AbilityIconView icon={badge.icon} size={12} />
-                  </span>
-                )}
+                <PieceSprite type={piece.type} color={piece.color} src={sprite} faceLeft={piece.color !== leftColor} />
+                {badge && <img className="piece-badge" src={badgeSprite(badge)} alt="" draggable={false} />}
               </div>
             </div>
           );

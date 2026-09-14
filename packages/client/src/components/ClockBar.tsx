@@ -1,6 +1,7 @@
 import { clockView, opposite, type Color, type GameState } from '@hyperchess/engine';
 import { useEffect, useState } from 'react';
 import { COLOR_NAME } from '../abilityUi/text';
+import { uiSprite } from '../assets/sprites';
 import type { SeatLabel } from './PlayerBar';
 
 const TURN_WARNING_MS = 15_000;
@@ -57,7 +58,7 @@ export function ClockBar({ state, leftColor, seats, offsetMs = 0 }: ClockBarProp
     return (
       <div className={classes.join(' ')} aria-label={`${name} 남은 시간`}>
         <span className="clock-name">
-          <span className={`player-dot dot-${color}`} />
+          {active ? <img className="clock-hourglass" src={uiSprite.hourglass} alt="" draggable={false} /> : <span className={`player-dot dot-${color}`} />}
           {name}
         </span>
         <span className="clock-turn">{active ? formatClock(turnLeft) : '—'}</span>

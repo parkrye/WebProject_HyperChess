@@ -69,11 +69,3 @@ const FALLBACK: AbilityUiSpec = { color: '#aaaaaa', icon: 'crown', steps: [] };
 export function abilityUi(abilityId: string): AbilityUiSpec {
   return ABILITY_UI[abilityId] ?? FALLBACK;
 }
-
-/** 강화 종류 → 아이콘/색 (말 위 배지) */
-export const ENHANCEMENT_BY_PIECE: Readonly<Record<string, string>> = {
-  p: 'heavyInfantry',
-  n: 'lancer',
-  r: 'chariot',
-  b: 'paladin',
-};

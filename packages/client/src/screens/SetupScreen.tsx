@@ -4,6 +4,8 @@ import { useState, type CSSProperties } from 'react';
 import { abilityUi } from '../abilityUi/specs';
 import { COLOR_NAME } from '../abilityUi/text';
 import type { AiConfig } from '../ai/useAiOpponent';
+import { useBgm } from '../audio/bgm';
+import { uiIconSprite } from '../assets/sprites';
 import { AbilityGrid, randomAbilityId } from '../components/AbilityGrid';
 import { AbilityIconView } from '../components/AbilityIconView';
 import { Hero, ModeTabs, type GameMode } from '../components/ModeTabs';
@@ -45,6 +47,7 @@ export function SetupScreen({ mode, prefs: initialPrefs, onStart, onModeChange }
   const [prefs, setPrefs] = useState<SetupPrefs>(initialPrefs);
   const [editing, setEditing] = useState<Slot>(mode === 'ai' ? 'me' : 'w');
   const isAi = mode === 'ai';
+  useBgm('title');
 
   const slots: readonly { key: Slot; label: string }[] = isAi
     ? [{ key: 'me', label: '나' }, { key: 'ai', label: 'AI' }]
@@ -127,7 +130,8 @@ export function SetupScreen({ mode, prefs: initialPrefs, onStart, onModeChange }
             </button>
           );
         })}
-        <button type="button" className="btn btn-ghost" onClick={randomize}>
+        <button type="button" className="btn btn-ghost btn-icon-text" onClick={randomize}>
+          <img className="ui-icon" src={uiIconSprite('random')} alt="" draggable={false} />
           무작위
         </button>
       </div>

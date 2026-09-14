@@ -24,7 +24,10 @@ function serviceWorker(): Plugin {
     apply: 'build',
     generateBundle(_, bundle) {
       const built = Object.keys(bundle).filter((file) => !file.endsWith('.map'));
-      const publicFiles = listFiles(PUBLIC_DIR).map((path) => relative(PUBLIC_DIR, path).split(sep).join('/'));
+      // BGM은 용량이 커서(수십 MB) 미리 캐시하지 않고 재생할 때 네트워크로 받는다
+      const publicFiles = listFiles(PUBLIC_DIR)
+        .map((path) => relative(PUBLIC_DIR, path).split(sep).join('/'))
+        .filter((file) => !file.endsWith('.mp3'));
       const precache = ['/', ...new Set([...built, ...publicFiles])].map((file) => (file === '/' ? file : `/${file}`));
       const version = createHash('sha256').update(precache.join('\n')).digest('hex').slice(0, 12);
 
