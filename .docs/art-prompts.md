@@ -156,6 +156,22 @@ Pixel art effect sprite sheet for a cute noble superpower chess game, 2D subcult
 ```
 (848자)
 
+### 4-5. 플레이 타이머 UI (4×4)
+
+게임 상단 시계 바에 쓰는 소스. 숫자는 게임이 조합해 `1:58`, `전체 59:58` 형태로 표시한다.
+
+| 행 \ 열 | 1 | 2 | 3 | 4 |
+|---|---|---|---|---|
+| 1 | 숫자 0 | 숫자 1 | 숫자 2 | 숫자 3 |
+| 2 | 숫자 4 | 숫자 5 | 숫자 6 | 숫자 7 |
+| 3 | 숫자 8 | 숫자 9 | 콜론(:) | 모래시계 아이콘 |
+| 4 | 시계 명판(대기) | 시계 명판(내 차례) | 시계 명판(경고, 붉은색) | 차례 남은 시간 게이지 막대 |
+
+```text
+Pixel art timer UI sheet for a cute noble superpower chess game, 2D subculture style, rich royal palette. Transparent background (alpha PNG). Canvas 1024x1024, exact 4x4 grid of 256x256 cells, one element per cell, centered, 8% padding, no grid lines, no extra text. Drawn on a 64x64 pixel grid per cell upscaled 4x nearest neighbor, 1px dark outline, top-left light. Digits are chunky rounded pixel numerals in ivory with a gold outline, all the same width and baseline so they line up as a clock. Row 1: digits 0, 1, 2, 3. Row 2: digits 4, 5, 6, 7. Row 3: digits 8, 9, a colon made of two small gold diamonds, a cute gold hourglass with pink sand. Row 4: a wide empty clock plate with plain flat center (purple velvet with gold trim, 9-slice friendly), the same plate glowing gold for the active turn, the same plate glowing red for low time, a long thin gauge bar with gold fill and rounded ends.
+```
+(899자)
+
 ---
 
 ## 5. 로고
@@ -249,6 +265,7 @@ Instrumental defeat and draw music for a cute noble superpower chess game with 2
 | 4-2 UI 킷 | `assets/ui/kit.png` | `button`, `panel`, `gem-full` 등 |
 | 4-3 표식 | `assets/ui/markers.png` | `move-dot`, `badge-shield` 등 |
 | 4-4 이펙트 | `assets/fx/effects.png` | `burst-1`~`burst-4` 등 |
+| 4-5 타이머 | `assets/ui/timer.png` | `digit-0`~`digit-9`, `colon`, `hourglass`, `plate`, `plate-active`, `plate-warning`, `gauge` |
 | 5 로고 | `assets/ui/logo.png` | — |
 | 6 BGM | `assets/bgm/<곡>.ogg` | `title`, `lobby`, `battle`, `tension`, `victory`, `defeat` |
 
