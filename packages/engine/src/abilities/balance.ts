@@ -29,7 +29,7 @@ export const BALANCE = {
   },
   heavyInfantry: {
     maxResource: 2, startResource: 0, cooldownTurns: 0,
-    recovery: [{ trigger: 'ownTurns', every: 8, amount: 1 }],
+    recovery: [{ trigger: 'ownTurns', every: 10, amount: 1 }],
   },
   lancer: {
     maxResource: 2, startResource: 0, cooldownTurns: 0,
