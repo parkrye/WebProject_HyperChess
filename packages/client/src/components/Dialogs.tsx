@@ -4,7 +4,8 @@ import { resultText } from '../abilityUi/text';
 import type { InteractionController } from '../game/useInteraction';
 import { PieceSvg } from './PieceSvg';
 
-const PROMOTION_ORDER: readonly PieceType[] = ['q', 'r', 'b', 'n'];
+/** 여제 규칙에서는 퀸 자리에 승급 킹(k)이 들어간다 */
+const PROMOTION_ORDER: readonly PieceType[] = ['q', 'k', 'r', 'b', 'n'];
 
 export function PromotionDialog({ state, interaction }: { state: GameState; interaction: InteractionController }) {
   const { promotion } = interaction;

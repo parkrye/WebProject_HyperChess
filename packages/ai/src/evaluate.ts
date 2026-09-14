@@ -12,8 +12,15 @@ import {
 
 export const PIECE_VALUE: Readonly<Record<PieceType, number>> = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 0 };
 
-/** 강화된 말의 추가 가치 (창기병은 룩 이동이 더해져 퀸급) */
-const ENHANCED_BONUS: Readonly<Record<PieceType, number>> = { p: 140, n: 480, b: 130, r: 130, q: 0, k: 0 };
+/** 여제 규칙의 승급 킹(왕족 아님) 가치 */
+const PROMOTED_KING_VALUE = 350;
+
+/** 말 하나의 기물 가치 (왕족 킹은 0, 승급 킹은 별도 값) */
+export const materialValue = (piece: Piece): number =>
+  piece.type === 'k' && !piece.royal ? PROMOTED_KING_VALUE : PIECE_VALUE[piece.type];
+
+/** 강화된 말의 추가 가치 (창기병은 룩 이동이 더해져 퀸급, 팔라딘은 옆걸음으로 칸 색 제약이 풀림) */
+const ENHANCED_BONUS: Readonly<Record<PieceType, number>> = { p: 140, n: 480, b: 220, r: 130, q: 0, k: 0 };
 
 /** royal이 여럿일 때 하나를 잃는 손해 */
 const EXTRA_ROYAL_VALUE = 1200;
@@ -84,7 +91,7 @@ function sideScore(state: GameState, color: Color, map: PawnMap): number {
 
   state.board.forEach((piece, sq) => {
     if (!piece || piece.color !== color) return;
-    score += PIECE_VALUE[piece.type] + positional(piece, sq);
+    score += materialValue(piece) + positional(piece, sq);
     if (piece.enhanced) score += ENHANCED_BONUS[piece.type];
     if (isRoyal(piece, rules)) royals++;
 

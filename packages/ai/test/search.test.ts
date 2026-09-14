@@ -32,7 +32,7 @@ describe('AI 탐색', () => {
   });
 
   it('체크메이트 위기에서 계승자 능력으로 벗어난다', () => {
-    const state = createGame({ fen: '4k3/8/8/8/8/8/P4PPP/1r4K1 w - - 0 1', abilities: { w: 'heir' } });
+    const state = createGame({ fen: '4k3/8/8/8/8/8/P4PPP/1r4K1 w - - 0 1', abilities: { w: 'heir' }, resources: { w: 1 } });
     expect(legalMoves(state)).toEqual([]);
     const result = chooseAction(state, 'normal');
     expect(result.action.type).toBe('ability');
