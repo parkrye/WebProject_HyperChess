@@ -1,12 +1,17 @@
-import { applyAction, createGame, fromAlgebraic as sq, legalAbilityOptions } from '@hyperchess/engine';
+import { applyAction, createGame, fromAlgebraic as sq, legalAbilityOptions, type Color, type GameState } from '@hyperchess/engine';
 import { describe, expect, it } from 'vitest';
 import { abilityUi } from '../abilityUi/specs';
 import { revertChanges } from './replay';
 import { completedParams, currentStep, stepValues, uiOptions } from './targeting';
 
+function withResource(state: GameState, color: Color, resource: number): GameState {
+  const player = state.players[color];
+  return { ...state, players: { ...state.players, [color]: { ...player, meter: { ...player.meter, resource } } } };
+}
+
 describe('targeting', () => {
   it('순간 이동은 어느 순서로 골라도 엔진 형식으로 정규화된다', () => {
-    const state = createGame({ abilities: { w: 'teleport' }, fen: '4k3/8/8/8/8/8/8/R3K3 w - - 0 1' });
+    const state = withResource(createGame({ abilities: { w: 'teleport' }, fen: '4k3/8/8/8/8/8/8/R3K3 w - - 0 1' }), 'w', 1);
     const spec = abilityUi('teleport');
     const options = uiOptions(spec, legalAbilityOptions(state));
 
@@ -31,7 +36,7 @@ describe('revertChanges', () => {
     state = applyAction(state, { type: 'move', move: { from: sq('d7'), to: sq('d5') } });
     state = applyAction(state, { type: 'move', move: { from: sq('e4'), to: sq('d5') } });
     state = applyAction(state, { type: 'move', move: { from: sq('d8'), to: sq('d5') } });
-    state = applyAction(state, { type: 'ability', params: { a: sq('d1'), b: sq('e1') } });
+    state = applyAction(withResource(state, 'w', 1), { type: 'ability', params: { a: sq('d1'), b: sq('e1') } });
 
     let board = state.board;
     for (const event of [...state.log].reverse()) board = revertChanges(board, event.changes);
