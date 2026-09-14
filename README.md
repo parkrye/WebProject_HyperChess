@@ -44,6 +44,33 @@ npm run typecheck    # 전체 타입 검사
 npm run bench -w @hyperchess/engine  # 엔진 속도 측정
 ```
 
+## 밸런스 측정 (AI 자가 대국)
+
+루트의 **`balance.bat`을 더블클릭**하면 대화형으로 설정을 묻는다.
+
+1. 측정 방식
+   - **지정 상대와 대결**: 각 능력이 한 상대(기본: 능력 없음)와 n판. 상대끼리 둔 "대조군" 행으로 선공 이점을 확인
+   - **리그전**: 선택한 능력들이 서로 모든 조합으로 n판씩. 능력별 종합 점수율과 상대별 점수율 매트릭스 출력 ("능력 없음" 참가 선택 가능)
+2. 측정할 능력 번호 (쉼표 구분, 엔터 = 전체)
+3. 상대 능력(지정 상대 방식) 또는 "능력 없음" 참가 여부(리그전)
+4. 조합(대진)당 대국 수 (기본 16 / 리그전 8, 백/흑 번갈아)
+5. AI 탐색 깊이 (기본 2, 3 이상은 매우 느림)
+
+진행률과 남은 시간이 표시되고, 끝나면 결과가 `reports/balance-방식-날짜-시각.md`(원본 데이터는 `.json`)로 저장된다.
+전체 11개 능력 리그전은 대진 55개라 대진당 8판이면 440판(깊이 2, 16스레드 기준 약 10~15분)이다.
+
+명령줄로도 실행할 수 있다.
+
+```bash
+npm run balance -- --mode opponent --abilities paladin,heir --opponent none --games 24 --yes
+npm run balance -- --mode league --games 8 --include-none --yes
+```
+
+결과 해석 시 주의: 판 수가 적으면 오차가 크고(95% 신뢰구간 기준 24판 ≈ ±20%p, 96판 ≈ ±10%p), AI가 능력을 쓰는 실력이 결과에 섞여 있다.
+
+AI 버전 비교(개발용): 이전 버전 `search.ts`, `evaluate.ts`를 `packages/ai/tools/baseline/`에 복사한 뒤
+`npx tsx packages/ai/tools/versus.ts --games 40 --ms 500`
+
 ## 새 능력 추가
 
 1. `packages/engine/src/abilities/`에 `AbilityDefinition` 구현
