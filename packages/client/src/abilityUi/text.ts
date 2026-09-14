@@ -69,6 +69,7 @@ export function abilityBlockReason(state: GameState, color: Color, usableCount: 
 const WIN_REASON: Record<WinReason, string> = {
   checkmate: '체크메이트',
   royalsCaptured: '왕족 전멸',
+  resign: '기권',
 };
 
 const DRAW_REASON: Record<DrawReason, string> = {
