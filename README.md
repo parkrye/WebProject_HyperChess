@@ -89,6 +89,19 @@ npm run balance -- --mode league --include-none --focus paladin,heavyInfantry --
 AI 버전 비교(개발용): 이전 버전 `search.ts`, `evaluate.ts`를 `packages/ai/tools/baseline/`에 복사한 뒤
 `npx tsx packages/ai/tools/versus.ts --games 40 --ms 500`
 
+## 아트·BGM 에셋
+
+AI로 생성한 원본(`.docs/art-prompts.md` 프롬프트)을 게임용으로 가공해 `packages/client/public/assets/`에 넣는다.
+
+```bash
+# 원본 폴더 구조: <src>/sprites/*.png, <src>/bgms/*.mp3 (파일명은 art-prompts.md의 시트 이름)
+npm run import-assets -w @hyperchess/client -- --src "C:/Users/me/Downloads"
+```
+
+- 그리드 시트를 셀별로 잘라 같은 배율로 맞추고, 배경 제거 흔적(반투명 후광·노이즈 조각)을 정리한다.
+- 보드 테두리는 안쪽 구멍 비율을 측정해 `board/frame.json`에 저장한다 (값이 바뀌면 `styles/art.css`의 테두리 위치도 맞춘다).
+- BGM은 용량이 커서 PWA 미리 캐시에서 제외되고, 재생할 때 스트리밍된다.
+
 ## 새 능력 추가
 
 1. `packages/engine/src/abilities/`에 `AbilityDefinition` 구현

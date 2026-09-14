@@ -25,6 +25,8 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   // 멀티플레이 통신과 외부 요청은 캐시하지 않는다
   if (request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/socket.io')) return;
+  // 오디오는 부분 요청(Range, 206)을 쓰므로 서비스 워커를 거치지 않는다
+  if (url.pathname.startsWith('/assets/bgm/')) return;
 
   // 페이지 이동: 네트워크 우선, 오프라인이면 캐시된 앱 셸
   if (request.mode === 'navigate') {
