@@ -238,9 +238,13 @@ describe('여제', () => {
     expect(state.result).toEqual({ kind: 'win', winner: 'b', reason: 'royalsCaptured' });
   });
 
-  it('퀸이 없으면 사용할 수 없다', () => {
-    const state = setResource(game('4k3/8/8/8/8/8/8/R3K3 w - - 0 1', { w: 'empress' }), 'w', 1);
-    expect(legalAbilityOptions(state)).toEqual([]);
+  it('퀸이 정확히 하나일 때만 사용할 수 있다', () => {
+    const noQueen = setResource(game('4k3/8/8/8/8/8/8/R3K3 w - - 0 1', { w: 'empress' }), 'w', 1);
+    expect(legalAbilityOptions(noQueen)).toEqual([]);
+    const twoQueens = setResource(game('4k3/8/8/8/8/8/8/Q2QK3 w - - 0 1', { w: 'empress' }), 'w', 1);
+    expect(legalAbilityOptions(twoQueens)).toEqual([]);
+    const oneQueen = setResource(game('4k3/8/8/8/8/8/8/3QK3 w - - 0 1', { w: 'empress' }), 'w', 1);
+    expect(legalAbilityOptions(oneQueen)).toEqual([{}]);
   });
 
   it('킹이 공격받는 칸으로 이동할 수 있고, 퀸 프로모션은 금지된다', () => {
