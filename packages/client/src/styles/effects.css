@@ -1,0 +1,263 @@
+/* ---------- 오버레이 ---------- */
+
+.fx {
+  position: absolute;
+  color: var(--fx-color);
+  animation-duration: var(--fx-duration);
+  animation-fill-mode: forwards;
+  animation-timing-function: ease-out;
+}
+.fx-square {
+  width: 12.5%;
+  height: 12.5%;
+  display: grid;
+  place-items: center;
+}
+.fx-full {
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.fx-ring::before {
+  content: '';
+  width: 90%;
+  height: 90%;
+  border-radius: 50%;
+  border: 3px solid var(--fx-color);
+  box-shadow: 0 0 14px var(--fx-color), inset 0 0 10px var(--fx-color);
+  animation: ring-expand var(--fx-duration) ease-out forwards;
+}
+
+.fx-pillar::before {
+  content: '';
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: 0;
+  height: 520%;
+  background: linear-gradient(to top, var(--fx-color), color-mix(in srgb, var(--fx-color) 30%, transparent) 60%, transparent);
+  filter: blur(2px);
+  transform-origin: bottom;
+  animation: pillar var(--fx-duration) ease-out forwards;
+}
+
+.fx-burst::before {
+  content: '';
+  width: 14%;
+  height: 14%;
+  border-radius: 50%;
+  background: var(--fx-color);
+  box-shadow:
+    0 -26px 0 -2px var(--fx-color), 22px -14px 0 -3px var(--fx-color), 24px 12px 0 -2px var(--fx-color),
+    0 26px 0 -3px var(--fx-color), -22px 14px 0 -2px var(--fx-color), -24px -12px 0 -3px var(--fx-color);
+  animation: burst var(--fx-duration) ease-out forwards;
+}
+
+.fx-stamp svg {
+  filter: drop-shadow(0 0 8px var(--fx-color));
+  animation: stamp var(--fx-duration) cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
+}
+
+.fx-beam {
+  height: 6px;
+  margin-top: -3px;
+  transform-origin: left center;
+}
+.fx-beam::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  background: linear-gradient(90deg, transparent, var(--fx-color) 20%, #fff 50%, var(--fx-color) 80%, transparent);
+  box-shadow: 0 0 16px var(--fx-color);
+  border-radius: 3px;
+  animation: beam var(--fx-duration) ease-out forwards;
+}
+
+.fx-flash {
+  background: radial-gradient(circle, color-mix(in srgb, var(--fx-color) 55%, transparent), transparent 70%);
+  animation: flash var(--fx-duration) ease-out forwards;
+}
+
+.fx-speedlines {
+  background: repeating-linear-gradient(
+    100deg,
+    transparent 0 22px,
+    color-mix(in srgb, var(--fx-color) 45%, transparent) 22px 24px,
+    transparent 24px 60px
+  );
+  background-size: 200% 100%;
+  animation: speedlines var(--fx-duration) linear forwards;
+}
+
+.fx-scanlines {
+  background: repeating-linear-gradient(to bottom, rgb(255 255 255 / 7%) 0 2px, transparent 2px 5px);
+  animation: scanlines 0.6s linear infinite;
+}
+
+.fx-clock svg {
+  width: 45%;
+  height: 45%;
+  opacity: 0.55;
+  filter: drop-shadow(0 0 12px var(--fx-color));
+  animation: clock-reverse 1.2s linear infinite;
+}
+
+@keyframes ring-expand {
+  from {
+    transform: scale(0.3);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+@keyframes pillar {
+  0% {
+    transform: scaleY(0);
+    opacity: 0;
+  }
+  30% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleY(1);
+    opacity: 0;
+  }
+}
+@keyframes burst {
+  from {
+    transform: scale(0.2);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+@keyframes stamp {
+  0% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+  35% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.1) translateY(-30%);
+    opacity: 0;
+  }
+}
+@keyframes beam {
+  0% {
+    transform: scaleX(0);
+    opacity: 1;
+  }
+  40% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 0;
+  }
+}
+@keyframes flash {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes speedlines {
+  from {
+    background-position: 100% 0;
+    opacity: 1;
+  }
+  to {
+    background-position: -100% 0;
+    opacity: 0;
+  }
+}
+@keyframes scanlines {
+  to {
+    background-position: 0 5px;
+  }
+}
+@keyframes clock-reverse {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+/* ---------- 말 연출 ---------- */
+
+.pfx-levitate {
+  transform: translateY(-14%) scale(1.15);
+  filter: drop-shadow(0 14px 6px rgb(0 0 0 / 55%)) drop-shadow(0 0 10px #b57bff);
+}
+.pfx-land {
+  animation: land 0.32s ease-out;
+}
+.pfx-vanish {
+  transform: scale(0.1, 1.6);
+  opacity: 0;
+}
+.pfx-appear {
+  animation: appear 0.45s ease-out;
+}
+.pfx-rise {
+  animation: rise 0.8s ease-out;
+}
+.pfx-empower {
+  animation: empower 0.5s ease-in-out;
+}
+.pfx-dim {
+  opacity: 0.6;
+  filter: grayscale(0.8);
+}
+.pfx-afterimage .piece-svg {
+  filter: drop-shadow(-10px 0 0 rgb(63 224 208 / 45%)) drop-shadow(-20px 0 0 rgb(63 224 208 / 20%));
+}
+
+@keyframes land {
+  0% {
+    transform: translateY(-14%) scale(1.15);
+  }
+  60% {
+    transform: translateY(2%) scale(0.95, 1.05);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes appear {
+  from {
+    transform: scale(0.1, 1.6);
+    opacity: 0;
+  }
+}
+@keyframes rise {
+  from {
+    transform: translateY(45%);
+    opacity: 0;
+    filter: brightness(3);
+  }
+}
+@keyframes empower {
+  50% {
+    transform: scale(1.25);
+    filter: brightness(1.8);
+  }
+}
