@@ -11,12 +11,12 @@
  *
  * 인자 (없으면 대화형으로 묻는다)
  *   --mode <opponent|league> 측정 방식 (기본 opponent)
- *   --abilities <id,id|all>  측정할 능력 (기본 all, all 에서는 밸런스 예외인 rewind 제외)
+ *   --abilities <id,id|all>  측정할 능력 (기본 all)
  *   --opponent <id|none>     opponent 방식의 상대 능력 (기본 none = 능력 없음)
  *   --include-none           league 방식에 "능력 없음"도 참가
  *   --focus <id,id>          league 방식에서 이 능력이 낀 대진만 새로 대국
  *   --base <file.json>       이전 리그전 결과에 합산: focus 능력이 낀 대진만 새 결과로 교체 (--base latest = 가장 최근 리그전)
- *   --games <n>              조합(대진)당 대국 수, 짝수 권장 (기본 opponent 16 / league 8)
+ *   --games <n>              조합(대진)당 대국 수, 짝수 권장. 생략하면 계속 반복 (Ctrl+C·창 닫기로 종료, 그때까지 결과 저장)
  *   --depth <n>              AI 탐색 깊이 (기본 2)
  *   --opening <n>            무작위로 두는 첫 수 (기본 4)
  *   --max-plies <n>          최대 수, 넘으면 평가값 판정 (기본 160)
@@ -51,7 +51,8 @@ interface Settings {
   readonly focus: readonly string[];
   /** league: 합산할 이전 리그전 결과 json 경로 */
   readonly basePath: string | null;
-  readonly games: number;
+  /** 조합(대진)당 대국 수. null이면 외부에서 멈출 때까지 라운드를 계속 반복 */
+  readonly games: number | null;
   readonly depth: number;
   readonly opening: number;
   readonly maxPlies: number;
@@ -81,15 +82,9 @@ function argValue(name: string): string | undefined {
 
 const hasArgs = () => process.argv.slice(2).some((arg) => arg.startsWith('--') && arg !== '--yes');
 
-/**
- * 밸런스 예외 능력: "전체"를 고르면 빠진다 (명시적으로 지정하면 측정 가능).
- * 시간 역행은 AI가 활용하는 방식의 한계가 커서 승률 측정에서 제외한다.
- */
-const EXCLUDED_FROM_ALL: readonly string[] = ['rewind'];
-
 function parseAbilityList(raw: string, ids: readonly string[]): string[] {
   const text = raw.trim();
-  if (!text || text === 'all') return ids.filter((id) => !EXCLUDED_FROM_ALL.includes(id));
+  if (!text || text === 'all') return [...ids];
   return text
     .split(/[,\s]+/)
     .filter(Boolean)
@@ -118,7 +113,10 @@ const DEFAULT_CPU_PERCENT = 50;
 
 /** CPU 사용량(%)에 맞춘 워커 수. 워커 하나가 논리 코어 하나를 거의 다 쓴다 */
 const workersForCpu = (percent: number) => Math.max(1, Math.floor((cpus().length * Math.min(100, percent)) / 100));
-const defaultGames = (mode: Mode) => (mode === 'league' ? 8 : 16);
+/** 계속 반복 모드에서 한 라운드에 조합(대진)마다 두는 판 수 (백/흑 한 번씩) */
+const CONTINUOUS_ROUND_GAMES = 2;
+/** 계속 반복 모드에서 보고서를 저장하는 최소 간격 */
+const SAVE_INTERVAL_MS = 60_000;
 
 /** 측정 중에도 다른 프로그램이 먼저 CPU를 쓰도록 우선순위를 낮춘다 (워커 스레드도 같은 프로세스) */
 function lowerProcessPriority() {
@@ -153,7 +151,7 @@ function settingsFromArgs(ids: readonly string[]): Settings {
     includeNone: process.argv.includes('--include-none'),
     focus: argValue('focus') ? parseAbilityList(argValue('focus')!, ids) : [],
     basePath: resolveBasePath(argValue('base')),
-    games: positiveInt(argValue('games'), defaultGames(mode), '대국 수'),
+    games: argValue('games') === undefined ? null : positiveInt(argValue('games'), CONTINUOUS_ROUND_GAMES, '대국 수'),
     depth: positiveInt(argValue('depth'), 2, '탐색 깊이'),
     opening: Number(argValue('opening') ?? 4),
     maxPlies: positiveInt(argValue('max-plies'), 160, '최대 수'),
@@ -173,7 +171,7 @@ async function settingsFromPrompt(ids: readonly string[]): Promise<Settings> {
     console.log('');
     ids.forEach((id, index) => console.log(`  ${String(index + 1).padStart(2)}. ${participantName(id)} (${id})`));
     console.log('');
-    const subjects = parseAbilityList(await rl.question(`측정할 능력 번호 (쉼표 구분, 엔터 = 전체 · ${EXCLUDED_FROM_ALL.map(participantName).join(', ')} 제외): `), ids);
+    const subjects = parseAbilityList(await rl.question('측정할 능력 번호 (쉼표 구분, 엔터 = 전체): '), ids);
 
     let opponent: Participant = null;
     let includeNone = false;
@@ -195,11 +193,8 @@ async function settingsFromPrompt(ids: readonly string[]): Promise<Settings> {
     }
 
     const gamesLabel = mode === 'league' ? '대진당' : '조합당';
-    const games = positiveInt(
-      await rl.question(`${gamesLabel} 대국 수 (엔터 = ${defaultGames(mode)}, 많을수록 정확): `),
-      defaultGames(mode),
-      '대국 수',
-    );
+    const gamesRaw = await rl.question(`${gamesLabel} 대국 수 (엔터 = 끝없이 반복, Ctrl+C 또는 창을 닫으면 그때까지 결과 저장): `);
+    const games = gamesRaw.trim() === '' ? null : positiveInt(gamesRaw, CONTINUOUS_ROUND_GAMES, '대국 수');
     const depth = positiveInt(await rl.question('AI 탐색 깊이 (엔터 = 2, 3 이상은 매우 느림): '), 2, '탐색 깊이');
     const cpuPercent = positiveInt(
       await rl.question(`CPU 사용량 % (엔터 = ${DEFAULT_CPU_PERCENT}, 높을수록 빠르지만 PC가 무거워짐): `),
@@ -216,21 +211,27 @@ async function confirm(settings: Settings, jobCount: number): Promise<boolean> {
   // 실측: 깊이 2 기준 한 판 CPU 약 30초(Ryzen 7 3700X), 깊이가 1 늘 때마다 약 4배
   const secondsPerGame = 30 * Math.pow(4, settings.depth - 2);
   const minutes = (jobCount * secondsPerGame) / settings.workers / 60;
+  const gamesText = settings.games === null ? `계속 반복(라운드마다 ${CONTINUOUS_ROUND_GAMES}판)` : `${settings.games}판`;
   const participants = leagueParticipants(settings);
 
   console.log('');
   if (settings.mode === 'league') {
     console.log(`리그전 참가: ${participants.map(participantName).join(', ')}`);
     const pairCount = leaguePairs(settings).length;
-    console.log(`새로 대국할 대진 ${pairCount}개 × ${settings.games}판 / 깊이 ${settings.depth}`);
+    console.log(`새로 대국할 대진 ${pairCount}개 × ${gamesText} / 깊이 ${settings.depth}`);
     if (settings.focus.length) console.log(`재측정 대상: ${settings.focus.map(participantName).join(', ')}`);
     if (settings.basePath) console.log(`나머지 대진은 이전 결과 사용: ${relative(REPO_ROOT, settings.basePath)}`);
   } else {
     console.log(`측정 대상: ${settings.subjects.map(participantName).join(', ')}`);
-    console.log(`상대: ${participantName(settings.opponent)} / 조합당 ${settings.games}판 / 깊이 ${settings.depth}`);
+    console.log(`상대: ${participantName(settings.opponent)} / 조합당 ${gamesText} / 깊이 ${settings.depth}`);
   }
   const cpuShare = Math.round((settings.workers / cpus().length) * 100);
-  console.log(`총 ${jobCount}판, 워커 ${settings.workers}개(CPU 약 ${cpuShare}%, 낮은 우선순위), 예상 약 ${Math.max(1, Math.round(minutes))}분`);
+  if (settings.games === null) {
+    console.log(`라운드당 ${jobCount}판(약 ${Math.max(1, Math.round(minutes))}분), 워커 ${settings.workers}개(CPU 약 ${cpuShare}%, 낮은 우선순위)`);
+    console.log('끝없이 반복합니다. 보고서는 1분·라운드마다 저장되고, Ctrl+C나 창을 닫으면 그때까지의 결과를 저장하고 끝냅니다.');
+  } else {
+    console.log(`총 ${jobCount}판, 워커 ${settings.workers}개(CPU 약 ${cpuShare}%, 낮은 우선순위), 예상 약 ${Math.max(1, Math.round(minutes))}분`);
+  }
   if (process.argv.includes('--yes') || !process.stdin.isTTY) return true;
 
   const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -260,22 +261,27 @@ function leaguePairs(settings: Settings): [Participant, Participant][] {
   return pairs;
 }
 
-function buildJobs(settings: Settings): Job[] {
+/**
+ * 한 라운드의 대국 목록. 계속 반복 모드는 라운드마다 시드가 달라 같은 대국이 되풀이되지 않는다.
+ * idStart: 라운드가 이어져도 대국 id가 겹치지 않게 하는 시작 번호
+ */
+function buildJobs(settings: Settings, round = 0, idStart = 0): Job[] {
   const search = { maxDepth: settings.depth, timeLimitMs: 600_000, quiescence: true, abilityBranchLimit: 4, noise: 8 };
   const jobs: Job[] = [];
+  const gamesPerMatchup = settings.games ?? CONTINUOUS_ROUND_GAMES;
 
   const addMatchup = (a: Participant, b: Participant, control: boolean) => {
-    for (let game = 0; game < settings.games; game++) {
+    for (let game = 0; game < gamesPerMatchup; game++) {
       const aColor: Color = game % 2 === 0 ? 'w' : 'b';
       const spec: MatchSpec = {
         white: aColor === 'w' ? a : b,
         black: aColor === 'w' ? b : a,
-        seed: 1000 + game * 7919,
+        seed: 1000 + (round * gamesPerMatchup + game) * 7919,
         randomOpeningPlies: settings.opening,
         maxPlies: settings.maxPlies,
         search,
       };
-      jobs.push({ id: jobs.length, spec, a, b, aColor, control });
+      jobs.push({ id: idStart + jobs.length, spec, a, b, aColor, control });
     }
   };
 
@@ -321,32 +327,47 @@ function interimStandings(jobs: Job[], results: Map<number, MatchResult>): strin
     .map(([label, row], index) => `${String(index + 1).padStart(2)}. ${label.padEnd(8)} ${percent(row.points / row.games).padStart(4)}  (${row.games}판)`);
 }
 
-async function runJobs(jobs: Job[], workers: number): Promise<Map<number, MatchResult>> {
-  const results = new Map<number, MatchResult>();
-  const queue = [...jobs];
+interface RunOptions {
+  /** 다음 대국 (null이면 더 없음) */
+  readonly nextJob: () => Job | null;
+  /** 전체 대국 수 (계속 반복이면 null) */
+  readonly total: number | null;
+  /** 진행 중간 순위에 쓸 지금까지 만든 대국 목록 */
+  readonly jobs: () => readonly Job[];
+  readonly workers: number;
+  readonly results: Map<number, MatchResult>;
+  readonly onResult?: () => void;
+}
+
+async function runJobs({ nextJob, total, jobs, workers, results, onResult }: RunOptions): Promise<void> {
   const started = Date.now();
   const interactive = process.stdout.isTTY;
-  // 콘솔이 아닐 때(백그라운드 실행 등)는 약 5%마다 한 줄씩 출력
-  const lineEvery = Math.max(1, Math.floor(jobs.length / 20));
+  // 콘솔이 아닐 때(백그라운드 실행 등)는 약 5%마다(계속 반복이면 50판마다) 한 줄씩 출력
+  const lineEvery = total ? Math.max(1, Math.floor(total / 20)) : 50;
   mkdirSync(REPORT_DIR, { recursive: true });
 
   const report = () => {
     const elapsed = Date.now() - started;
     const done = results.size;
-    const eta = done > 0 ? (elapsed / done) * (jobs.length - done) : 0;
-    const width = 30;
-    const filled = Math.round((done / jobs.length) * width);
-    const bar = '#'.repeat(filled) + '-'.repeat(width - filled);
-    const remaining = done ? formatDuration(eta) : '계산 중';
-    const line = `[${bar}] ${done}/${jobs.length} (${percent(done / jobs.length)})  경과 ${formatDuration(elapsed)}  남은 시간 ${remaining}`;
+    let line: string;
+    if (total === null) {
+      line = `[계속 반복] ${done}판 완료  경과 ${formatDuration(elapsed)}  (Ctrl+C 또는 창 닫기로 종료)`;
+    } else {
+      const eta = done > 0 ? (elapsed / done) * (total - done) : 0;
+      const width = 30;
+      const filled = Math.round((done / total) * width);
+      const bar = '#'.repeat(filled) + '-'.repeat(width - filled);
+      const remaining = done ? formatDuration(eta) : '계산 중';
+      line = `[${bar}] ${done}/${total} (${percent(done / total)})  경과 ${formatDuration(elapsed)}  남은 시간 ${remaining}`;
+    }
 
     if (interactive) process.stdout.write(`\r${line}   `);
-    else if (done % lineEvery === 0 || done === jobs.length) console.log(line);
+    else if (done % lineEvery === 0 || done === total) console.log(line);
 
     try {
       writeFileSync(
         PROGRESS_FILE,
-        [`밸런스 측정 진행 상황 (${new Date().toLocaleTimeString('ko-KR')} 갱신)`, '', line, '', '중간 순위 (끝난 판 기준, 오차 큼)', ...interimStandings(jobs, results), ''].join('\n'),
+        [`밸런스 측정 진행 상황 (${new Date().toLocaleTimeString('ko-KR')} 갱신)`, '', line, '', '중간 순위 (끝난 판 기준, 오차 큼)', ...interimStandings([...jobs()], results), ''].join('\n'),
       );
     } catch {
       // 진행 파일을 못 써도 측정은 계속한다
@@ -354,18 +375,20 @@ async function runJobs(jobs: Job[], workers: number): Promise<Map<number, MatchR
   };
   report();
 
+  const workerCount = total === null ? workers : Math.min(workers, total);
   await Promise.all(
-    Array.from({ length: Math.min(workers, jobs.length) }, () => {
+    Array.from({ length: workerCount }, () => {
       const worker = new Worker(new URL('./worker-bootstrap.mjs', import.meta.url), { workerData: { entry: import.meta.url } });
       return new Promise<void>((resolve, reject) => {
         const next = () => {
-          const job = queue.shift();
+          const job = nextJob();
           if (job) worker.postMessage(job);
           else void worker.terminate().then(() => resolve());
         };
         worker.on('message', ({ id, result }: WorkerMessage) => {
           results.set(id, result);
           report();
+          onResult?.();
           next();
         });
         worker.on('error', reject);
@@ -374,7 +397,6 @@ async function runJobs(jobs: Job[], workers: number): Promise<Map<number, MatchR
     }),
   );
   process.stdout.write('\n');
-  return results;
 }
 
 /* ---------- 집계 ---------- */
@@ -488,7 +510,7 @@ function mergeLeagueGames(settings: Settings, jobs: Job[], results: Map<number, 
   if (!settings.basePath) return { games, baseUsed: 0 };
 
   const base = JSON.parse(readFileSync(settings.basePath, 'utf8')) as { settings?: Partial<Settings>; results: MatchResult[] };
-  if (base.settings && (base.settings.games !== settings.games || base.settings.depth !== settings.depth)) {
+  if (base.settings && settings.games !== null && (base.settings.games !== settings.games || base.settings.depth !== settings.depth)) {
     console.warn(`주의: 이전 결과의 대국 수/깊이(${base.settings.games}판/깊이 ${base.settings.depth})가 현재 설정과 다릅니다.`);
   }
   const participants = new Set(leagueParticipants(settings));
@@ -549,16 +571,18 @@ function reportStamp(): string {
   return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
 }
 
-function writeReport(settings: Settings, body: string[], data: unknown, elapsedMs: number): string {
+/** games: 실제로 끝난 판 수 (계속 반복 모드 표기와 오차 계산용) */
+function writeReport(settings: Settings, body: string[], data: unknown, elapsedMs: number, base: string, games: number): string {
   mkdirSync(REPORT_DIR, { recursive: true });
-  const base = join(REPORT_DIR, `balance-${settings.mode}-${reportStamp()}`);
-  const perRowGames = settings.mode === 'league' ? settings.games * Math.max(1, leagueParticipants(settings).length - 1) : settings.games;
+  const matchups = settings.mode === 'league' ? Math.max(1, leaguePairs(settings).length) : settings.subjects.length + 1;
+  const perMatchup = settings.games ?? Math.max(1, Math.round(games / matchups));
+  const perRowGames = settings.mode === 'league' ? perMatchup * Math.max(1, leagueParticipants(settings).length - 1) : perMatchup;
   const margin = Math.round(100 / Math.sqrt(perRowGames));
 
   const header = [
     `# 밸런스 측정 (${settings.mode === 'league' ? '리그전' : `상대: ${participantName(settings.opponent)}`}) ${new Date().toLocaleString('ko-KR')}`,
     '',
-    `- ${settings.mode === 'league' ? '대진' : '조합'}당 ${settings.games}판 (백/흑 번갈아), AI 탐색 깊이 ${settings.depth}, 첫 ${settings.opening}수 무작위, ${settings.maxPlies}수 초과 시 평가값 판정`,
+    `- ${settings.mode === 'league' ? '대진' : '조합'}당 ${settings.games === null ? `약 ${perMatchup}판 (계속 반복, 지금까지 ${games}판)` : `${settings.games}판`} (백/흑 번갈아), AI 탐색 깊이 ${settings.depth}, 첫 ${settings.opening}수 무작위, ${settings.maxPlies}수 초과 시 평가값 판정`,
     `- 소요 시간: ${formatDuration(elapsedMs)}`,
     `- 종합 점수율 오차: 95% 신뢰구간 대략 ±${margin}%p (판 수가 적을수록 큼). AI의 능력 활용 실력이 결과에 섞여 있음`,
     '',
@@ -569,51 +593,105 @@ function writeReport(settings: Settings, body: string[], data: unknown, elapsedM
   return `${base}.md`;
 }
 
+/** 지금까지 끝난 결과로 보고서 본문과 원본 결과 목록을 만든다 */
+function buildReport(settings: Settings, jobs: readonly Job[], results: Map<number, MatchResult>): { body: string[]; rawResults: MatchResult[] } {
+  if (settings.mode !== 'league') {
+    return { body: tableLines(summarizeOpponent(settings, [...jobs], results)), rawResults: [...results.values()] };
+  }
+  const { games, baseUsed } = mergeLeagueGames(settings, [...jobs], results);
+  const summary = summarizeLeague(games);
+  const mergeNote = settings.basePath
+    ? [
+        `> 새로 대국: ${results.size}판 (${settings.focus.map(participantName).join(', ')}이(가) 낀 대진) · 이전 결과에서 가져옴: ${baseUsed}판 (${relative(REPO_ROOT, settings.basePath)})`,
+        '',
+      ]
+    : [];
+  const body = [
+    ...mergeNote,
+    '## 종합',
+    '',
+    ...tableLines(summary.rows),
+    '',
+    `선공(백) 점수율: ${percent(summary.whiteRate)}`,
+    '',
+    '## 상대별 점수율',
+    '',
+    ...matrixLines(summary),
+  ];
+  return { body, rawResults: games.map((game) => game.result) };
+}
+
 async function main() {
   lowerProcessPriority();
   const ids = listAbilities().map((ability) => ability.id);
   const settings = hasArgs() || !process.stdin.isTTY ? settingsFromArgs(ids) : await settingsFromPrompt(ids);
-  const jobs = buildJobs(settings);
-  if (!(await confirm(settings, jobs.length))) {
+  const firstRound = buildJobs(settings);
+  if (!(await confirm(settings, firstRound.length))) {
     console.log('취소했습니다.');
     return;
   }
 
   const started = Date.now();
-  const results = await runJobs(jobs, settings.workers);
-  let rawResults = [...results.values()];
+  const reportBase = join(REPORT_DIR, `balance-${settings.mode}-${reportStamp()}`);
+  const jobs: Job[] = [...firstRound];
+  const results = new Map<number, MatchResult>();
 
-  let body: string[];
-  if (settings.mode === 'league') {
-    const { games, baseUsed } = mergeLeagueGames(settings, jobs, results);
-    rawResults = games.map((game) => game.result);
-    const summary = summarizeLeague(games);
-    const mergeNote = settings.basePath
-      ? [
-          `> 새로 대국: ${results.size}판 (${settings.focus.map(participantName).join(', ')}이(가) 낀 대진) · 이전 결과에서 가져옴: ${baseUsed}판 (${relative(REPO_ROOT, settings.basePath)})`,
-          '',
-        ]
-      : [];
-    body = [
-      ...mergeNote,
-      '## 종합',
-      '',
-      ...tableLines(summary.rows),
-      '',
-      `선공(백) 점수율: ${percent(summary.whiteRate)}`,
-      '',
-      '## 상대별 점수율',
-      '',
-      ...matrixLines(summary),
-    ];
-  } else {
-    body = tableLines(summarizeOpponent(settings, jobs, results));
+  const save = () => {
+    const { body, rawResults } = buildReport(settings, jobs, results);
+    const path = writeReport(settings, body, { settings, results: rawResults }, Date.now() - started, reportBase, results.size);
+    return { body, path };
+  };
+
+  if (settings.games !== null) {
+    const queue = [...firstRound];
+    await runJobs({ nextJob: () => queue.shift() ?? null, total: firstRound.length, jobs: () => jobs, workers: settings.workers, results });
+    const { body, path } = save();
+    console.log('');
+    for (const line of body) console.log(line);
+    console.log(`\n보고서 저장: ${relative(REPO_ROOT, path)} (원본 데이터는 같은 이름의 .json)`);
+    return;
   }
 
-  console.log('');
-  for (const line of body) console.log(line);
-  const reportPath = writeReport(settings, body, { settings, results: rawResults }, Date.now() - started);
-  console.log(`\n보고서 저장: ${relative(REPO_ROOT, reportPath)} (원본 데이터는 같은 이름의 .json)`);
+  // 계속 반복: 라운드가 끝나면 다음 라운드를 만들고, 주기적으로 보고서를 덮어쓴다
+  let round = 0;
+  let pending = [...firstRound];
+  let lastSave = Date.now();
+  const saveQuietly = () => {
+    if (results.size === 0) return;
+    try {
+      save();
+      lastSave = Date.now();
+    } catch (error) {
+      console.error('\n보고서 저장 실패:', error instanceof Error ? error.message : error);
+    }
+  };
+  const stop = (signal: string) => {
+    saveQuietly();
+    console.log(`\n${signal === 'SIGINT' ? '중단 요청' : '창 닫힘'}: 지금까지 ${results.size}판을 저장했습니다 → ${relative(REPO_ROOT, reportBase)}.md`);
+    process.exit(0);
+  };
+  process.once('SIGINT', () => stop('SIGINT'));
+  process.once('SIGHUP', () => stop('SIGHUP'));
+  process.once('SIGBREAK', () => stop('SIGINT'));
+
+  await runJobs({
+    nextJob: () => {
+      if (pending.length === 0) {
+        round++;
+        pending = buildJobs(settings, round, jobs.length);
+        jobs.push(...pending);
+      }
+      return pending.shift()!;
+    },
+    total: null,
+    jobs: () => jobs,
+    workers: settings.workers,
+    results,
+    onResult: () => {
+      const roundDone = results.size % firstRound.length === 0;
+      if (roundDone || Date.now() - lastSave >= SAVE_INTERVAL_MS) saveQuietly();
+    },
+  });
 }
 
 /* ---------- 진입점 (모든 선언 이후에 실행) ---------- */

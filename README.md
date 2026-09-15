@@ -70,10 +70,10 @@ npm run bench -w @hyperchess/engine  # 엔진 속도 측정
 1. 측정 방식
    - **지정 상대와 대결**: 각 능력이 한 상대(기본: 능력 없음)와 n판. 상대끼리 둔 "대조군" 행으로 선공 이점을 확인
    - **리그전**: 선택한 능력들이 서로 모든 조합으로 n판씩. 능력별 종합 점수율과 상대별 점수율 매트릭스 출력 ("능력 없음" 참가 선택 가능)
-2. 측정할 능력 번호 (쉼표 구분, 엔터 = 전체). **시간 역행은 밸런스 예외 항목**이라 전체에서 빠진다(번호로 직접 지정하면 측정 가능)
+2. 측정할 능력 번호 (쉼표 구분, 엔터 = 시간 역행 포함 전체)
 3. 상대 능력(지정 상대 방식) 또는 "능력 없음" 참가 여부(리그전)
    - 리그전은 **새로 대국할 능력만 지정**할 수 있다. 지정한 능력이 낀 대진만 새로 두고, 나머지 대진은 가장 최근 리그전 결과를 가져와 합산한다 (수치를 몇 개만 바꿨을 때 시간 단축)
-4. 조합(대진)당 대국 수 (기본 16 / 리그전 8, 백/흑 번갈아)
+4. 조합(대진)당 대국 수 (백/흑 번갈아). **엔터 = 끝없이 반복**: 대진마다 백/흑 한 판씩을 라운드로 계속 두고(라운드마다 시드가 달라 같은 대국 없음), 보고서 하나를 1분·라운드마다 덮어써 저장한다. Ctrl+C나 창 닫기로 끝내면 그때까지의 결과를 저장한다
 5. AI 탐색 깊이 (기본 2, 3 이상은 매우 느림)
 6. CPU 사용량 % (기본 50) — 측정은 항상 낮은 우선순위로 실행되어 다른 작업을 방해하지 않는다
 
@@ -86,6 +86,7 @@ npm run bench -w @hyperchess/engine  # 엔진 속도 측정
 npm run balance -- --mode opponent --abilities paladin,heir --opponent none --games 24 --yes
 npm run balance -- --mode league --games 8 --include-none --cpu 75 --yes
 npm run balance -- --mode league --include-none --focus paladin,heavyInfantry --base latest --yes
+npm run balance -- --mode league --yes   # --games 생략 = 끝없이 반복
 ```
 
 측정 결과를 게임의 **통계** 탭에 반영하려면 `npm run import-reports`를 실행한 뒤 서버를 다시 켠다. `reports/*.json`을 `packages/server/data/simulation.jsonl`로 변환한다(매번 새로 만들어 중복 없음, 부분 재측정은 새로 둔 대진만 반영).
