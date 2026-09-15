@@ -1,4 +1,4 @@
-import type { ClientToServerEvents, ServerToClientEvents } from '@hyperchess/protocol';
+import { toGameRecord, type ClientToServerEvents, type ServerToClientEvents } from '@hyperchess/protocol';
 import { createServer } from 'node:http';
 import { networkInterfaces } from 'node:os';
 import { join } from 'node:path';
@@ -16,8 +16,13 @@ const ROOM_IDLE_MS = 10 * 60 * 1000;
 const CLIENT_DIST = fileURLToPath(new URL('../../client/dist', import.meta.url));
 const DATA_DIR = process.env.HYPERCHESS_DATA ?? fileURLToPath(new URL('../data', import.meta.url));
 
-const rooms = new RoomManager();
-const results = new ResultStore(join(DATA_DIR, 'results.jsonl'));
+const results = new ResultStore(join(DATA_DIR, 'results.jsonl'), { seedFiles: [join(DATA_DIR, 'simulation.jsonl')] });
+const rooms = new RoomManager({
+  onGameEnd: (game) => {
+    const record = toGameRecord(game, 'online');
+    if (record) results.add(record);
+  },
+});
 const httpServer = createServer(createApiHandler(results, createStaticHandler(CLIENT_DIST)));
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
   // 개발 중 Vite(5173)에서 직접 붙는 경우 허용

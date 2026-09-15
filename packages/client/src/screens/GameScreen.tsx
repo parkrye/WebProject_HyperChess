@@ -1,10 +1,12 @@
 import { opposite, STANDARD_TIME_CONTROL } from '@hyperchess/engine';
-import { useCallback, useMemo, useState } from 'react';
+import { toGameRecord } from '@hyperchess/protocol';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAiPlayers } from '../ai/useAiOpponent';
 import { AbilityReveal } from '../components/AbilityReveal';
 import { GameView } from '../components/GameView';
 import { useLocalGame } from '../game/useGame';
 import { DIFFICULTY_LABEL } from '../abilityUi/text';
+import { reportResult } from '../stats/reportResult';
 import type { LocalGameConfig } from './SetupScreen';
 
 interface LocalGameScreenProps {
@@ -40,6 +42,16 @@ function LocalGameBoard({ config, onRestart, onMenu }: LocalGameScreenProps) {
   const { ai } = config;
   const aiPlayers = useMemo(() => (ai ? { [ai.color]: ai.difficulty } : {}), [ai]);
   const { thinking } = useAiPlayers(state, aiPlayers, busy, dispatch);
+
+  // 끝난 대국을 한 번만 기록한다
+  const reported = useRef(false);
+  useEffect(() => {
+    if (reported.current) return;
+    const record = ai ? toGameRecord(state, 'ai', { [ai.color]: ai.difficulty }) : toGameRecord(state, 'local');
+    if (!record) return;
+    reported.current = true;
+    void reportResult(record);
+  }, [state, ai]);
 
   const myColor = ai ? opposite(ai.color) : null;
   const seats = ai

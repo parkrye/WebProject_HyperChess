@@ -50,6 +50,8 @@ interface Room {
 export interface RoomManagerOptions {
   readonly random?: () => number;
   readonly now?: () => number;
+  /** 대국이 끝났을 때 한 번 호출 (기록 저장용) */
+  readonly onGameEnd?: (game: GameState) => void;
 }
 
 export interface SeatBinding {
@@ -62,10 +64,12 @@ export class RoomManager {
   private readonly socketSeats = new Map<string, { code: string; color: Color }>();
   private readonly random: () => number;
   private readonly now: () => number;
+  private readonly onGameEnd: (game: GameState) => void;
 
   constructor(options: RoomManagerOptions = {}) {
     this.random = options.random ?? Math.random;
     this.now = options.now ?? Date.now;
+    this.onGameEnd = options.onGameEnd ?? (() => {});
   }
 
   create(socketId: string, request: CreateRoomRequest): JoinResult {
@@ -136,7 +140,7 @@ export class RoomManager {
     const room = this.rooms.get(binding.code);
     if (!room) return null;
 
-    if (room.game && room.game.result.kind === 'ongoing') room.game = resign(room.game, binding.color);
+    if (room.game && room.game.result.kind === 'ongoing') this.updateGame(room, resign(room.game, binding.color));
     this.disconnect(socketId);
     if (!room.game) room.seats[binding.color] = null;
     room.rematchVotes.delete(binding.color);
@@ -152,14 +156,14 @@ export class RoomManager {
     const { room, color } = this.requireSeat(socketId);
     if (!room.game) throw new RoomError('게임이 시작되지 않았습니다');
     if (room.game.turn !== color) throw new RoomError('상대 차례입니다');
-    room.game = applyAction(room.game, action, this.now());
+    this.updateGame(room, applyAction(room.game, action, this.now()));
     return room.code;
   }
 
   resign(socketId: string): string {
     const { room, color } = this.requireSeat(socketId);
     if (!room.game) throw new RoomError('게임이 시작되지 않았습니다');
-    room.game = resign(room.game, color);
+    this.updateGame(room, resign(room.game, color));
     return room.code;
   }
 
@@ -216,7 +220,7 @@ export class RoomManager {
     if (!room?.game) return false;
     const next = checkTimeout(room.game, this.now());
     if (next === room.game) return false;
-    room.game = next;
+    this.updateGame(room, next);
     return true;
   }
 
@@ -243,6 +247,13 @@ export class RoomManager {
 
   get roomCount(): number {
     return this.rooms.size;
+  }
+
+  /** 게임 상태를 바꾸고, 이번에 끝났으면 onGameEnd를 알린다 */
+  private updateGame(room: Room, next: GameState) {
+    const wasOngoing = room.game?.result.kind === 'ongoing';
+    room.game = next;
+    if (wasOngoing && next.result.kind !== 'ongoing') this.onGameEnd(next);
   }
 
   private startGameIfReady(room: Room) {

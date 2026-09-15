@@ -32,7 +32,7 @@ describe('parseGameRecord', () => {
 describe('ResultStore', () => {
   it('기록을 파일에 추가하고 다시 읽는다', () => {
     const file = join(mkdtempSync(join(tmpdir(), 'hc-results-')), 'nested', 'results.jsonl');
-    const store = new ResultStore(file, () => 1000);
+    const store = new ResultStore(file, { now: () => 1000 });
     store.add(parseGameRecord(valid)!);
     store.add(parseGameRecord({ ...valid, winner: 'b' })!);
 

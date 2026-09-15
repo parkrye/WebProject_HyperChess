@@ -122,4 +122,12 @@ describe('RoomManager', () => {
     manager.leave('s1');
     expect(() => manager.snapshot(host.code)).toThrow(RoomError);
   });
+
+  it('대국이 끝나면 onGameEnd를 한 번만 알린다', () => {
+    const ended: string[] = [];
+    const { manager } = setupRoom(new RoomManager({ onGameEnd: (game) => ended.push(game.result.kind) }));
+    manager.resign('s2');
+    manager.leave('s1');
+    expect(ended).toEqual(['win']);
+  });
 });

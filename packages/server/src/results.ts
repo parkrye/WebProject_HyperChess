@@ -36,14 +36,25 @@ export function parseGameRecord(input: unknown, allowed: readonly ResultSource[]
   };
 }
 
+export interface ResultStoreOptions {
+  readonly now?: () => number;
+  /** 함께 읽기만 하는 기록 파일 (예: 밸런스 시뮬레이션 가져오기 결과) */
+  readonly seedFiles?: readonly string[];
+}
+
 /** 대국 기록 저장소: JSON Lines 파일에 한 줄씩 추가한다 */
 export class ResultStore {
   private records: GameRecord[] | null = null;
+  private readonly now: () => number;
+  private readonly seedFiles: readonly string[];
 
   constructor(
     private readonly filePath: string,
-    private readonly now: () => number = Date.now,
-  ) {}
+    options: ResultStoreOptions = {},
+  ) {
+    this.now = options.now ?? Date.now;
+    this.seedFiles = options.seedFiles ?? [];
+  }
 
   add(input: GameRecordInput): GameRecord {
     const record: GameRecord = { ...input, playedAt: this.now() };
@@ -55,12 +66,12 @@ export class ResultStore {
 
   all(): GameRecord[] {
     if (this.records) return this.records;
-    this.records = existsSync(this.filePath) ? parseLines(readFileSync(this.filePath, 'utf8')) : [];
+    this.records = [...this.seedFiles, this.filePath].flatMap((file) => (existsSync(file) ? parseLines(readFileSync(file, 'utf8')) : []));
     return this.records;
   }
 }
 
-function parseLines(text: string): GameRecord[] {
+export function parseLines(text: string): GameRecord[] {
   return text
     .split('\n')
     .filter((line) => line.trim())

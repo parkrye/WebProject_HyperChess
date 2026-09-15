@@ -25,6 +25,7 @@
  *   --yes                    시작 확인 생략
  */
 import { getAbility, listAbilities, opposite, type Color } from '@hyperchess/engine';
+import { BALANCE_VERSION } from '@hyperchess/protocol';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { constants, cpus, setPriority } from 'node:os';
 import { dirname, join, relative } from 'node:path';
@@ -563,7 +564,8 @@ function writeReport(settings: Settings, body: string[], data: unknown, elapsedM
     '',
   ];
   writeFileSync(`${base}.md`, [...header, ...body, ''].join('\n'));
-  writeFileSync(`${base}.json`, JSON.stringify(data, null, 2));
+  // 통계 가져오기(import-reports)가 버전을 알 수 있도록 함께 저장한다
+  writeFileSync(`${base}.json`, JSON.stringify({ balanceVersion: BALANCE_VERSION, ...(data as object) }, null, 2));
   return `${base}.md`;
 }
 

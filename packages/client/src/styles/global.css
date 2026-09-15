@@ -817,6 +817,145 @@ button {
   background: var(--bg-elev-2);
 }
 
+/* ---------- 통계 ---------- */
+
+.stats-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: center;
+  margin: 0.4rem 0 1rem;
+}
+.stats-filters .segmented button {
+  white-space: nowrap;
+  padding-inline: 0.8rem;
+}
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: center;
+}
+.chip {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-elev);
+  cursor: pointer;
+}
+.chip.active {
+  background: color-mix(in srgb, var(--accent) 30%, var(--bg-elev-2));
+  border-color: var(--accent);
+  font-weight: 700;
+}
+.stats-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 1rem;
+  align-items: baseline;
+  justify-content: center;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+.stats-summary strong {
+  font-size: 1.4rem;
+}
+.stats-card {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-elev) 92%, transparent);
+}
+.stats-card h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+.stats-hint {
+  margin: 0.2rem 0 0.8rem;
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+.stats-ranking {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.stats-row {
+  display: grid;
+  grid-template-columns: minmax(7rem, 9rem) 1fr 3rem;
+  grid-template-areas: 'name bar rate' 'name count count';
+  align-items: center;
+  column-gap: 0.6rem;
+}
+.stats-name {
+  grid-area: name;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+.stats-bar {
+  grid-area: bar;
+  position: relative;
+  height: 12px;
+  border-radius: 6px;
+  background: var(--bg-elev-2);
+  overflow: hidden;
+}
+/* 50% 기준선 */
+.stats-bar::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgb(255 255 255 / 45%);
+}
+.stats-bar-fill {
+  display: block;
+  height: 100%;
+  width: calc(var(--rate) * 100%);
+  background: var(--ability-color);
+}
+.stats-rate {
+  grid-area: rate;
+  text-align: right;
+}
+.stats-count {
+  grid-area: count;
+  opacity: 0.65;
+  font-size: 0.75rem;
+}
+.stats-matrix-scroll {
+  overflow-x: auto;
+}
+.stats-matrix {
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  margin: 0 auto;
+}
+.stats-matrix th,
+.stats-matrix td {
+  padding: 0.3rem;
+  text-align: center;
+  min-width: 2.2rem;
+}
+.stats-matrix tbody th {
+  text-align: right;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.stats-matrix td {
+  border: 1px solid var(--line);
+}
+.stats-matrix td.stats-empty {
+  background: none;
+}
+
 /* ---------- AI 내전 ---------- */
 
 .arena-panel {
