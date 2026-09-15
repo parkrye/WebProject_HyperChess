@@ -84,7 +84,10 @@ export function GameView(props: GameViewProps) {
           <PlayerBar className="side-right" state={state} color={right} interaction={interaction} seat={props.seats?.[right]} randomized={props.randomized?.[right]} />
         </div>
         <aside className="under-board">
-          {props.notice && <p className="notice">{props.notice}</p>}
+          {/* 알림 유무와 관계없이 한 줄 자리를 유지해 아래 패널이 밀리지 않게 한다 */}
+          <p className={`notice notice-slot ${props.notice ? '' : 'is-empty'}`} title={props.notice ?? undefined}>
+            {props.notice ?? '\u00a0'}
+          </p>
           <AbilityPanel state={state} color={myColor ?? state.turn} interaction={interaction} busy={busy} />
           {props.sidebar}
         </aside>

@@ -107,7 +107,9 @@ function Lobby({ room, onModeChange }: { room: OnlineRoom; onModeChange: (mode: 
         <span className={`conn-dot ${room.connected ? 'on' : ''}`} />
         {room.resuming ? '이전 방에 다시 연결하는 중…' : room.connected ? '서버 연결됨' : '서버에 연결하는 중…'}
       </div>
-      {room.error && <p className="notice notice-error">{room.error}</p>}
+      <p className={`notice notice-error notice-slot ${room.error ? '' : 'is-empty'}`} role="alert">
+        {room.error ?? '\u00a0'}
+      </p>
 
       <section className="online-form">
         <label className="field">

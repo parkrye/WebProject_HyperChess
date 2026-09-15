@@ -293,9 +293,44 @@ button {
   width: 44px;
 }
 .game-status {
+  flex: 1;
+  min-width: 0;
   font-weight: 700;
   text-align: center;
   font-size: 0.95rem;
+  /* 상태 문구 길이가 바뀌어도 줄바꿈으로 헤더 높이가 변하지 않게 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- 레이아웃 흔들림 방지 ---------- */
+
+/* 내용이 없어도 자리는 유지 */
+.is-hidden {
+  visibility: hidden;
+}
+.notice-slot {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.notice-slot.is-empty {
+  visibility: hidden;
+}
+/* 여러 모양을 같은 칸에 겹쳐 가장 큰 크기를 차지 */
+.ability-stack {
+  display: grid;
+}
+.ability-stack > * {
+  grid-area: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.ability-sizer {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 /*
@@ -367,11 +402,25 @@ button {
   .board-row .cooldown {
     margin: 0;
   }
+  /* 잡힌 말이 늘어도 띠가 보드보다 길어져 아래 UI를 밀지 않게 보드 높이로 고정 */
+  .board-row .player-bar {
+    height: var(--board-size);
+    min-height: 0;
+    overflow: hidden;
+  }
   .board-row .captured {
     display: grid;
-    grid-template-columns: repeat(2, 22px);
+    grid-template-columns: repeat(3, 19px);
     justify-content: center;
     margin: auto 0 0;
+    flex-basis: auto;
+    min-height: 0;
+    max-height: none;
+    flex-shrink: 1;
+  }
+  .board-row .captured-piece {
+    width: 19px;
+    height: 19px;
   }
 }
 
@@ -439,10 +488,15 @@ button {
   color: var(--text-dim);
   margin-left: 4px;
 }
+/* 세로 화면: 잡힌 말은 항상 자기 줄에 두 줄 높이를 미리 잡아, 말이 생겨도 띠 높이가 변하지 않게 */
 .captured {
   display: flex;
   flex-wrap: wrap;
-  margin-left: auto;
+  flex-basis: 100%;
+  align-content: flex-start;
+  min-height: 44px;
+  max-height: 44px;
+  overflow: hidden;
 }
 .side-right .captured {
   margin-left: 0;
