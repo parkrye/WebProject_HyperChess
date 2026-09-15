@@ -26,6 +26,7 @@ export const WEIGHTS: Readonly<Record<string, number>> = {
   doubledPawn: -12,
   bishopPair: 30,
   extraRoyal: 1200,
+  empressActive: 150,
   inCheck: -40,
   cooldown: -5,
   'resource.telekinesis': 35,

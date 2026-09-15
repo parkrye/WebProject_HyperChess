@@ -28,6 +28,7 @@ const BASE_KEYS = [
   'doubledPawn',
   'bishopPair',
   'extraRoyal',
+  'empressActive',
   'inCheck',
   'cooldown',
 ] as const;
@@ -59,6 +60,7 @@ const I = {
   doubledPawn: idx('doubledPawn'),
   bishopPair: idx('bishopPair'),
   extraRoyal: idx('extraRoyal'),
+  empressActive: idx('empressActive'),
   inCheck: idx('inCheck'),
   cooldown: idx('cooldown'),
 };
@@ -152,6 +154,8 @@ function addSide(out: Float64Array, state: GameState, color: Color, files: Recor
   }
   if (bishops >= 2) out[I.bishopPair] += sign;
   if (royals > 1) out[I.extraRoyal] += sign * (royals - 1);
+  // 여제: 킹이 왕족에서 풀려 자유롭게 싸울 수 있고 체크가 없다
+  if (rules.queensRoyal) out[I.empressActive] += sign;
   if (abilityId) {
     out[INDEX[`resource.${abilityId}`]] += sign * meter.resource;
     out[I.cooldown] += sign * meter.cooldown;

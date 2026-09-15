@@ -61,12 +61,12 @@ export const BALANCE = {
     recovery: [{ trigger: 'ownTurns', every: 3, amount: 1 }],
   },
   wall: {
-    maxResource: 3, startResource: 0, cooldownTurns: 0,
+    maxResource: 3, startResource: 0, cooldownTurns: 2,
     recovery: [{ trigger: 'ownTurns', every: 4, amount: 1 }],
   },
   march: {
-    maxResource: 2, startResource: 0, cooldownTurns: 0,
-    recovery: [{ trigger: 'ownTurns', every: 4, amount: 1 }],
+    maxResource: 1, startResource: 0, cooldownTurns: 0,
+    recovery: [{ trigger: 'ownTurns', every: 7, amount: 1 }],
   },
   snipe: {
     maxResource: 2, startResource: 0, cooldownTurns: 0,
@@ -102,6 +102,6 @@ export const ALCHEMY_VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9 } as const;
 export const BRAINWASH_NEIGHBORS = 2;
 
 /** 성벽: 설치자의 턴이 이만큼 시작되면 사라진다 */
-export const WALL_DURATION = 4;
+export const WALL_DURATION = 6;
 /** 성벽: 한 플레이어가 동시에 세울 수 있는 최대 개수 */
-export const WALL_LIMIT = 2;
+export const WALL_LIMIT = 3;
