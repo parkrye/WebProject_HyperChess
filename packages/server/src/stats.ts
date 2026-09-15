@@ -74,8 +74,8 @@ export function computeStats(records: readonly GameRecord[], filter: StatsFilter
 /** 분류별 판 수와 백·흑 승, 무승부 합계 (전 버전 합산) */
 export function summarizeCategories(records: readonly GameRecord[]): CategorySummary[] {
   return STATS_CATEGORIES.map(({ id, sources }) => {
-    const { total, whiteWins, blackWins, draws } = computeStats(records, { sources });
-    return { category: id, games: total, whiteWins, blackWins, draws };
+    const { total, whiteWins, blackWins, draws, abilities } = computeStats(records, { sources });
+    return { category: id, games: total, whiteWins, blackWins, draws, abilities };
   });
 }
 

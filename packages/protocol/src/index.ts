@@ -88,6 +88,8 @@ export interface CategorySummary {
   readonly whiteWins: number;
   readonly blackWins: number;
   readonly draws: number;
+  /** 능력별 전적 (같은 능력끼리의 대국 제외) */
+  readonly abilities: readonly AbilityStat[];
 }
 
 export interface StatsResponse {
