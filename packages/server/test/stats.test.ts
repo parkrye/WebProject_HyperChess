@@ -1,6 +1,6 @@
 import type { GameRecord } from '@hyperchess/protocol';
 import { describe, expect, it } from 'vitest';
-import { computeStats } from '../src/stats';
+import { computeStats, summarizeCategories } from '../src/stats';
 
 const record = (w: string | null, b: string | null, winner: 'w' | 'b' | null, extra: Partial<GameRecord> = {}): GameRecord => ({
   source: 'simulation',
@@ -30,6 +30,17 @@ describe('computeStats', () => {
     expect(stats.total).toBe(5);
     expect(stats.whiteWins).toBe(2);
     expect(stats.versions).toEqual([13, 14]);
+  });
+
+  it('분류별 합계: 대전은 로컬·멀티, AI 내전은 시뮬레이션 포함', () => {
+    const extra = [record('haste', 'rewind', 'w', { source: 'local' }), record('haste', 'rewind', null, { source: 'ai' })];
+    const summary = summarizeCategories([...records, ...extra]);
+    expect(summary).toEqual([
+      { category: 'all', games: 7, whiteWins: 3, blackWins: 2, draws: 2 },
+      { category: 'versus', games: 2, whiteWins: 1, blackWins: 1, draws: 0 },
+      { category: 'ai', games: 1, whiteWins: 0, blackWins: 0, draws: 1 },
+      { category: 'arena', games: 4, whiteWins: 2, blackWins: 1, draws: 1 },
+    ]);
   });
 
   it('출처·버전으로 거른다', () => {
