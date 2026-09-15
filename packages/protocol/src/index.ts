@@ -12,6 +12,29 @@ export function resolveAbilityChoice(choice: string, random: () => number = Math
   return abilities[Math.floor(random() * abilities.length)].id;
 }
 
+/** 현재 밸런스 버전 (.docs/balance.md). 대국 기록에 함께 저장한다 */
+export const BALANCE_VERSION = 14;
+
+/** 대국 기록 출처: 밸런스 시뮬레이션 · AI 내전 · AI 대전 · 로컬 2인 · 온라인 */
+export type ResultSource = 'simulation' | 'arena' | 'ai' | 'local' | 'online';
+/** 클라이언트가 직접 보고할 수 있는 출처 (온라인은 서버가 기록) */
+export const CLIENT_RESULT_SOURCES: readonly ResultSource[] = ['arena', 'ai', 'local'];
+
+export interface GameRecordInput {
+  readonly source: ResultSource;
+  readonly balanceVersion: number;
+  readonly abilities: Readonly<Record<Color, string | null>>;
+  /** 무승부면 null */
+  readonly winner: Color | null;
+  readonly reason: string;
+  readonly plies: number;
+  readonly difficulty?: Readonly<Partial<Record<Color, string>>>;
+}
+
+export interface GameRecord extends GameRecordInput {
+  readonly playedAt: number;
+}
+
 export const ROOM_CODE_LENGTH = 5;
 export const NAME_MAX_LENGTH = 16;
 

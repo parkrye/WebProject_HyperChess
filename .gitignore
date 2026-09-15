@@ -11,3 +11,4 @@ packages/ai/tools/baseline/
 
 # 밸런스 측정 보고서
 reports/
+packages/server/data/
