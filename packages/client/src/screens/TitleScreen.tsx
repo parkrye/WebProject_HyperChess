@@ -8,13 +8,14 @@ export function TitleScreen({ onStart }: { onStart: () => void }) {
   return (
     <div className="page title-page">
       <header className="page-header">
-        <div className="page-header-side" />
-        <div className="page-header-side page-header-end">
-          <SoundToggle />
+        <div className="page-header-back" />
+        <h1 className="page-title" />
+        <div className="page-header-actions">
+          <SoundToggle className="icon-button" />
         </div>
       </header>
       <main className="title-body">
-        <h1 className="logo">
+        <h1 className="logo logo-title">
           <img src={uiSprite.logo} alt="HyperChess" draggable={false} />
         </h1>
         <button type="button" className="btn btn-primary btn-large" onClick={onStart}>

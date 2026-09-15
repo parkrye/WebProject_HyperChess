@@ -42,7 +42,7 @@ export function WelcomeScreen({ onDone, onBack }: WelcomeScreenProps) {
   };
 
   return (
-    <Page onBack={onBack}>
+    <Page onBack={onBack} showNav={false}>
       <section className="welcome-card">
         <div className="segmented" role="tablist" aria-label="계정">
           {(
@@ -90,7 +90,7 @@ export function WelcomeScreen({ onDone, onBack }: WelcomeScreenProps) {
               onChange={(e) => setPassword(e.target.value)}
             />
           </label>
-          <p className={`notice notice-error notice-slot ${error ? '' : 'is-empty'}`} role="alert">
+          <p className={`form-error ${error ? '' : 'is-hidden'}`} role="alert">
             {error ?? ' '}
           </p>
           <button type="submit" className="btn btn-primary" disabled={pending}>
