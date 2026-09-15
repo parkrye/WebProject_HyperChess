@@ -114,6 +114,18 @@ Pixel art icon sheet for a cute noble superpower chess game UI, 2D subculture st
 ```
 (920자)
 
+### 4-1b. 추가 능력 아이콘 (가로 5칸)
+
+지금은 클라이언트가 벡터 배지(`AbilityIconView`)로 대신 그린다. 아트를 만들면 `public/assets/icons/<능력 id>.png`로 넣고 `sprites.ts`의 `ICON_SPRITE`에 등록한다.
+
+| 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|
+| 연금술 `alchemy` | 세뇌 `brainwash` | 성벽 `wall` | 총진군 `march` | 저격 `snipe` |
+
+```text
+Pixel art icon strip for a cute noble superpower chess game UI, 2D subculture style. Transparent background (alpha PNG). Canvas 1280x256, exact 1x5 grid of 256x256 cells, one icon per cell, centered, 12% padding, no grid lines, no text. Each icon drawn on a 32x32 pixel grid upscaled 8x nearest neighbor, bold readable silhouette, 1px dark outline, inside a small round gold-rimmed badge with a colored gem background. 1: alchemy (mint green alchemy flask with a triangle sigil and sparkles), 2: brainwash (hot pink hypnotic spiral eye), 3: wall (sandy brown brick castle wall with battlements), 4: march (amber war drum with forward chevrons), 5: snipe (red crosshair scope with a tiny muzzle flash).
+```
+
 ### 4-2. 버튼·패널·게이지 (4×4)
 
 | 행 \ 열 | 1 | 2 | 3 | 4 |
