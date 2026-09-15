@@ -3,11 +3,13 @@ import type { GameMode } from './components/ModeTabs';
 import { ArenaScreen, type ArenaConfig } from './screens/ArenaScreen';
 import { LocalGameScreen } from './screens/GameScreen';
 import { OnlineScreen } from './screens/OnlineScreen';
+import { StatsScreen } from './screens/StatsScreen';
 import { DEFAULT_SETUP_PREFS, SetupScreen, type LocalGameConfig, type SetupMode, type SetupPrefs } from './screens/SetupScreen';
 
 type Screen =
   | { kind: 'setup'; mode: SetupMode }
   | { kind: 'online' }
+  | { kind: 'stats' }
   | { kind: 'game'; config: LocalGameConfig; mode: 'local' | 'ai'; round: number }
   | { kind: 'arena'; config: ArenaConfig };
 
@@ -18,7 +20,10 @@ export function App() {
   const [screen, setScreen] = useState<Screen>(initialScreen);
   const [prefs, setPrefs] = useState<SetupPrefs>(DEFAULT_SETUP_PREFS);
 
-  const changeMode = (mode: GameMode) => setScreen(mode === 'online' ? { kind: 'online' } : { kind: 'setup', mode });
+  const changeMode = (mode: GameMode) => {
+    if (mode === 'online' || mode === 'stats') setScreen({ kind: mode });
+    else setScreen({ kind: 'setup', mode });
+  };
 
   switch (screen.kind) {
     case 'setup':
@@ -40,6 +45,8 @@ export function App() {
       );
     case 'online':
       return <OnlineScreen onModeChange={changeMode} />;
+    case 'stats':
+      return <StatsScreen onModeChange={changeMode} />;
     case 'game':
       return (
         <LocalGameScreen
