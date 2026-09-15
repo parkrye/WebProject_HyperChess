@@ -809,6 +809,53 @@ button {
 .ai-options .segmented {
   min-width: min(100%, 280px);
 }
+.segmented-label {
+  display: grid;
+  place-items: center;
+  padding: 0 0.7rem;
+  font-weight: 700;
+  background: var(--bg-elev-2);
+}
+
+/* ---------- AI 내전 ---------- */
+
+.arena-panel {
+  margin-top: 0.6rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-elev);
+}
+.arena-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.arena-controls .segmented {
+  flex: 1 1 180px;
+}
+.arena-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.arena-tally {
+  margin: 0.6rem 0 0.3rem;
+  font-weight: 700;
+}
+.arena-recent {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.82rem;
+  opacity: 0.85;
+}
+.arena-winner {
+  color: #ffd76a;
+  font-weight: 700;
+}
 
 /* ---------- 상태 피드백 ---------- */
 

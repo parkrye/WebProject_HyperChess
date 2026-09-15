@@ -9,9 +9,12 @@ import {
   type RecoveryRule,
   type WinReason,
 } from '@hyperchess/engine';
+import type { Difficulty } from '@hyperchess/ai';
 import { RANDOM_ABILITY } from '@hyperchess/protocol';
 
 export const COLOR_NAME: Record<Color, string> = { w: '백', b: '흑' };
+
+export const DIFFICULTY_LABEL: Readonly<Record<Difficulty, string>> = { easy: '쉬움', normal: '보통', hard: '어려움' };
 
 /** 능력 이름 (무작위 선택 포함) */
 export const abilityName = (id: string) => (id === RANDOM_ABILITY ? '무작위' : getAbility(id).name);

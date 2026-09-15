@@ -10,6 +10,7 @@ import { uiIconSprite } from '../assets/sprites';
 import { AbilityGrid, randomAbilityId } from '../components/AbilityGrid';
 import { AbilityIconView } from '../components/AbilityIconView';
 import { Hero, ModeTabs, type GameMode } from '../components/ModeTabs';
+import type { ArenaConfig } from './ArenaScreen';
 
 export type AbilityChoice = Record<Color, string>;
 
@@ -33,21 +34,28 @@ function resolveChoices(choices: AbilityChoice): Pick<LocalGameConfig, 'abilitie
 export interface SetupPrefs {
   readonly local: AbilityChoice;
   readonly ai: { readonly me: string; readonly ai: string; readonly color: Color | 'random'; readonly difficulty: Difficulty };
+  readonly arena: ArenaConfig;
 }
 
 export const DEFAULT_SETUP_PREFS: SetupPrefs = {
   local: { w: 'telekinesis', b: 'rewind' },
   ai: { me: 'telekinesis', ai: 'haste', color: 'w', difficulty: 'normal' },
+  arena: { choices: { w: RANDOM_ABILITY, b: RANDOM_ABILITY }, difficulty: { w: 'normal', b: 'normal' } },
 };
 
+export type SetupMode = Extract<GameMode, 'local' | 'ai' | 'arena'>;
+
 interface SetupScreenProps {
-  readonly mode: Extract<GameMode, 'local' | 'ai'>;
+  readonly mode: SetupMode;
   readonly prefs: SetupPrefs;
   readonly onStart: (config: LocalGameConfig, prefs: SetupPrefs) => void;
+  readonly onStartArena: (config: ArenaConfig, prefs: SetupPrefs) => void;
   readonly onModeChange: (mode: GameMode) => void;
 }
 
-type Slot = 'w' | 'b' | 'me' | 'ai';
+type Slot = 'w' | 'b' | 'me' | 'ai' | 'arenaW' | 'arenaB';
+
+const ARENA_SLOT_COLOR = { arenaW: 'w', arenaB: 'b' } as const;
 
 const DIFFICULTIES: readonly { id: Difficulty; label: string }[] = [
   { id: 'easy', label: '쉬움' },
@@ -55,26 +63,42 @@ const DIFFICULTIES: readonly { id: Difficulty; label: string }[] = [
   { id: 'hard', label: '어려움' },
 ];
 
-export function SetupScreen({ mode, prefs: initialPrefs, onStart, onModeChange }: SetupScreenProps) {
+export function SetupScreen({ mode, prefs: initialPrefs, onStart, onStartArena, onModeChange }: SetupScreenProps) {
   const [prefs, setPrefs] = useState<SetupPrefs>(initialPrefs);
-  const [editing, setEditing] = useState<Slot>(mode === 'ai' ? 'me' : 'w');
+  const [editing, setEditing] = useState<Slot>(mode === 'ai' ? 'me' : mode === 'arena' ? 'arenaW' : 'w');
   const isAi = mode === 'ai';
+  const isArena = mode === 'arena';
   useBgm('title');
 
   const slots: readonly { key: Slot; label: string }[] = isAi
     ? [{ key: 'me', label: '나' }, { key: 'ai', label: 'AI' }]
-    : [{ key: 'w', label: COLOR_NAME.w }, { key: 'b', label: COLOR_NAME.b }];
+    : isArena
+      ? [{ key: 'arenaW', label: `${COLOR_NAME.w} AI` }, { key: 'arenaB', label: `${COLOR_NAME.b} AI` }]
+      : [{ key: 'w', label: COLOR_NAME.w }, { key: 'b', label: COLOR_NAME.b }];
 
-  const abilityOf = (slot: Slot) => (slot === 'me' || slot === 'ai' ? prefs.ai[slot] : prefs.local[slot]);
+  const abilityOf = (slot: Slot) => {
+    if (slot === 'me' || slot === 'ai') return prefs.ai[slot];
+    if (slot === 'arenaW' || slot === 'arenaB') return prefs.arena.choices[ARENA_SLOT_COLOR[slot]];
+    return prefs.local[slot];
+  };
   const setAbility = (slot: Slot, abilityId: string) =>
-    setPrefs((prev) =>
-      slot === 'me' || slot === 'ai'
-        ? { ...prev, ai: { ...prev.ai, [slot]: abilityId } }
-        : { ...prev, local: { ...prev.local, [slot]: abilityId } },
-    );
+    setPrefs((prev) => {
+      if (slot === 'me' || slot === 'ai') return { ...prev, ai: { ...prev.ai, [slot]: abilityId } };
+      if (slot === 'arenaW' || slot === 'arenaB') {
+        const choices = { ...prev.arena.choices, [ARENA_SLOT_COLOR[slot]]: abilityId };
+        return { ...prev, arena: { ...prev.arena, choices } };
+      }
+      return { ...prev, local: { ...prev.local, [slot]: abilityId } };
+    });
+  const setArenaDifficulty = (color: Color, difficulty: Difficulty) =>
+    setPrefs((prev) => ({ ...prev, arena: { ...prev.arena, difficulty: { ...prev.arena.difficulty, [color]: difficulty } } }));
   const randomize = () => slots.forEach(({ key }) => setAbility(key, randomAbilityId()));
 
   const start = () => {
+    if (isArena) {
+      onStartArena(prefs.arena, prefs);
+      return;
+    }
     if (!isAi) {
       onStart({ ...resolveChoices(prefs.local), ai: null }, prefs);
       return;
@@ -124,6 +148,28 @@ export function SetupScreen({ mode, prefs: initialPrefs, onStart, onModeChange }
         </div>
       )}
 
+      {isArena && (
+        <div className="ai-options">
+          {(['w', 'b'] as const).map((color) => (
+            <div key={color} className="segmented" role="radiogroup" aria-label={`${COLOR_NAME[color]} AI 난이도`}>
+              <span className="segmented-label">{COLOR_NAME[color]}</span>
+              {DIFFICULTIES.map(({ id, label }) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={prefs.arena.difficulty[color] === id}
+                  className={prefs.arena.difficulty[color] === id ? 'active' : ''}
+                  onClick={() => setArenaDifficulty(color, id)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="player-picks">
         {slots.map(({ key, label }) => {
           const abilityId = abilityOf(key);
@@ -136,7 +182,7 @@ export function SetupScreen({ mode, prefs: initialPrefs, onStart, onModeChange }
               style={{ '--ability-color': spec.color } as CSSProperties}
               onClick={() => setEditing(key)}
             >
-              {!isAi && <span className={`player-dot dot-${key}`} />}
+              {!isAi && !isArena && <span className={`player-dot dot-${key}`} />}
               <span className="player-pick-label">{label}</span>
               <AbilityIconView icon={spec.icon} size={18} />
               <strong>{abilityName(abilityId)}</strong>
@@ -157,7 +203,7 @@ export function SetupScreen({ mode, prefs: initialPrefs, onStart, onModeChange }
 
       <div className="setup-footer">
         <button type="button" className="btn btn-primary btn-large" onClick={start}>
-          게임 시작
+          {isArena ? 'AI 내전 시작' : '게임 시작'}
         </button>
       </div>
     </main>

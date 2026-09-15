@@ -28,11 +28,15 @@ export interface GameViewProps {
   readonly clockOffsetMs?: number;
   /** 무작위로 결정된 능력의 색 (플레이어 띠에 표시) */
   readonly randomized?: Partial<Record<Color, boolean>>;
+  /** 관전 전용 (AI 내전): 보드 조작 불가 */
+  readonly spectator?: boolean;
+  /** 결과 창 표시 여부 (기본 true) */
+  readonly showResultDialog?: boolean;
 }
 
 export function GameView(props: GameViewProps) {
   const { state, busy, stageView, dispatch, myColor } = props;
-  const canAct = myColor === null || state.turn === myColor;
+  const canAct = !props.spectator && (myColor === null || state.turn === myColor);
   const interaction = useInteraction(state, dispatch, busy, canAct);
   // AI 대전/온라인은 항상 내가 왼쪽. 로컬 2인은 백이 왼쪽이고 수동으로만 바꾼다
   const [localLeft, setLocalLeft] = useState<Color>('w');
@@ -43,7 +47,7 @@ export function GameView(props: GameViewProps) {
 
   const status = (() => {
     if (state.result.kind !== 'ongoing') return '게임 종료';
-    const turnName = myColor === null ? `${COLOR_NAME[state.turn]} 차례` : canAct ? '내 차례' : '상대 차례';
+    const turnName = myColor === null ? `${COLOR_NAME[state.turn]} 차례` : state.turn === myColor ? '내 차례' : '상대 차례';
     const parts = [turnName];
     if (isInCheck(state, state.turn)) parts.push('체크!');
     const { movesAllowed, movesMade } = state.turnState;
@@ -87,7 +91,7 @@ export function GameView(props: GameViewProps) {
       </div>
 
       <PromotionDialog state={state} interaction={interaction} />
-      {!busy && <ResultDialog result={state.result}>{props.resultActions}</ResultDialog>}
+      {!busy && props.showResultDialog !== false && <ResultDialog result={state.result}>{props.resultActions}</ResultDialog>}
     </div>
   );
 }
