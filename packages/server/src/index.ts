@@ -21,8 +21,8 @@ const DATA_DIR = process.env.HYPERCHESS_DATA ?? fileURLToPath(new URL('../data',
 const results = new ResultStore(join(DATA_DIR, 'results.jsonl'), { seedFiles: [join(DATA_DIR, 'simulation.jsonl')] });
 const users = new UserStore(join(DATA_DIR, 'users.json'));
 const rooms = new RoomManager({
-  onGameEnd: (game, players) => {
-    const record = toGameRecord(game, 'online');
+  onGameEnd: (game, players, actions) => {
+    const record = toGameRecord(game, 'online', { actions: [...actions] });
     if (!record) return;
     results.add(record);
     users.applyGame(players, record.winner);

@@ -5,6 +5,7 @@
  *   npm run import-reports
  */
 import { listAbilities } from '@hyperchess/engine';
+import type { Action } from '@hyperchess/engine';
 import type { GameRecord } from '@hyperchess/protocol';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -38,6 +39,8 @@ interface ReportResult {
   readonly winner: 'w' | 'b' | null;
   readonly reason: string;
   readonly plies: number;
+  /** 수순 (수순 기록 도입 이후 보고서에만 있음) */
+  readonly actions?: readonly Action[];
 }
 
 interface Report {
@@ -73,6 +76,7 @@ function convert(file: string, report: Report, version: number): GameRecord[] {
       reason: r.reason,
       plies: r.plies,
       playedAt,
+      ...(r.actions ? { actions: r.actions } : {}),
     }));
 }
 

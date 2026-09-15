@@ -1,6 +1,7 @@
-import { IllegalActionError, type Action } from '@hyperchess/engine';
+import { IllegalActionError } from '@hyperchess/engine';
 import { isAbilityChoice, type Ack, type ClientToServerEvents, type ServerToClientEvents } from '@hyperchess/protocol';
 import type { Server, Socket } from 'socket.io';
+import { isAction } from './actions';
 import { RoomError, type RoomManager, type SeatIdentity } from './rooms';
 import type { Matchmaker } from './matchmaking';
 import type { UserStore } from './users';
@@ -13,22 +14,6 @@ export interface HandlerDeps {
 
 type GameServer = Server<ClientToServerEvents, ServerToClientEvents>;
 type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
-
-const isPrimitive = (value: unknown) => typeof value === 'number' || typeof value === 'string';
-
-function isAction(value: unknown): value is Action {
-  if (!value || typeof value !== 'object') return false;
-  const action = value as Record<string, unknown>;
-  if (action.type === 'move') {
-    const move = action.move as Record<string, unknown> | null;
-    return !!move && typeof move.from === 'number' && typeof move.to === 'number' && (move.promotion === undefined || typeof move.promotion === 'string');
-  }
-  if (action.type === 'ability') {
-    const params = action.params;
-    return !!params && typeof params === 'object' && Object.values(params).every(isPrimitive);
-  }
-  return false;
-}
 
 /** 방마다 현재 차례의 시간 초과 시각에 맞춰 건 타이머 */
 const clockTimers = new Map<string, NodeJS.Timeout>();

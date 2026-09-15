@@ -1,6 +1,7 @@
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fromAlgebraic as sq } from '@hyperchess/engine';
 import { describe, expect, it } from 'vitest';
 import { parseGameRecord, ResultStore } from '../src/results';
 
@@ -26,6 +27,16 @@ describe('parseGameRecord', () => {
     expect(parseGameRecord({ ...valid, winner: 'x' })).toBeNull();
     expect(parseGameRecord({ ...valid, difficulty: { w: 'godlike' } })).toBeNull();
     expect(parseGameRecord('text')).toBeNull();
+  });
+
+  it('수순은 규칙대로 재생될 때만 받아들인다', () => {
+    const e2e4 = { type: 'move', move: { from: sq('e2'), to: sq('e4') } };
+    const e7e5 = { type: 'move', move: { from: sq('e7'), to: sq('e5') } };
+    expect(parseGameRecord({ ...valid, actions: [e2e4, e7e5] })?.actions).toEqual([e2e4, e7e5]);
+    // 흑 차례에 백 폰을 다시 두는 잘못된 수순
+    expect(parseGameRecord({ ...valid, actions: [e2e4, e2e4] })).toBeNull();
+    expect(parseGameRecord({ ...valid, actions: [{ type: 'teleport' }] })).toBeNull();
+    expect(parseGameRecord({ ...valid, actions: 'e2e4' })).toBeNull();
   });
 });
 

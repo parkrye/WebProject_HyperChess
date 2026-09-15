@@ -1,5 +1,5 @@
 import { applyAction, checkTimeout, createGame, IllegalActionError, type Action, type GameSetup } from '@hyperchess/engine';
-import { useCallback, useEffect, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, type RefObject } from 'react';
 import { useAnimatedGame } from './useAnimatedGame';
 
 const TIMEOUT_CHECK_MS = 250;
@@ -8,6 +8,8 @@ const TIMEOUT_CHECK_MS = 250;
 export function useLocalGame(setup: GameSetup, speed?: RefObject<number>) {
   const game = useAnimatedGame(() => createGame({ ...setup, now: Date.now() }), speed);
   const { present, latest, busy } = game;
+  /** 이번 게임에서 둔 행동 순서 (기록용) */
+  const actions = useRef<Action[]>([]);
 
   // 시간 제한 감시: 현재 차례가 시간을 넘기면 즉시 패배 처리
   useEffect(() => {
@@ -23,7 +25,9 @@ export function useLocalGame(setup: GameSetup, speed?: RefObject<number>) {
     (action: Action) => {
       if (busy) return;
       try {
-        void present(applyAction(latest.current, action, Date.now()));
+        const next = applyAction(latest.current, action, Date.now());
+        actions.current.push(action);
+        void present(next);
       } catch (error) {
         if (!(error instanceof IllegalActionError)) throw error;
       }
@@ -31,5 +35,5 @@ export function useLocalGame(setup: GameSetup, speed?: RefObject<number>) {
     [busy, present, latest],
   );
 
-  return { ...game, dispatch };
+  return { ...game, dispatch, actions };
 }

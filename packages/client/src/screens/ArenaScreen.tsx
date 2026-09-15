@@ -177,18 +177,18 @@ function ArenaRound(props: ArenaRoundProps) {
 function ArenaBoard({ match, difficulty, speed, speedRef, paused, autoNext, onFinish, onMenu, controls, resultActions }: ArenaRoundProps) {
   // 관전·기록용이라 시간 제한 없이 둔다 (일시정지 가능)
   const setup = useMemo(() => ({ abilities: match.abilities }), [match.abilities]);
-  const { state, busy, stageView, dispatch } = useLocalGame(setup, speedRef);
+  const { state, busy, stageView, dispatch, actions } = useLocalGame(setup, speedRef);
   const minThinkMs = speed === 0 ? 0 : AI_THINK_MS / speed;
   const { thinking } = useAiPlayers(state, difficulty, busy, dispatch, { paused, minThinkMs });
 
   const reported = useRef(false);
   useEffect(() => {
     if (reported.current) return;
-    const record = toGameRecord(state, 'arena', difficulty);
+    const record = toGameRecord(state, 'arena', { difficulty, actions: [...actions.current] });
     if (!record) return;
     reported.current = true;
     onFinish(record);
-  }, [state, difficulty, onFinish]);
+  }, [state, difficulty, onFinish, actions]);
 
   const seats = useMemo(
     () => ({

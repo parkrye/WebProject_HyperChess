@@ -130,4 +130,18 @@ describe('RoomManager', () => {
     manager.leave('s1');
     expect(ended).toEqual(['win']);
   });
+
+  it('대국 종료 시 그 게임에서 둔 수순을 함께 알리고, 재대결하면 새로 쌓는다', () => {
+    const recorded: number[] = [];
+    const { manager } = setupRoom(new RoomManager({ onGameEnd: (_game, _players, actions) => recorded.push(actions.length) }));
+    manager.act('s1', move('e2', 'e4'));
+    manager.act('s2', move('e7', 'e5'));
+    manager.resign('s1');
+    manager.voteRematch('s1');
+    manager.voteRematch('s2');
+    // 재대결에서는 색이 바뀌어 s2가 백
+    manager.act('s2', move('d2', 'd4'));
+    manager.resign('s1');
+    expect(recorded).toEqual([2, 1]);
+  });
 });

@@ -1,7 +1,8 @@
 import { listAbilities } from '@hyperchess/engine';
-import { CLIENT_RESULT_SOURCES, type GameRecord, type GameRecordInput, type ResultSource } from '@hyperchess/protocol';
+import { CLIENT_RESULT_SOURCES, MAX_RECORD_ACTIONS, type GameRecord, type GameRecordInput, type ResultSource } from '@hyperchess/protocol';
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { isAction, isReplayable } from './actions';
 
 const MAX_PLIES = 10_000;
 const MAX_REASON_LENGTH = 32;
@@ -25,14 +26,23 @@ export function parseGameRecord(input: unknown, allowed: readonly ResultSource[]
   if (!Number.isInteger(r.plies) || (r.plies as number) < 0 || (r.plies as number) > MAX_PLIES) return null;
   if (difficulty !== undefined && Object.entries(difficulty).some(([k, v]) => !isColor(k) || !DIFFICULTIES.has(v as string))) return null;
 
+  const players = { w: abilities.w as string | null, b: abilities.b as string | null };
+  const actions = r.actions;
+  if (actions !== undefined) {
+    if (!Array.isArray(actions) || actions.length > MAX_RECORD_ACTIONS || !actions.every(isAction)) return null;
+    // 규칙대로 재생되지 않는 수순은 학습 데이터를 오염시키므로 받지 않는다
+    if (!isReplayable(players, actions)) return null;
+  }
+
   return {
     source: r.source as ResultSource,
     balanceVersion: r.balanceVersion as number,
-    abilities: { w: abilities.w as string | null, b: abilities.b as string | null },
+    abilities: players,
     winner: r.winner as GameRecordInput['winner'],
     reason: r.reason,
     plies: r.plies as number,
     ...(difficulty ? { difficulty: difficulty as GameRecordInput['difficulty'] } : {}),
+    ...(actions ? { actions: actions as GameRecordInput['actions'] } : {}),
   };
 }
 
