@@ -200,6 +200,8 @@ export function Board({ state, stage, interaction, leftColor, busy }: BoardProps
           const bodyClass = ['piece-body', fx ? `pfx-${fx}` : '', checkSquares.includes(square) ? 'is-checked' : ''].join(' ');
           const pieceStyle = {
             transform: `translate(${x * 100}%, ${y * 100}%)`,
+            // 말이 칸보다 크게 그려지므로 아래 줄의 말이 위 줄의 말을 덮게 한다
+            zIndex: y + 1,
             '--fwd': forward(piece.color, leftColor),
           } as CSSProperties;
           const sprite = pieceSprite(piece, state.players[piece.color].rules);
