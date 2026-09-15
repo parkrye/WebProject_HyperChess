@@ -40,6 +40,7 @@ const ICON_SPRITE: Readonly<Record<AbilityIcon, string>> = {
   cross: 'paladin',
   crown: 'empress',
   heir: 'heir',
+  random: 'random',
 };
 
 export const abilityIconSprite = (icon: AbilityIcon) => `${ASSETS}/icons/${ICON_SPRITE[icon]}.png`;

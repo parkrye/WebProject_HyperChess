@@ -19,9 +19,11 @@ interface PlayerBarProps {
   readonly interaction: InteractionController;
   readonly seat?: SeatLabel;
   readonly className?: string;
+  /** 무작위로 결정된 능력 */
+  readonly randomized?: boolean;
 }
 
-export function PlayerBar({ state, color, interaction, seat, className = '' }: PlayerBarProps) {
+export function PlayerBar({ state, color, interaction, seat, className = '', randomized = false }: PlayerBarProps) {
   const player = state.players[color];
   const definition = player.abilityId ? getAbility(player.abilityId) : null;
   const spec = abilityUi(player.abilityId ?? '');
@@ -39,6 +41,7 @@ export function PlayerBar({ state, color, interaction, seat, className = '' }: P
         {seat && !seat.connected && <span className="seat-tag seat-offline">연결 끊김</span>}
         {definition && (
           <span className="player-ability">
+            {randomized && <AbilityIconView icon="random" size={16} className="random-mark" />}
             <AbilityIconView icon={spec.icon} size={16} />
             {definition.name}
           </span>

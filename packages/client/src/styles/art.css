@@ -286,6 +286,108 @@
   }
 }
 
+/* ---------- 무작위 능력 공개 ---------- */
+
+.reveal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 1.5rem;
+  padding-inline: 16px;
+  background: rgb(12 10 20 / 78%);
+  backdrop-filter: blur(4px);
+  cursor: pointer;
+  animation: reveal-fade 0.3s ease-out;
+}
+.reveal-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(0.75rem, 4vw, 2.5rem);
+}
+.reveal-card {
+  display: grid;
+  justify-items: center;
+  gap: 0.6rem;
+  width: min(220px, 40vw);
+  padding: 1.1rem 0.8rem;
+  border: 2px solid var(--ability-color);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ability-color) 14%, rgb(20 18 28 / 92%));
+  box-shadow: 0 0 24px color-mix(in srgb, var(--ability-color) 40%, transparent);
+  transition: border-color 0.1s, box-shadow 0.1s;
+}
+.reveal-card.is-spinning .reveal-icon {
+  filter: blur(1px) brightness(1.2);
+  animation: reveal-shake 0.18s linear infinite;
+}
+.reveal-card.is-landed {
+  animation: reveal-land 0.5s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+.reveal-player {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+.reveal-tag {
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  background: #c9b8ff;
+  color: #1c1630;
+}
+.reveal-icon {
+  width: clamp(64px, 20vw, 96px);
+  height: clamp(64px, 20vw, 96px);
+  image-rendering: pixelated;
+}
+.reveal-name {
+  font-size: 1.15rem;
+  color: var(--ability-color);
+  text-shadow: 0 1px 3px rgb(0 0 0 / 80%);
+}
+.reveal-vs {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #ffd76a;
+  text-shadow: 0 2px 6px rgb(0 0 0 / 70%);
+}
+.reveal-skip {
+  margin: 0;
+  opacity: 0.75;
+  font-size: 0.9rem;
+}
+.random-mark {
+  opacity: 0.85;
+}
+.ability-card-random {
+  border-style: dashed;
+}
+
+@keyframes reveal-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes reveal-shake {
+  50% {
+    transform: translateY(-3px);
+  }
+}
+@keyframes reveal-land {
+  0% {
+    transform: scale(0.85);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 /* 0.5 자원 (부활: 폰을 잃을 때) */
 .pip.half {
   opacity: 1;

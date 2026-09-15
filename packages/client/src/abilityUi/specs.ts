@@ -23,13 +23,15 @@ export interface AbilityUiSpec {
 
 export type AbilityIcon =
   | 'telekinesis' | 'haste' | 'teleport' | 'revive' | 'rewind'
-  | 'shield' | 'lance' | 'wheel' | 'cross' | 'crown' | 'heir';
+  | 'shield' | 'lance' | 'wheel' | 'cross' | 'crown' | 'heir' | 'random';
 
 const squareStep = (key: string, prompt: string): TargetStep => ({ key, kind: 'square', prompt });
 
 const ENHANCE_PROMPT = (piece: string) => [squareStep('square', `강화할 ${piece}을(를) 선택하세요`)];
 
 export const ABILITY_UI: Readonly<Record<string, AbilityUiSpec>> = {
+  // 게임 시작 시 결정되는 무작위 선택
+  random: { color: '#c9b8ff', icon: 'random', steps: [] },
   telekinesis: {
     color: '#b57bff',
     icon: 'telekinesis',

@@ -1,9 +1,10 @@
-import { getAbility, type Action, type Color, type GameState } from '@hyperchess/engine';
+import { type Action, type Color, type GameState } from '@hyperchess/engine';
 import { NAME_MAX_LENGTH, ROOM_CODE_LENGTH, type ColorPreference, type RoomSnapshot } from '@hyperchess/protocol';
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { abilityUi } from '../abilityUi/specs';
-import { COLOR_NAME } from '../abilityUi/text';
+import { abilityName, COLOR_NAME } from '../abilityUi/text';
 import { AbilityGrid } from '../components/AbilityGrid';
+import { AbilityReveal } from '../components/AbilityReveal';
 import { AbilityIconView } from '../components/AbilityIconView';
 import { GameView } from '../components/GameView';
 import { Hero, ModeTabs, type GameMode } from '../components/ModeTabs';
@@ -119,7 +120,7 @@ function Lobby({ room, onModeChange }: { room: OnlineRoom; onModeChange: (mode: 
           <span>내 능력</span>
           <strong className="chosen-ability" style={{ '--ability-color': spec.color } as CSSProperties}>
             <AbilityIconView icon={spec.icon} size={18} />
-            {getAbility(prefs.abilityId).name}
+            {abilityName(prefs.abilityId)}
           </strong>
         </div>
 
@@ -195,7 +196,7 @@ function WaitingRoom({ snapshot, you, onLeave }: { snapshot: RoomSnapshot; you: 
                   <>
                     <strong>{seat.name}</strong>
                     {color === you && <span className="seat-tag">나</span>}
-                    <span className="seat-ability">{getAbility(seat.abilityId).name}</span>
+                    <span className="seat-ability">{abilityName(seat.abilityId)}</span>
                   </>
                 ) : (
                   <span className="seat-empty">상대를 기다리는 중…</span>
@@ -228,6 +229,10 @@ function OnlineGame({ room, snapshot, game, you, onLeave }: OnlineGameProps) {
   const [sending, setSending] = useState(false);
   // 서버 시각과 로컬 시각의 차이 (스냅샷을 받은 시점 기준)
   const clockOffsetMs = useMemo(() => snapshot.serverTime - Date.now(), [snapshot]);
+  const randomized = { w: snapshot.seats.w?.randomized ?? false, b: snapshot.seats.b?.randomized ?? false };
+  // 새 게임(아직 수를 두기 전)에 무작위 능력이 있으면 한 번 공개한다
+  const [revealDone, setRevealDone] = useState(() => !((randomized.w || randomized.b) && game.log.length === 0));
+  const finishReveal = useCallback(() => setRevealDone(true), []);
 
   useEffect(() => {
     void present(game);
@@ -255,38 +260,49 @@ function OnlineGame({ room, snapshot, game, you, onLeave }: OnlineGameProps) {
   const notice = room.error ?? (!room.connected ? '서버와 연결이 끊겼습니다. 재연결 중…' : opponent && !opponent.connected ? '상대의 연결이 끊겼습니다. 재접속을 기다리는 중…' : null);
 
   return (
-    <GameView
-      state={animated.state}
-      busy={animated.busy || sending}
-      stageView={animated.stageView}
-      dispatch={(action) => void dispatch(action)}
-      myColor={you}
-      seats={seats}
-      clockOffsetMs={clockOffsetMs}
-      onMenu={onLeave}
-      notice={notice}
-      sidebar={
-        <div className="room-info">
-          <span>
-            방 코드 <strong>{snapshot.code}</strong>
-          </span>
-          {snapshot.status === 'playing' && (
-            <button type="button" className="btn btn-ghost" onClick={confirmResign}>
-              기권
+    <>
+      <GameView
+        state={animated.state}
+        busy={animated.busy || sending}
+        stageView={animated.stageView}
+        dispatch={(action) => void dispatch(action)}
+        myColor={you}
+        seats={seats}
+        clockOffsetMs={clockOffsetMs}
+        randomized={randomized}
+        onMenu={onLeave}
+        notice={notice}
+        sidebar={
+          <div className="room-info">
+            <span>
+              방 코드 <strong>{snapshot.code}</strong>
+            </span>
+            {snapshot.status === 'playing' && (
+              <button type="button" className="btn btn-ghost" onClick={confirmResign}>
+                기권
+              </button>
+            )}
+          </div>
+        }
+        resultActions={
+          <>
+            <button type="button" className="btn btn-primary" disabled={votedRematch || !opponent?.connected} onClick={() => void room.rematch()}>
+              {votedRematch ? '상대 응답 대기 중' : opponentVoted ? '재대결 수락' : '재대결 신청'}
             </button>
-          )}
-        </div>
-      }
-      resultActions={
-        <>
-          <button type="button" className="btn btn-primary" disabled={votedRematch || !opponent?.connected} onClick={() => void room.rematch()}>
-            {votedRematch ? '상대 응답 대기 중' : opponentVoted ? '재대결 수락' : '재대결 신청'}
-          </button>
-          <button type="button" className="btn btn-ghost" onClick={onLeave}>
-            나가기
-          </button>
-        </>
-      }
-    />
+            <button type="button" className="btn btn-ghost" onClick={onLeave}>
+              나가기
+            </button>
+          </>
+        }
+      />
+      {!revealDone && (
+        <AbilityReveal
+          abilities={{ w: game.players.w.abilityId ?? '', b: game.players.b.abilityId ?? '' }}
+          randomized={randomized}
+          names={{ w: seats.w.name, b: seats.b.name }}
+          onDone={finishReveal}
+        />
+      )}
+    </>
   );
 }
