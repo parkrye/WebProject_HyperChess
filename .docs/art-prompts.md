@@ -114,17 +114,18 @@ Pixel art icon sheet for a cute noble superpower chess game UI, 2D subculture st
 ```
 (920자)
 
-### 4-1b. 추가 능력 아이콘 (가로 5칸)
+### 4-1b. 추가 능력 아이콘 (1×5)
 
-지금은 클라이언트가 벡터 배지(`AbilityIconView`)로 대신 그린다. 아트를 만들면 `public/assets/icons/<능력 id>.png`로 넣고 `sprites.ts`의 `ICON_SPRITE`에 등록한다.
+지금은 클라이언트가 벡터 배지(`AbilityIconView`)로 대신 그린다. 만든 뒤 셀을 잘라 `public/assets/icons/<능력 id>.png`로 넣고 `sprites.ts`의 `ICON_SPRITE`에 등록한다. 보석 색은 게임의 능력 대표 색과 맞춘다.
 
 | 1 | 2 | 3 | 4 | 5 |
 |---|---|---|---|---|
-| 연금술 `alchemy` | 세뇌 `brainwash` | 성벽 `wall` | 총진군 `march` | 저격 `snipe` |
+| 연금술 `alchemy` (민트 #5fe0a0) | 세뇌 `brainwash` (핫핑크 #ff5ce1) | 성벽 `wall` (모래색 #c79a62) | 총진군 `march` (앰버 #f2b84b) | 저격 `snipe` (레드 #ff4a4a) |
 
 ```text
-Pixel art icon strip for a cute noble superpower chess game UI, 2D subculture style. Transparent background (alpha PNG). Canvas 1280x256, exact 1x5 grid of 256x256 cells, one icon per cell, centered, 12% padding, no grid lines, no text. Each icon drawn on a 32x32 pixel grid upscaled 8x nearest neighbor, bold readable silhouette, 1px dark outline, inside a small round gold-rimmed badge with a colored gem background. 1: alchemy (mint green alchemy flask with a triangle sigil and sparkles), 2: brainwash (hot pink hypnotic spiral eye), 3: wall (sandy brown brick castle wall with battlements), 4: march (amber war drum with forward chevrons), 5: snipe (red crosshair scope with a tiny muzzle flash).
+Pixel art icon strip for a cute noble superpower chess game UI, 2D subculture style. Transparent background (alpha PNG). Canvas 1280x256, exact 1x5 grid of 256x256 cells, one icon per cell, centered, 12% padding, no grid lines, no text. Each icon drawn on a 32x32 pixel grid upscaled 8x nearest neighbor, bold readable silhouette, 1px dark outline, top-left light, inside a small round gold-rimmed badge with a colored gem background, matching the existing ability icon sheet. 1: alchemy (mint green gem, round alchemy flask with a small triangle sigil and sparkles). 2: brainwash (hot pink gem, hypnotic spiral eye with swirl lines). 3: wall (sandy brown gem, short brick castle wall with battlements). 4: march (amber gem, small war drum with three forward chevrons above). 5: snipe (red gem, crosshair scope circle with a tiny muzzle flash).
 ```
+(844자)
 
 ### 4-2. 버튼·패널·게이지 (4×4)
 
@@ -183,6 +184,35 @@ Pixel art effect sprite sheet for a cute noble superpower chess game, 2D subcult
 Pixel art timer UI sheet for a cute noble superpower chess game, 2D subculture style, rich royal palette. Transparent background (alpha PNG). Canvas 1024x1024, exact 4x4 grid of 256x256 cells, one element per cell, centered, 8% padding, no grid lines, no extra text. Drawn on a 64x64 pixel grid per cell upscaled 4x nearest neighbor, 1px dark outline, top-left light. Digits are chunky rounded pixel numerals in ivory with a gold outline, all the same width and baseline so they line up as a clock. Row 1: digits 0, 1, 2, 3. Row 2: digits 4, 5, 6, 7. Row 3: digits 8, 9, a colon made of two small gold diamonds, a cute gold hourglass with pink sand. Row 4: a wide empty clock plate with plain flat center (purple velvet with gold trim, 9-slice friendly), the same plate glowing gold for the active turn, the same plate glowing red for low time, a long thin gauge bar with gold fill and rounded ends.
 ```
 (899자)
+
+### 4-6. 성벽 오브젝트 (1×4)
+
+성벽 칸에 올라가는 오브젝트. 지금은 CSS 벽돌 무늬로 그린다(`board.css`의 `.wall-body`). 남은 턴 숫자는 게임이 겹쳐 표시하므로 그리지 않는다.
+
+| 1 | 2 | 3 | 4 |
+|---|---|---|---|
+| 새 성벽 | 금 간 성벽 (마지막 턴) | 무너지는 성벽 | 잔해 |
+
+```text
+Pixel art board object sheet for a cute noble superpower chess game, 2D subculture style, rich royal palette. Transparent background (alpha PNG). Canvas 1024x256, exact 1x4 grid of 256x256 cells, each object centered and filling about 86% of the cell, no grid lines, no text or numbers. Drawn on a 64x64 pixel grid per cell upscaled 4x nearest neighbor, 1px dark outline, top-left light, slight front-facing 3/4 view so it stands on a chessboard square like the chess pieces. Cell 1: sturdy sandy brown brick castle wall block with three battlements and a small gold trim band, clean and new. Cell 2: the same wall cracked with a few loose bricks (last turn). Cell 3: collapsing wall, bricks breaking apart mid-fall. Cell 4: low pile of rubble and pebbles with a little dust. Same size, base line and lighting in all four cells.
+```
+(828자)
+
+### 4-7. 추가 능력 이펙트 스프라이트 (4×4, 행마다 4프레임)
+
+새 능력 연출용. 지금은 CSS로 대신 그린다(`effects.css`의 `fx-sigil`·`fx-crosshair`·`fx-dust`, 세뇌는 `beam`+`hypnotize`).
+
+| 행 | 애니메이션 (1→4 프레임) | 쓰는 곳 |
+|---|---|---|
+| 1 | 민트색 변성 문양 | 연금술 |
+| 2 | 핫핑크 최면 소용돌이 | 세뇌 |
+| 3 | 붉은 조준선 락온 | 저격 |
+| 4 | 모래색 흙먼지 | 성벽 설치·붕괴, 총진군 |
+
+```text
+Pixel art effect sprite sheet for a cute noble superpower chess game, 2D subculture style. Transparent background (alpha PNG), additive glow look, no black background. Canvas 1024x1024, exact 4x4 grid of 256x256 cells; each row is one 4-frame animation read left to right, effect centered in every frame, no grid lines, no text. Drawn on a 64x64 pixel grid per cell upscaled 4x nearest neighbor, limited palette, crisp pixels, no blur. Row 1: mint green alchemy circle, thin ring appearing, triangle and runes drawn inside, full bright spinning sigil, fading sparkles. Row 2: hot pink hypnotic spiral, small swirl, widening spiral with heart-shaped sparks, full pulsing spiral, fading. Row 3: red sniper crosshair, large faint reticle, shrinking toward center, locked tight and bright, small impact flash. Row 4: sandy dust cloud, small puff at the bottom, wide rolling cloud, pebbles flying, thin fading haze. Keep size and center consistent.
+```
+(943자)
 
 ---
 
@@ -278,6 +308,9 @@ Instrumental defeat and draw music for a cute noble superpower chess game with 2
 | 4-3 표식 | `assets/ui/markers.png` | `move-dot`, `badge-shield` 등 |
 | 4-4 이펙트 | `assets/fx/effects.png` | `burst-1`~`burst-4` 등 |
 | 4-5 타이머 | `assets/ui/timer.png` | `digit-0`~`digit-9`, `colon`, `hourglass`, `plate`, `plate-active`, `plate-warning`, `gauge` |
+| 4-1b 추가 아이콘 | `assets/icons/<능력 id>.png` | `alchemy`, `brainwash`, `wall`, `march`, `snipe` |
+| 4-6 성벽 | `assets/board/wall.png` | `wall`, `wall-cracked`, `wall-collapse`, `wall-rubble` |
+| 4-7 추가 이펙트 | `assets/fx/effects-extra.png` | `sigil-1`~`sigil-4`, `hypnosis-1`~`hypnosis-4`, `crosshair-1`~`crosshair-4`, `dust-1`~`dust-4` |
 | 5 로고 | `assets/ui/logo.png` | — |
 | 6 BGM | `assets/bgm/<곡>.ogg` | `title`, `lobby`, `battle`, `tension`, `victory`, `defeat` |
 
