@@ -1,9 +1,10 @@
 import { fileOf, isInCheck, isRoyal, listAbilities, rankOf, type Color, type GameState } from '@hyperchess/engine';
-import { WEIGHTS } from './weights';
+import { ABILITY_WEIGHTS, WEIGHTS } from './weights';
 
 /**
- * 평가 항목 목록. 평가 점수 = Σ 가중치 × 항목값 (백 − 흑)이라 선형이며,
- * 튜닝 도구는 같은 항목값으로 가중치를 학습한다.
+ * 평가 항목 목록. 진영마다 항목값을 따로 뽑고, 각 진영은 (공통 가중치 + 자기 능력의 보정값)을 곱한다.
+ *   평가 점수(백 기준) = (공통 + 보정[백 능력]) · 백 항목값 − (공통 + 보정[흑 능력]) · 흑 항목값
+ * 가중치에 대해 선형이라 튜닝 도구가 같은 항목값으로 공통 가중치와 능력별 보정을 함께 학습한다.
  */
 const BASE_KEYS = [
   'piece.p',
@@ -34,6 +35,13 @@ const BASE_KEYS = [
 ] as const;
 
 export const WEIGHT_KEYS: readonly string[] = [...BASE_KEYS, ...listAbilities().map((a) => `resource.${a.id}`)];
+
+/** 능력별 보정 블록 순서 (가중치 벡터에서 공통 블록 뒤에 이 순서로 붙는다) */
+export const ABILITY_IDS: readonly string[] = listAbilities().map((a) => a.id);
+const ABILITY_INDEX: ReadonlyMap<string, number> = new Map(ABILITY_IDS.map((id, i) => [id, i]));
+
+/** 능력 id → 보정 블록 번호 (능력 없음이나 모르는 능력은 -1) */
+export const abilityIndex = (abilityId: string | null): number => (abilityId ? ABILITY_INDEX.get(abilityId) ?? -1 : -1);
 
 /** 튜닝하지 않는 기준 항목 (점수 단위를 폰 = 100으로 고정) */
 export const FIXED_KEYS: ReadonlySet<string> = new Set(['piece.p']);
@@ -75,6 +83,42 @@ export function weightObject(vector: ArrayLike<number>): Record<string, number> 
   return Object.fromEntries(WEIGHT_KEYS.map((key, i) => [key, vector[i]]));
 }
 
+export type AbilityWeights = Readonly<Record<string, Readonly<Record<string, number>>>>;
+
+/** 공통 가중치 + 능력별 보정 → [공통 | 능력 0 보정 | 능력 1 보정 | …] 벡터 */
+export function modelVector(base: Readonly<Record<string, number>>, deltas: AbilityWeights): Float64Array {
+  const dims = WEIGHT_KEYS.length;
+  const vector = new Float64Array(dims * (1 + ABILITY_IDS.length));
+  vector.set(weightVector(base));
+  ABILITY_IDS.forEach((id, a) => {
+    const delta = deltas[id] ?? {};
+    WEIGHT_KEYS.forEach((key, j) => {
+      vector[(1 + a) * dims + j] = delta[key] ?? 0;
+    });
+  });
+  return vector;
+}
+
+/** 모델 벡터 → 공통 가중치 객체 + 능력별 보정 객체 (보정은 0이 아닌 항목만) */
+export function modelObjects(vector: ArrayLike<number>, round: (value: number) => number = (v) => v) {
+  const dims = WEIGHT_KEYS.length;
+  const base = Object.fromEntries(WEIGHT_KEYS.map((key, j) => [key, round(vector[j])]));
+  const deltas: Record<string, Record<string, number>> = {};
+  ABILITY_IDS.forEach((id, a) => {
+    const entries = WEIGHT_KEYS.map((key, j) => [key, round(vector[(1 + a) * dims + j])] as const).filter(([, value]) => value !== 0);
+    if (entries.length > 0) deltas[id] = Object.fromEntries(entries);
+  });
+  return { base, deltas };
+}
+
+/** 한 능력이 실제로 쓰는 가중치 (공통 + 보정) */
+export function sideWeights(model: ArrayLike<number>, index: number): Float64Array {
+  const dims = WEIGHT_KEYS.length;
+  const weights = Float64Array.from({ length: dims }, (_, j) => model[j]);
+  if (index >= 0) for (let j = 0; j < dims; j++) weights[j] += model[(1 + index) * dims + j];
+  return weights;
+}
+
 const centrality = (sq: number) => 3.5 - Math.max(Math.abs(fileOf(sq) - 3.5), Math.abs(rankOf(sq) - 3.5));
 
 /** 시작 랭크에서 몇 칸 전진했는지 */
@@ -99,7 +143,7 @@ function isPassed(files: Record<Color, number[][]>, color: Color, sq: number): b
   return true;
 }
 
-function addSide(out: Float64Array, state: GameState, color: Color, files: Record<Color, number[][]>, sign: number) {
+function addSide(out: Float64Array, state: GameState, color: Color, files: Record<Color, number[][]>, sign = 1) {
   const { rules, meter, abilityId } = state.players[color];
   let royals = 0;
   let bishops = 0;
@@ -163,7 +207,7 @@ function addSide(out: Float64Array, state: GameState, color: Color, files: Recor
   if (isInCheck(state, color)) out[I.inCheck] += sign;
 }
 
-/** 국면의 항목값 (백 − 흑). out을 넘기면 재사용한다 */
+/** 국면의 항목값 (백 − 흑). 모든 진영이 같은 가중치를 쓸 때의 평가용. out을 넘기면 재사용한다 */
 export function extractFeatures(state: GameState, out: Float64Array = new Float64Array(WEIGHT_KEYS.length)): Float64Array {
   out.fill(0);
   const files = pawnFiles(state);
@@ -172,11 +216,30 @@ export function extractFeatures(state: GameState, out: Float64Array = new Float6
   return out;
 }
 
+/** 진영별 항목값 (둘 다 양수 부호). 백 − 흑 = extractFeatures */
+export function extractSideFeatures(
+  state: GameState,
+  white: Float64Array = new Float64Array(WEIGHT_KEYS.length),
+  black: Float64Array = new Float64Array(WEIGHT_KEYS.length),
+): { white: Float64Array; black: Float64Array } {
+  white.fill(0);
+  black.fill(0);
+  const files = pawnFiles(state);
+  addSide(white, state, 'w', files);
+  addSide(black, state, 'b', files);
+  return { white, black };
+}
+
 export const dot = (weights: ArrayLike<number>, features: ArrayLike<number>) => {
   let sum = 0;
   for (let i = 0; i < features.length; i++) sum += weights[i] * features[i];
   return sum;
 };
 
-/** 현재 적용된 가중치 벡터 */
-export const ACTIVE_WEIGHTS = weightVector(WEIGHTS);
+/** 현재 적용된 모델 벡터 (공통 + 능력별 보정) */
+export const ACTIVE_MODEL = modelVector(WEIGHTS, ABILITY_WEIGHTS);
+
+/** 능력별로 미리 합쳐 둔 가중치 (-1 = 능력 없음) */
+const ACTIVE_BY_ABILITY = new Map<number, Float64Array>([-1, ...ABILITY_IDS.map((_, i) => i)].map((index) => [index, sideWeights(ACTIVE_MODEL, index)]));
+
+export const activeWeights = (abilityId: string | null): Float64Array => ACTIVE_BY_ABILITY.get(abilityIndex(abilityId))!;

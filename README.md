@@ -98,7 +98,24 @@ AI 버전 비교(개발용): 이전 버전 `search.ts`, `evaluate.ts`를 `packag
 
 ## AI 평가 가중치 튜닝 (Texel)
 
-AI 평가 함수는 `항목값 × 가중치`의 합이다(`packages/ai/src/features.ts`, 가중치는 `src/weights.ts`, 자원 가치는 능력별로 따로). 수순이 저장된 대국 기록으로 가중치를 학습할 수 있다.
+AI 평가 함수는 `항목값 × 가중치`의 합이다(`packages/ai/src/features.ts`). 진영마다 항목값을 따로 뽑고, 각 진영은 **공통 가중치(`WEIGHTS`) + 자기 능력의 보정값(`ABILITY_WEIGHTS`)**을 곱한다(`src/weights.ts`). 수순이 저장된 대국 기록으로 둘을 함께 학습할 수 있다. 능력별 보정은 0으로 끌어당기는 벌점(`--ability-l2`)이 있어 데이터가 적은 능력은 공통 가중치를 따른다.
+
+### 능력별 학습 루프 (권장)
+
+루트의 **`learn.bat`을 더블클릭**하면 아래 사이클을 멈출 때까지 반복한다.
+
+1. 16종 리그전(대진 120개 × 2판 = 240판)을 새 시드로 둔다. 리그전이라 모든 능력이 같은 판 수만큼 쌓인다
+2. 보고서를 대국 기록으로 가져온다
+3. 현재 밸런스 버전 이상의 기록이 1500판 이상 모이면 학습하고, **검증 오차가 줄었을 때만** `weights.ts`에 적용한다 (그 전까지는 수집만). 적용된 가중치는 다음 사이클 대국에 바로 쓰인다
+4. `reports/learn-log.md`에 사이클 결과(대국 수·검증 오차·적용 여부·튜닝 보고서)를 남긴다
+
+```bash
+npm run learn -w @hyperchess/ai -- --games 2 --cycles 10 --cpu 50   # 옵션: --depth, --min-version, --min-games, --epochs, --ability-l2
+```
+
+학습이 충분히 진행되면 `weights.ts`를 커밋하고 밸런스를 다시 측정한다.
+
+### 수동 튜닝
 
 1. 밸런스 측정(`balance.bat`)이나 AI 내전으로 기록을 모은다. 권장 2만~5만 판 (예: 리그전 대진당 400판)
 2. 루트의 **`tune.bat`을 더블클릭**한다. 측정 보고서를 기록으로 가져온 뒤, 기록을 재생해 조용한 국면(체크·직전 잡기 제외)을 뽑고 결과 예측 오차가 줄도록 학습한다
@@ -107,6 +124,8 @@ AI 평가 함수는 `항목값 × 가중치`의 합이다(`packages/ai/src/featu
 ```bash
 npm run tune -- --per-game 16 --epochs 800 --yes   # 보고서만
 npm run tune -- --apply                             # 바로 적용
+npm run tune -- --abilities wall,snipe --freeze-base # 공통 가중치는 고정하고 두 능력의 보정만 학습
+npm run tune -- --min-version 18                    # 규칙이 바뀐 옛 기록 제외
 ```
 
 적용하면 AI 강도가 바뀌므로 밸런스를 다시 측정한다. 되돌리려면 `git checkout packages/ai/src/weights.ts`.

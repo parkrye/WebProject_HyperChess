@@ -12,7 +12,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "balance": "tsx tools/balance.ts",
-    "tune": "tsx tools/tune.ts"
+    "tune": "tsx tools/tune.ts",
+    "learn": "tsx tools/learn.ts"
   },
   "dependencies": {
     "@hyperchess/engine": "*"

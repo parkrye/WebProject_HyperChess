@@ -22,6 +22,7 @@
  *   --max-plies <n>          최대 수, 넘으면 평가값 판정 (기본 160)
  *   --cpu <1-100>            CPU 사용량 % (기본 50). 논리 코어 수에 비례해 워커 수를 정한다
  *   --workers <n>            병렬 워커 수를 직접 지정 (--cpu 보다 우선)
+ *   --seed-round <n>         시드 시작 라운드 (기본 0). 같은 설정으로 여러 번 돌려도 다른 대국이 되게 한다 (학습 루프용)
  *   --yes                    시작 확인 생략
  */
 import { getAbility, listAbilities, opposite, type Color } from '@hyperchess/engine';
@@ -57,6 +58,8 @@ interface Settings {
   readonly opening: number;
   readonly maxPlies: number;
   readonly workers: number;
+  /** 시드 시작 라운드 */
+  readonly seedRound: number;
 }
 
 interface Job {
@@ -156,6 +159,7 @@ function settingsFromArgs(ids: readonly string[]): Settings {
     opening: Number(argValue('opening') ?? 4),
     maxPlies: positiveInt(argValue('max-plies'), 160, '최대 수'),
     workers: positiveInt(argValue('workers'), workersForCpu(positiveInt(argValue('cpu'), DEFAULT_CPU_PERCENT, 'CPU 사용량')), '워커 수'),
+    seedRound: Number(argValue('seed-round') ?? 0),
   };
 }
 
@@ -201,7 +205,7 @@ async function settingsFromPrompt(ids: readonly string[]): Promise<Settings> {
       DEFAULT_CPU_PERCENT,
       'CPU 사용량',
     );
-    return { mode, subjects, opponent, includeNone, focus, basePath, games, depth, opening: 4, maxPlies: 160, workers: workersForCpu(cpuPercent) };
+    return { mode, subjects, opponent, includeNone, focus, basePath, games, depth, opening: 4, maxPlies: 160, workers: workersForCpu(cpuPercent), seedRound: 0 };
   } finally {
     rl.close();
   }
@@ -276,7 +280,7 @@ function buildJobs(settings: Settings, round = 0, idStart = 0): Job[] {
       const spec: MatchSpec = {
         white: aColor === 'w' ? a : b,
         black: aColor === 'w' ? b : a,
-        seed: 1000 + (round * gamesPerMatchup + game) * 7919,
+        seed: 1000 + ((settings.seedRound + round) * gamesPerMatchup + game) * 7919,
         randomOpeningPlies: settings.opening,
         maxPlies: settings.maxPlies,
         search,

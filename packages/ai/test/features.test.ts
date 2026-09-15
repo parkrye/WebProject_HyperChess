@@ -1,7 +1,7 @@
 import { applyAction, createGame, legalAbilityOptions, legalMoves, listAbilities, type Action, type GameState } from '@hyperchess/engine';
 import { describe, expect, it } from 'vitest';
 import { evaluate } from '../src/evaluate';
-import { dot, extractFeatures, weightObject, weightVector, WEIGHT_KEYS } from '../src/features';
+import { ABILITY_IDS, dot, extractFeatures, extractSideFeatures, modelObjects, modelVector, sideWeights, weightObject, weightVector, WEIGHT_KEYS } from '../src/features';
 import { WEIGHTS } from '../src/weights';
 import { LEGACY_WEIGHTS } from './legacyWeights';
 import { evaluate as legacyEvaluate } from './legacyEvaluate';
@@ -53,5 +53,25 @@ describe('평가 항목 (선형 평가)', () => {
     const state = positions[500];
     expect(dot(weights, extractFeatures(state))).toBeCloseTo(evaluate(state, 'w'), 6);
     expect(evaluate(state, 'b')).toBeCloseTo(-evaluate(state, 'w'), 6);
+  });
+
+  it('진영별 항목값의 차이는 백 − 흑 항목값과 같다', () => {
+    for (const state of positions.slice(0, 300)) {
+      const { white, black } = extractSideFeatures(state);
+      const diff = extractFeatures(state);
+      white.forEach((value, j) => expect(value - black[j]).toBeCloseTo(diff[j], 9));
+    }
+  });
+
+  it('능력별 보정은 그 능력을 가진 진영의 평가에만 더해진다', () => {
+    const deltas = { [ABILITY_IDS[0]]: { 'piece.n': 50 } };
+    const model = modelVector(WEIGHTS, deltas);
+    expect(modelObjects(model).deltas).toEqual(deltas);
+
+    const own = sideWeights(model, 0);
+    const other = sideWeights(model, 1);
+    const key = WEIGHT_KEYS.indexOf('piece.n');
+    expect(own[key] - other[key]).toBe(50);
+    expect(sideWeights(model, -1)).toEqual(weightVector(WEIGHTS));
   });
 });

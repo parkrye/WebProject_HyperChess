@@ -87,7 +87,7 @@ function main() {
   }
 
   const records: GameRecord[] = [];
-  for (const file of readdirSync(REPORTS_DIR).filter((name) => name.endsWith('.json')).sort()) {
+  for (const file of readdirSync(REPORTS_DIR).filter((name) => name.startsWith('balance-') && name.endsWith('.json')).sort()) {
     const report = JSON.parse(readFileSync(join(REPORTS_DIR, file), 'utf8')) as Report;
     const version = report.balanceVersion ?? LEGACY_VERSIONS[file];
     if (!version) {

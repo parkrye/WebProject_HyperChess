@@ -41,3 +41,9 @@ export const WEIGHTS: Readonly<Record<string, number>> = {
   'resource.empress': 35,
   'resource.heir': 35,
 };
+
+/**
+ * 능력별 보정값 (공통 가중치에 더한다, 0인 항목은 생략).
+ * 그 능력을 가진 진영의 평가에만 쓰인다. tools/tune.ts가 대국 기록으로 학습한다.
+ */
+export const ABILITY_WEIGHTS: Readonly<Record<string, Readonly<Record<string, number>>>> = {};
