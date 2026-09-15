@@ -81,12 +81,12 @@ export function WelcomeScreen() {
               onChange={(e) => setPassword(e.target.value)}
             />
           </label>
-          {tab === 'register' && (
-            <p className="welcome-hint">
-              닉네임 {NICKNAME_MIN_LENGTH}~{NICKNAME_MAX_LENGTH}자(글자·숫자·_·-), 비밀번호 {PASSWORD_MIN_LENGTH}자 이상. 온라인 대국 결과가 랭킹에 반영됩니다.
-            </p>
-          )}
-          {error && <p className="notice notice-error">{error}</p>}
+          <p className={`welcome-hint ${tab === 'register' ? '' : 'is-hidden'}`}>
+            닉네임 {NICKNAME_MIN_LENGTH}~{NICKNAME_MAX_LENGTH}자(글자·숫자·_·-), 비밀번호 {PASSWORD_MIN_LENGTH}자 이상. 온라인 대국 결과가 랭킹에 반영됩니다.
+          </p>
+          <p className={`notice notice-error notice-slot ${error ? '' : 'is-empty'}`} role="alert">
+            {error ?? '\u00a0'}
+          </p>
           <button type="submit" className="btn btn-primary" disabled={pending}>
             {pending ? '처리 중…' : tab === 'register' ? '가입하고 시작' : '로그인'}
           </button>

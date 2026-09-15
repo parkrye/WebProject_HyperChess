@@ -38,7 +38,7 @@ export function PlayerBar({ state, color, interaction, seat, className = '', ran
         <span className={`player-dot dot-${color}`} />
         <strong>{seat ? seat.name : COLOR_NAME[color]}</strong>
         {seat?.isMe && <span className="seat-tag">나</span>}
-        {seat && !seat.connected && <span className="seat-tag seat-offline">연결 끊김</span>}
+        {seat && <span className={`seat-tag seat-offline ${seat.connected ? 'is-hidden' : ''}`}>연결 끊김</span>}
         {definition && (
           <span className="player-ability">
             {randomized && <AbilityIconView icon="random" size={16} className="random-mark" />}
@@ -55,12 +55,11 @@ export function PlayerBar({ state, color, interaction, seat, className = '', ran
             const state = amount >= 1 ? 'filled' : amount > 0 ? 'half' : '';
             return <img key={i} className={`pip ${state}`} src={amount > 0 ? uiSprite.gemFull : uiSprite.gemEmpty} alt="" draggable={false} />;
           })}
-          {player.meter.cooldown > 0 && (
-            <span className="cooldown">
-              <img className="cooldown-icon" src={uiSprite.hourglass} alt="재사용 대기" draggable={false} />
-              {player.meter.cooldown}
-            </span>
-          )}
+          {/* 재사용 대기가 없어도 자리를 유지한다 */}
+          <span className={`cooldown ${player.meter.cooldown > 0 ? '' : 'is-hidden'}`}>
+            <img className="cooldown-icon" src={uiSprite.hourglass} alt="재사용 대기" draggable={false} />
+            {player.meter.cooldown || 0}
+          </span>
         </div>
       )}
 
