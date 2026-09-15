@@ -11,6 +11,7 @@ import { Hero, ModeTabs, type GameMode } from '../components/ModeTabs';
 import { useBgm } from '../audio/bgm';
 import { useAnimatedGame } from '../game/useAnimatedGame';
 import { useOnlineRoom, type OnlineRoom } from '../online/useOnlineRoom';
+import { useSession } from '../auth/session';
 
 const PREFS_KEY = 'hyperchess:online-prefs';
 
@@ -74,6 +75,8 @@ function Lobby({ room, onModeChange }: { room: OnlineRoom; onModeChange: (mode: 
   const [color, setColor] = useState<ColorPreference>('random');
   const [code, setCode] = useState(roomFromUrl);
   const [pending, setPending] = useState(false);
+  const { session } = useSession();
+  const account = session?.kind === 'user' ? session : null;
 
   const update = (patch: Partial<Prefs>) =>
     setPrefs((prev) => {
@@ -84,7 +87,8 @@ function Lobby({ room, onModeChange }: { room: OnlineRoom; onModeChange: (mode: 
 
   const submit = async (kind: 'create' | 'join') => {
     setPending(true);
-    const base = { name: prefs.name, abilityId: prefs.abilityId };
+    // 로그인 유저는 세션 토큰으로 참가해 닉네임·레이팅이 쓰인다
+    const base = { name: prefs.name, abilityId: prefs.abilityId, ...(account ? { authToken: account.token } : {}) };
     if (kind === 'create') await room.create({ ...base, color });
     else await room.join({ ...base, code });
     setPending(false);
@@ -108,12 +112,18 @@ function Lobby({ room, onModeChange }: { room: OnlineRoom; onModeChange: (mode: 
       <section className="online-form">
         <label className="field">
           <span>이름</span>
-          <input
-            value={prefs.name}
-            maxLength={NAME_MAX_LENGTH}
-            placeholder="플레이어"
-            onChange={(e) => update({ name: e.target.value })}
-          />
+          {account ? (
+            <strong>
+              {account.user.nickname} <small className="rating-tag">레이팅 {account.user.rating}</small>
+            </strong>
+          ) : (
+            <input
+              value={prefs.name}
+              maxLength={NAME_MAX_LENGTH}
+              placeholder="게스트 (랭킹 미반영)"
+              onChange={(e) => update({ name: e.target.value })}
+            />
+          )}
         </label>
 
         <div className="field">
@@ -195,6 +205,7 @@ function WaitingRoom({ snapshot, you, onLeave }: { snapshot: RoomSnapshot; you: 
                 {seat ? (
                   <>
                     <strong>{seat.name}</strong>
+                    <small className="rating-tag">{seat.rating ?? '게스트'}</small>
                     {color === you && <span className="seat-tag">나</span>}
                     <span className="seat-ability">{abilityName(seat.abilityId)}</span>
                   </>
@@ -214,6 +225,13 @@ function WaitingRoom({ snapshot, you, onLeave }: { snapshot: RoomSnapshot; you: 
 }
 
 /* ---------- 대국 ---------- */
+
+/** 이름 옆에 레이팅 (게스트는 이름만) */
+function seatName(snapshot: RoomSnapshot, color: Color) {
+  const seat = snapshot.seats[color];
+  if (!seat) return COLOR_NAME[color];
+  return seat.rating === null ? seat.name : `${seat.name} (${seat.rating})`;
+}
 
 interface OnlineGameProps {
   readonly room: OnlineRoom;
@@ -238,6 +256,13 @@ function OnlineGame({ room, snapshot, game, you, onLeave }: OnlineGameProps) {
     void present(game);
   }, [game, present]);
 
+  // 대국이 끝나면 바뀐 레이팅을 받아 온다
+  const { refresh } = useSession();
+  const finished = game.result.kind !== 'ongoing';
+  useEffect(() => {
+    if (finished) void refresh();
+  }, [finished, refresh]);
+
   const dispatch = async (action: Action) => {
     if (sending) return;
     setSending(true);
@@ -247,8 +272,8 @@ function OnlineGame({ room, snapshot, game, you, onLeave }: OnlineGameProps) {
 
   const opponent = snapshot.seats[you === 'w' ? 'b' : 'w'];
   const seats = {
-    w: { name: snapshot.seats.w?.name ?? COLOR_NAME.w, connected: snapshot.seats.w?.connected ?? false, isMe: you === 'w' },
-    b: { name: snapshot.seats.b?.name ?? COLOR_NAME.b, connected: snapshot.seats.b?.connected ?? false, isMe: you === 'b' },
+    w: { name: seatName(snapshot, 'w'), connected: snapshot.seats.w?.connected ?? false, isMe: you === 'w' },
+    b: { name: seatName(snapshot, 'b'), connected: snapshot.seats.b?.connected ?? false, isMe: you === 'b' },
   };
   const votedRematch = snapshot.rematchVotes.includes(you);
   const opponentVoted = snapshot.rematchVotes.some((c) => c !== you);

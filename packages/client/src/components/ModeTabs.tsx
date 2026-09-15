@@ -1,8 +1,9 @@
 import { uiSprite } from '../assets/sprites';
 import { useInstallPrompt } from '../pwa/useInstallPrompt';
+import { AccountBadge } from './AccountBadge';
 import { SoundToggle } from './SoundToggle';
 
-export type GameMode = 'local' | 'ai' | 'arena' | 'online' | 'stats';
+export type GameMode = 'local' | 'ai' | 'arena' | 'online' | 'stats' | 'ranking';
 
 const MODES: readonly { id: GameMode; label: string; enabled: boolean }[] = [
   { id: 'local', label: '로컬 2인', enabled: true },
@@ -10,6 +11,7 @@ const MODES: readonly { id: GameMode; label: string; enabled: boolean }[] = [
   { id: 'arena', label: 'AI 내전', enabled: true },
   { id: 'online', label: '온라인', enabled: true },
   { id: 'stats', label: '통계', enabled: true },
+  { id: 'ranking', label: '랭킹', enabled: true },
 ];
 
 export function ModeTabs({ active, onChange }: { active: GameMode; onChange: (mode: GameMode) => void }) {
@@ -36,6 +38,7 @@ export function Hero() {
   return (
     <header className="setup-hero">
       <SoundToggle className="hero-sound" />
+      <AccountBadge />
       <h1 className="logo">
         <img src={uiSprite.logo} alt="HyperChess" draggable={false} />
       </h1>
