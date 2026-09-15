@@ -23,7 +23,7 @@ Node 22 이상 필요.
 npm install
 
 # 서버 실행 (클라이언트 빌드 후 3000 포트로 게임 + 멀티플레이 제공)
-npm run server
+npm run server   # 또는 루트의 server.bat 더블클릭
 ```
 
 서버가 켜져 있는 동안 콘솔에 표시되는 주소로 접속한다.
