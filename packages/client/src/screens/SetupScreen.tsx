@@ -1,8 +1,9 @@
 import type { Difficulty } from '@hyperchess/ai';
-import { getAbility, opposite, type Color } from '@hyperchess/engine';
+import { opposite, type Color } from '@hyperchess/engine';
+import { RANDOM_ABILITY, resolveAbilityChoice } from '@hyperchess/protocol';
 import { useState, type CSSProperties } from 'react';
 import { abilityUi } from '../abilityUi/specs';
-import { COLOR_NAME } from '../abilityUi/text';
+import { abilityName, COLOR_NAME } from '../abilityUi/text';
 import type { AiConfig } from '../ai/useAiOpponent';
 import { useBgm } from '../audio/bgm';
 import { uiIconSprite } from '../assets/sprites';
@@ -13,8 +14,19 @@ import { Hero, ModeTabs, type GameMode } from '../components/ModeTabs';
 export type AbilityChoice = Record<Color, string>;
 
 export interface LocalGameConfig {
+  /** 게임에 쓰일 실제 능력 (무작위는 이미 결정됨) */
   readonly abilities: AbilityChoice;
+  /** 무작위로 결정된 색 */
+  readonly randomized: Partial<Record<Color, boolean>>;
   readonly ai: AiConfig | null;
+}
+
+/** 선택값(무작위 포함)을 실제 능력으로 결정한다 */
+function resolveChoices(choices: AbilityChoice): Pick<LocalGameConfig, 'abilities' | 'randomized'> {
+  return {
+    abilities: { w: resolveAbilityChoice(choices.w), b: resolveAbilityChoice(choices.b) },
+    randomized: { w: choices.w === RANDOM_ABILITY, b: choices.b === RANDOM_ABILITY },
+  };
 }
 
 /** 설정 화면에서 기억해 두는 선택값 */
@@ -64,13 +76,14 @@ export function SetupScreen({ mode, prefs: initialPrefs, onStart, onModeChange }
 
   const start = () => {
     if (!isAi) {
-      onStart({ abilities: prefs.local, ai: null }, prefs);
+      onStart({ ...resolveChoices(prefs.local), ai: null }, prefs);
       return;
     }
     const { me, ai, color, difficulty } = prefs.ai;
     const myColor: Color = color === 'random' ? (Math.random() < 0.5 ? 'w' : 'b') : color;
     const aiColor = opposite(myColor);
-    onStart({ abilities: { [myColor]: me, [aiColor]: ai } as AbilityChoice, ai: { color: aiColor, difficulty } }, prefs);
+    const choices = { [myColor]: me, [aiColor]: ai } as AbilityChoice;
+    onStart({ ...resolveChoices(choices), ai: { color: aiColor, difficulty } }, prefs);
   };
 
   return (
@@ -126,7 +139,7 @@ export function SetupScreen({ mode, prefs: initialPrefs, onStart, onModeChange }
               {!isAi && <span className={`player-dot dot-${key}`} />}
               <span className="player-pick-label">{label}</span>
               <AbilityIconView icon={spec.icon} size={18} />
-              <strong>{getAbility(abilityId).name}</strong>
+              <strong>{abilityName(abilityId)}</strong>
             </button>
           );
         })}

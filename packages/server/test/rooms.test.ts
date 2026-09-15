@@ -20,6 +20,28 @@ describe('RoomManager', () => {
     expect(snapshot.game?.players.b.abilityId).toBe('rewind');
   });
 
+  it('무작위 선택은 게임 시작 시 결정되고, 재대결마다 새로 뽑는다', () => {
+    let roll = 0;
+    const manager = new RoomManager({ random: () => [0.05, 0.95, 0.5, 0.2][roll++ % 4] });
+    const host = manager.create('s1', { name: 'a', abilityId: 'random', color: 'w' });
+    expect(manager.snapshot(host.code).seats.w).toMatchObject({ abilityId: 'random', randomized: true });
+
+    manager.join('s2', { code: host.code, name: 'b', abilityId: 'haste' });
+    const first = manager.snapshot(host.code);
+    expect(first.seats.w?.randomized).toBe(true);
+    expect(first.seats.w?.abilityId).not.toBe('random');
+    expect(first.game?.players.w.abilityId).toBe(first.seats.w?.abilityId);
+    expect(first.seats.b).toMatchObject({ abilityId: 'haste', randomized: false });
+
+    manager.resign('s2');
+    manager.voteRematch('s1');
+    manager.voteRematch('s2');
+    const second = manager.snapshot(host.code);
+    // 재대결에서 색이 바뀌어 무작위 좌석은 흑
+    expect(second.seats.b?.randomized).toBe(true);
+    expect(second.game?.players.b.abilityId).toBe(second.seats.b?.abilityId);
+  });
+
   it('세 번째 참가자와 존재하지 않는 능력은 거부된다', () => {
     const { manager, host } = setupRoom();
     expect(() => manager.join('s3', { code: host.code, name: 'x', abilityId: 'haste' })).toThrow(RoomError);

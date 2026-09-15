@@ -1,4 +1,16 @@
-import type { Action, Color, GameState } from '@hyperchess/engine';
+import { listAbilities, type Action, type Color, type GameState } from '@hyperchess/engine';
+
+/** 능력 선택값: 능력 id 또는 무작위 (게임 시작 시 결정) */
+export const RANDOM_ABILITY = 'random';
+
+export const isAbilityChoice = (choice: string) => choice === RANDOM_ABILITY || listAbilities().some((a) => a.id === choice);
+
+/** 무작위 선택이면 전체 능력 중 하나를 뽑는다 */
+export function resolveAbilityChoice(choice: string, random: () => number = Math.random): string {
+  if (choice !== RANDOM_ABILITY) return choice;
+  const abilities = listAbilities();
+  return abilities[Math.floor(random() * abilities.length)].id;
+}
 
 export const ROOM_CODE_LENGTH = 5;
 export const NAME_MAX_LENGTH = 16;
@@ -7,7 +19,10 @@ export type ColorPreference = Color | 'random';
 
 export interface SeatInfo {
   readonly name: string;
+  /** 게임이 시작되면 결정된 능력, 시작 전 무작위 선택이면 'random' */
   readonly abilityId: string;
+  /** 무작위로 결정된 능력인지 */
+  readonly randomized: boolean;
   readonly connected: boolean;
 }
 

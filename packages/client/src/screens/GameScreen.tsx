@@ -1,6 +1,7 @@
 import { opposite, STANDARD_TIME_CONTROL } from '@hyperchess/engine';
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useAiOpponent } from '../ai/useAiOpponent';
+import { AbilityReveal } from '../components/AbilityReveal';
 import { GameView } from '../components/GameView';
 import { useLocalGame } from '../game/useGame';
 import type { LocalGameConfig } from './SetupScreen';
@@ -13,8 +14,28 @@ interface LocalGameScreenProps {
   readonly onMenu: () => void;
 }
 
+/** 무작위 능력이 있으면 공개 연출을 먼저 보여준 뒤 대국을 시작한다 (시계도 공개 후 시작) */
+export function LocalGameScreen(props: LocalGameScreenProps) {
+  const { config } = props;
+  const needsReveal = Object.values(config.randomized).some(Boolean);
+  const [revealed, setRevealed] = useState(!needsReveal);
+  const finishReveal = useCallback(() => setRevealed(true), []);
+
+  if (!revealed) {
+    const names = config.ai
+      ? { [config.ai.color]: `AI (${DIFFICULTY_LABEL[config.ai.difficulty]})`, [opposite(config.ai.color)]: '나' }
+      : undefined;
+    return (
+      <div className="game">
+        <AbilityReveal abilities={config.abilities} randomized={config.randomized} names={names} onDone={finishReveal} />
+      </div>
+    );
+  }
+  return <LocalGameBoard {...props} />;
+}
+
 /** 한 기기에서 진행하는 대국: 핫시트 또는 AI 대전 */
-export function LocalGameScreen({ config, onRestart, onMenu }: LocalGameScreenProps) {
+function LocalGameBoard({ config, onRestart, onMenu }: LocalGameScreenProps) {
   const setup = useMemo(() => ({ abilities: config.abilities, timeControl: STANDARD_TIME_CONTROL }), [config.abilities]);
   const { state, busy, stageView, dispatch } = useLocalGame(setup);
   const { ai } = config;
@@ -36,6 +57,7 @@ export function LocalGameScreen({ config, onRestart, onMenu }: LocalGameScreenPr
       dispatch={dispatch}
       myColor={myColor}
       seats={seats as Parameters<typeof GameView>[0]['seats']}
+      randomized={config.randomized}
       onMenu={onMenu}
       notice={thinking ? 'AI가 생각 중…' : null}
       resultActions={

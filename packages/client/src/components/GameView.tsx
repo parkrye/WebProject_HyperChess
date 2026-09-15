@@ -26,6 +26,8 @@ export interface GameViewProps {
   readonly notice?: string | null;
   /** 시계 표시용 시각 보정 (온라인: 서버 시각 - 로컬 시각) */
   readonly clockOffsetMs?: number;
+  /** 무작위로 결정된 능력의 색 (플레이어 띠에 표시) */
+  readonly randomized?: Partial<Record<Color, boolean>>;
 }
 
 export function GameView(props: GameViewProps) {
@@ -73,9 +75,9 @@ export function GameView(props: GameViewProps) {
 
       <div className="game-layout">
         <div className="board-row">
-          <PlayerBar className="side-left" state={state} color={left} interaction={interaction} seat={props.seats?.[left]} />
+          <PlayerBar className="side-left" state={state} color={left} interaction={interaction} seat={props.seats?.[left]} randomized={props.randomized?.[left]} />
           <Board state={state} stage={stageView} interaction={interaction} leftColor={left} busy={busy} />
-          <PlayerBar className="side-right" state={state} color={right} interaction={interaction} seat={props.seats?.[right]} />
+          <PlayerBar className="side-right" state={state} color={right} interaction={interaction} seat={props.seats?.[right]} randomized={props.randomized?.[right]} />
         </div>
         <aside className="under-board">
           {props.notice && <p className="notice">{props.notice}</p>}

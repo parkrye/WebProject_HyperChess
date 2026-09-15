@@ -2,6 +2,7 @@ import { listAbilities } from '@hyperchess/engine';
 import type { CSSProperties } from 'react';
 import { abilityUi } from '../abilityUi/specs';
 import { costLabel, recoveryLabel, TIMING_LABEL } from '../abilityUi/text';
+import { RANDOM_ABILITY } from '@hyperchess/protocol';
 import { AbilityIconView } from './AbilityIconView';
 
 interface AbilityGridProps {
@@ -13,6 +14,24 @@ interface AbilityGridProps {
 export function AbilityGrid({ selected, onSelect, label }: AbilityGridProps) {
   return (
     <section className="ability-grid" aria-label={label}>
+      <button
+        type="button"
+        className={`ability-card ability-card-random ${selected === RANDOM_ABILITY ? 'selected' : ''}`}
+        style={{ '--ability-color': abilityUi(RANDOM_ABILITY).color } as CSSProperties}
+        aria-pressed={selected === RANDOM_ABILITY}
+        onClick={() => onSelect(RANDOM_ABILITY)}
+      >
+        <div className="ability-card-head">
+          <span className="ability-icon">
+            <AbilityIconView icon="random" size={22} />
+          </span>
+          <div>
+            <strong>무작위</strong>
+            <small>게임 시작 시 결정</small>
+          </div>
+        </div>
+        <p>게임을 시작할 때 모든 능력 중 하나가 무작위로 정해지고, 대국 시작 화면에서 공개됩니다.</p>
+      </button>
       {listAbilities().map((ability) => {
         const spec = abilityUi(ability.id);
         const isSelected = selected === ability.id;

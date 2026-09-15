@@ -9,8 +9,12 @@ import {
   type RecoveryRule,
   type WinReason,
 } from '@hyperchess/engine';
+import { RANDOM_ABILITY } from '@hyperchess/protocol';
 
 export const COLOR_NAME: Record<Color, string> = { w: '백', b: '흑' };
+
+/** 능력 이름 (무작위 선택 포함) */
+export const abilityName = (id: string) => (id === RANDOM_ABILITY ? '무작위' : getAbility(id).name);
 
 export const TIMING_LABEL: Record<AbilityDefinition['timing'], string> = {
   beforeMove: '수 전에 사용',
