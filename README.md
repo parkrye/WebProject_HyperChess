@@ -34,7 +34,7 @@ npm run server   # 또는 루트의 server.bat 더블클릭
 
 포트 변경: `PORT=4000 npm run server`
 
-대국 기록(AI 내전·AI 대전·로컬 2인·온라인)은 `packages/server/data/results.jsonl`에 쌓이고 통계 탭에서 집계된다. 저장 위치 변경: `HYPERCHESS_DATA=경로`
+대국 기록(AI 내전·AI 대전·로컬 플레이·멀티)은 `packages/server/data/results.jsonl`에 쌓이고 통계에서 집계된다. 각 기록에는 시작 국면부터의 행동 수순(`actions`)이 함께 저장되어, 엔진으로 재생하면 모든 국면을 복원할 수 있다(AI 학습 데이터용, 서버가 재생 검증 후 저장). 저장 위치 변경: `HYPERCHESS_DATA=경로`
 
 처음 접속하면 **게스트** 또는 **계정(닉네임+비밀번호)**으로 시작한다. 계정은 `data/users.json`에 저장되고(비밀번호는 scrypt 해시), 계정으로 둔 온라인 대국만 레이팅(Elo, 시작 1000, 게스트 상대는 1000 고정)과 랭킹 탭에 반영된다. 비밀번호 재설정 기능은 없으므로 필요하면 서버를 끈 뒤 `users.json`에서 해당 유저를 지운다.
 

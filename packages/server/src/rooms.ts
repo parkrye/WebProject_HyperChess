@@ -50,6 +50,8 @@ interface Room {
   readonly code: string;
   seats: Record<Color, Seat | null>;
   game: GameState | null;
+  /** 이번 게임에서 둔 행동 순서 (기록용) */
+  actions: Action[];
   rematchVotes: Set<Color>;
   /** 모든 좌석의 연결이 끊긴 시각 */
   abandonedAt: number | null;
@@ -59,7 +61,7 @@ export interface RoomManagerOptions {
   readonly random?: () => number;
   readonly now?: () => number;
   /** 대국이 끝났을 때 한 번 호출 (기록·레이팅 반영용) */
-  readonly onGameEnd?: (game: GameState, players: Readonly<Record<Color, string | null>>) => void;
+  readonly onGameEnd?: (game: GameState, players: Readonly<Record<Color, string | null>>, actions: readonly Action[]) => void;
   /** 스냅샷에 표시할 유저 레이팅 */
   readonly ratingOf?: (userId: string) => number | null;
 }
@@ -95,6 +97,7 @@ export class RoomManager {
       code,
       seats: { w: null, b: null, [color]: seat } as Record<Color, Seat | null>,
       game: null,
+      actions: [],
       rematchVotes: new Set(),
       abandonedAt: null,
     };
@@ -169,7 +172,9 @@ export class RoomManager {
     const { room, color } = this.requireSeat(socketId);
     if (!room.game) throw new RoomError('게임이 시작되지 않았습니다');
     if (room.game.turn !== color) throw new RoomError('상대 차례입니다');
-    this.updateGame(room, applyAction(room.game, action, this.now()));
+    const next = applyAction(room.game, action, this.now());
+    room.actions.push(action);
+    this.updateGame(room, next);
     return room.code;
   }
 
@@ -273,7 +278,7 @@ export class RoomManager {
     const wasOngoing = room.game?.result.kind === 'ongoing';
     room.game = next;
     if (wasOngoing && next.result.kind !== 'ongoing') {
-      this.onGameEnd(next, { w: room.seats.w?.userId ?? null, b: room.seats.b?.userId ?? null });
+      this.onGameEnd(next, { w: room.seats.w?.userId ?? null, b: room.seats.b?.userId ?? null }, room.actions);
     }
   }
 
@@ -282,6 +287,7 @@ export class RoomManager {
     if (!w || !b || room.game) return;
     // 무작위 선택은 게임마다 새로 뽑는다 (재대결 포함)
     for (const seat of [w, b]) seat.abilityId = resolveAbilityChoice(seat.choice, this.random);
+    room.actions = [];
     room.game = createGame({ abilities: { w: w.abilityId, b: b.abilityId }, timeControl: STANDARD_TIME_CONTROL, now: this.now() });
   }
 

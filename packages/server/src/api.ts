@@ -5,6 +5,8 @@ import { computeStats, summarizeCategories } from './stats';
 import { UserError, type UserStore } from './users';
 
 const MAX_BODY_BYTES = 8 * 1024;
+/** 대국 기록은 수순을 담아 크다 */
+const MAX_RECORD_BYTES = 512 * 1024;
 const RANKING_LIMIT = 100;
 
 export type HttpHandler = (req: IncomingMessage, res: ServerResponse) => void;
@@ -28,12 +30,12 @@ function sendJson(res: ServerResponse, status: number, body: unknown) {
   res.end(JSON.stringify(body));
 }
 
-async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
+async function readJson(req: IncomingMessage, maxBytes = MAX_BODY_BYTES): Promise<Record<string, unknown>> {
   let size = 0;
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
     size += (chunk as Buffer).length;
-    if (size > MAX_BODY_BYTES) throw new HttpError(413, '요청이 너무 큽니다');
+    if (size > maxBytes) throw new HttpError(413, '요청이 너무 큽니다');
     chunks.push(chunk as Buffer);
   }
   try {
@@ -51,7 +53,7 @@ type Route = (req: IncomingMessage, url: URL, deps: ApiDeps) => Promise<[status:
 
 const ROUTES: Readonly<Record<string, Route>> = {
   'POST /api/results': async (req, _url, { results }) => {
-    const record = parseGameRecord(await readJson(req));
+    const record = parseGameRecord(await readJson(req, MAX_RECORD_BYTES));
     if (!record) throw new HttpError(400, '잘못된 대국 기록입니다');
     results.add(record);
     return [201, { ok: true }];

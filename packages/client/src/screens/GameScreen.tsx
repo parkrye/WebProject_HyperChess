@@ -38,7 +38,7 @@ export function LocalGameScreen(props: LocalGameScreenProps) {
 /** 한 기기에서 진행하는 대국: 핫시트 또는 AI 대전 */
 function LocalGameBoard({ config, onRestart, onMenu }: LocalGameScreenProps) {
   const setup = useMemo(() => ({ abilities: config.abilities, timeControl: STANDARD_TIME_CONTROL }), [config.abilities]);
-  const { state, busy, stageView, dispatch } = useLocalGame(setup);
+  const { state, busy, stageView, dispatch, actions } = useLocalGame(setup);
   const { ai } = config;
   const aiPlayers = useMemo(() => (ai ? { [ai.color]: ai.difficulty } : {}), [ai]);
   const { thinking } = useAiPlayers(state, aiPlayers, busy, dispatch);
@@ -47,11 +47,12 @@ function LocalGameBoard({ config, onRestart, onMenu }: LocalGameScreenProps) {
   const reported = useRef(false);
   useEffect(() => {
     if (reported.current) return;
-    const record = ai ? toGameRecord(state, 'ai', { [ai.color]: ai.difficulty }) : toGameRecord(state, 'local');
+    const extras = { actions: [...actions.current], ...(ai ? { difficulty: { [ai.color]: ai.difficulty } } : {}) };
+    const record = toGameRecord(state, ai ? 'ai' : 'local', extras);
     if (!record) return;
     reported.current = true;
     void reportResult(record);
-  }, [state, ai]);
+  }, [state, ai, actions]);
 
   const myColor = ai ? opposite(ai.color) : null;
   const seats = ai

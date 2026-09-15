@@ -29,6 +29,8 @@ export interface GameRecordInput {
   readonly reason: string;
   readonly plies: number;
   readonly difficulty?: Readonly<Partial<Record<Color, string>>>;
+  /** 시작 국면부터 둔 행동 순서 (학습 데이터용, 엔진이 결정적이라 모든 국면을 재현할 수 있다) */
+  readonly actions?: readonly Action[];
 }
 
 export interface GameRecord extends GameRecordInput {
@@ -36,11 +38,12 @@ export interface GameRecord extends GameRecordInput {
 }
 
 /** 끝난 게임 상태에서 대국 기록을 만든다 (진행 중이면 null) */
-export function toGameRecord(
-  state: GameState,
-  source: ResultSource,
-  difficulty?: Partial<Record<Color, string>>,
-): GameRecordInput | null {
+export interface GameRecordExtras {
+  readonly difficulty?: Partial<Record<Color, string>>;
+  readonly actions?: readonly Action[];
+}
+
+export function toGameRecord(state: GameState, source: ResultSource, { difficulty, actions }: GameRecordExtras = {}): GameRecordInput | null {
   const { result } = state;
   if (result.kind === 'ongoing') return null;
   return {
@@ -51,6 +54,7 @@ export function toGameRecord(
     reason: result.reason,
     plies: state.log.length,
     ...(difficulty ? { difficulty } : {}),
+    ...(actions ? { actions } : {}),
   };
 }
 
@@ -135,6 +139,9 @@ export interface AuthResponse {
 export interface RankingEntry extends PublicUser {
   readonly rank: number;
 }
+
+/** 대국 기록 한 판의 최대 행동 수 */
+export const MAX_RECORD_ACTIONS = 2000;
 
 export const ROOM_CODE_LENGTH = 5;
 export const NAME_MAX_LENGTH = 16;
