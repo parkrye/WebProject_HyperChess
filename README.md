@@ -34,6 +34,8 @@ npm run server
 
 포트 변경: `PORT=4000 npm run server`
 
+대국 기록(AI 내전·AI 대전·로컬 2인·온라인)은 `packages/server/data/results.jsonl`에 쌓이고 통계 탭에서 집계된다. 저장 위치 변경: `HYPERCHESS_DATA=경로`
+
 ## 모바일 앱처럼 설치 (PWA)
 
 빌드된 클라이언트는 설치형 웹 앱(PWA)이다. 설치하면 전체 화면으로 실행되고, 한 번 접속한 뒤에는 **로컬 2인·AI 대전을 오프라인에서도** 할 수 있다(온라인 대전은 서버 연결 필요).
@@ -53,7 +55,7 @@ npm run server
 
 ```bash
 npm run dev:server   # 게임 서버 (파일 변경 시 재시작)
-npm run dev:client   # Vite 개발 서버 (5173, /socket.io는 3000으로 프록시)
+npm run dev:client   # Vite 개발 서버 (5173, /socket.io·/api는 3000으로 프록시)
 npm test             # 전체 테스트
 npm run typecheck    # 전체 타입 검사
 npm run bench -w @hyperchess/engine  # 엔진 속도 측정
@@ -83,6 +85,8 @@ npm run balance -- --mode opponent --abilities paladin,heir --opponent none --ga
 npm run balance -- --mode league --games 8 --include-none --cpu 75 --yes
 npm run balance -- --mode league --include-none --focus paladin,heavyInfantry --base latest --yes
 ```
+
+측정 결과를 게임의 **통계** 탭에 반영하려면 `npm run import-reports`를 실행한 뒤 서버를 다시 켠다. `reports/*.json`을 `packages/server/data/simulation.jsonl`로 변환한다(매번 새로 만들어 중복 없음, 부분 재측정은 새로 둔 대진만 반영).
 
 결과 해석 시 주의: 판 수가 적으면 오차가 크고(95% 신뢰구간 기준 24판 ≈ ±20%p, 96판 ≈ ±10%p), AI가 능력을 쓰는 실력이 결과에 섞여 있다.
 
