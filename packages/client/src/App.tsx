@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useSession } from './auth/session';
+import { AppNavContext, type AppNav } from './components/AppNav';
 import { ArenaScreen, type ArenaConfig } from './screens/ArenaScreen';
 import { LocalGameScreen } from './screens/GameScreen';
 import { MainScreen } from './screens/MainScreen';
@@ -21,7 +22,12 @@ type Screen =
   | { kind: 'online' }
   | { kind: 'stats' }
   | { kind: 'ranking' }
-  | { kind: 'game'; config: LocalGameConfig; mode: 'local' | 'ai'; round: number }
+  | {
+      kind: 'game';
+      config: LocalGameConfig;
+      mode: 'local' | 'ai';
+      round: number;
+    }
   | { kind: 'arena'; config: ArenaConfig };
 
 /** 초대 링크(?room=)로 들어오면 바로 멀티로 */
@@ -36,53 +42,67 @@ export function App() {
     window.scrollTo(0, 0);
   };
 
-  // 타이틀 이외의 페이지는 계정(게스트 포함)을 고른 뒤에 들어간다
-  if (!session && screen.kind !== 'title') {
-    return <WelcomeScreen onDone={() => go(screen.kind === 'login' ? { kind: 'main' } : screen)} onBack={() => go({ kind: 'title' })} />;
-  }
+  const nav: AppNav = {
+    current: screen.kind,
+    openRanking: () => go({ kind: 'ranking' }),
+    openStats: () => go({ kind: 'stats' }),
+  };
+  return <AppNavContext.Provider value={nav}>{renderScreen()}</AppNavContext.Provider>;
 
-  switch (screen.kind) {
-    case 'title':
-      return <TitleScreen onStart={() => go(session ? { kind: 'main' } : { kind: 'login' })} />;
-    case 'login':
-      return <WelcomeScreen onDone={() => go({ kind: 'main' })} onBack={() => go({ kind: 'title' })} />;
-    case 'main':
-      return <MainScreen onSelect={(target) => go({ kind: target })} onBack={() => go({ kind: 'title' })} />;
-    case 'single':
-      return <SingleMenuScreen onSelect={(mode) => go({ kind: 'setup', mode })} onBack={() => go({ kind: 'main' })} />;
-    case 'setup':
-      return (
-        <SetupScreen
-          key={screen.mode}
-          mode={screen.mode}
-          prefs={prefs}
-          onBack={() => go({ kind: 'single' })}
-          onStart={(config, nextPrefs) => {
-            setPrefs(nextPrefs);
-            go({ kind: 'game', config, mode: screen.mode === 'ai' ? 'ai' : 'local', round: 0 });
-          }}
-          onStartArena={(config, nextPrefs) => {
-            setPrefs(nextPrefs);
-            go({ kind: 'arena', config });
-          }}
-        />
-      );
-    case 'online':
-      return <OnlineScreen onBack={() => go({ kind: 'main' })} onSingle={() => go({ kind: 'single' })} />;
-    case 'stats':
-      return <StatsScreen onBack={() => go({ kind: 'main' })} />;
-    case 'ranking':
-      return <RankingScreen onBack={() => go({ kind: 'main' })} />;
-    case 'game':
-      return (
-        <LocalGameScreen
-          key={screen.round}
-          config={screen.config}
-          onRestart={() => setScreen({ ...screen, round: screen.round + 1 })}
-          onMenu={() => go({ kind: 'setup', mode: screen.mode })}
-        />
-      );
-    case 'arena':
-      return <ArenaScreen config={screen.config} onMenu={() => go({ kind: 'setup', mode: 'arena' })} />;
+  function renderScreen() {
+    // 타이틀 이외의 페이지는 계정(게스트 포함)을 고른 뒤에 들어간다
+    if (!session && screen.kind !== 'title') {
+      return <WelcomeScreen onDone={() => go(screen.kind === 'login' ? { kind: 'main' } : screen)} onBack={() => go({ kind: 'title' })} />;
+    }
+
+    switch (screen.kind) {
+      case 'title':
+        return <TitleScreen onStart={() => go(session ? { kind: 'main' } : { kind: 'login' })} />;
+      case 'login':
+        return <WelcomeScreen onDone={() => go({ kind: 'main' })} onBack={() => go({ kind: 'title' })} />;
+      case 'main':
+        return <MainScreen onSelect={(target) => go({ kind: target })} onBack={() => go({ kind: 'title' })} />;
+      case 'single':
+        return <SingleMenuScreen onSelect={(mode) => go({ kind: 'setup', mode })} onBack={() => go({ kind: 'main' })} />;
+      case 'setup':
+        return (
+          <SetupScreen
+            key={screen.mode}
+            mode={screen.mode}
+            prefs={prefs}
+            onBack={() => go({ kind: 'single' })}
+            onStart={(config, nextPrefs) => {
+              setPrefs(nextPrefs);
+              go({
+                kind: 'game',
+                config,
+                mode: screen.mode === 'ai' ? 'ai' : 'local',
+                round: 0,
+              });
+            }}
+            onStartArena={(config, nextPrefs) => {
+              setPrefs(nextPrefs);
+              go({ kind: 'arena', config });
+            }}
+          />
+        );
+      case 'online':
+        return <OnlineScreen onBack={() => go({ kind: 'main' })} onSingle={() => go({ kind: 'single' })} />;
+      case 'stats':
+        return <StatsScreen onBack={() => go({ kind: 'main' })} />;
+      case 'ranking':
+        return <RankingScreen onBack={() => go({ kind: 'main' })} />;
+      case 'game':
+        return (
+          <LocalGameScreen
+            key={screen.round}
+            config={screen.config}
+            onRestart={() => setScreen({ ...screen, round: screen.round + 1 })}
+            onMenu={() => go({ kind: 'setup', mode: screen.mode })}
+          />
+        );
+      case 'arena':
+        return <ArenaScreen config={screen.config} onMenu={() => go({ kind: 'setup', mode: 'arena' })} />;
+    }
   }
 }

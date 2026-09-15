@@ -98,27 +98,6 @@ button {
   padding-inline: 16px;
   padding-block: max(12px, env(safe-area-inset-top)) calc(1.5rem + env(safe-area-inset-bottom));
 }
-.page-header {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 0.5rem;
-  max-width: 760px;
-  margin: 0 auto 1rem;
-  min-height: 44px;
-}
-.page-header-side {
-  display: flex;
-  align-items: center;
-}
-.page-header-end {
-  justify-content: flex-end;
-}
-.page-title {
-  margin: 0;
-  font-size: 1.25rem;
-  white-space: nowrap;
-}
 .page-body {
   max-width: 760px;
   margin: 0 auto;
@@ -136,23 +115,6 @@ button {
   align-items: center;
   gap: 1.5rem;
   padding-top: 8vh;
-}
-.menu-list {
-  display: grid;
-  gap: 0.7rem;
-  width: min(100%, 360px);
-  margin: 0 auto;
-}
-.menu-button {
-  padding: 1rem;
-  font-size: 1.15rem;
-  font-weight: 700;
-}
-.account-line {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 0.7rem;
 }
 .table-card {
   width: min(100%, 640px);

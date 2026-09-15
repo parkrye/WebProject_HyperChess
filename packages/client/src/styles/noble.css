@@ -1,0 +1,438 @@
+/*
+ * 금·보라 귀족풍 테마. 아트(로고·보드 테두리)의 금장식과 보라 톤에 맞춘다.
+ * 레이아웃은 global.css에 두고, 여기서는 색·테두리·장식만 덮어쓴다 (가장 마지막에 불러온다).
+ */
+
+:root {
+  --gold: #f0c96a;
+  --gold-strong: #c98a2c;
+  --gold-soft: #ffe9ad;
+  --gold-line: rgb(240 201 106 / 45%);
+  --plum: #2a1a40;
+  --plum-deep: #1b1029;
+  --panel-bg: linear-gradient(180deg, rgb(64 40 94 / 94%), rgb(34 21 53 / 95%));
+  --accent: #c58bff;
+  --line: #57407a;
+  --text: #f5eefc;
+  --text-dim: #c3b3d9;
+}
+
+/* ---------- 패널 ---------- */
+
+.table-card,
+.welcome-card,
+.online-card,
+.waiting-card,
+.ability-detail-body,
+.dialog,
+.arena-panel,
+.user-popover,
+.player-pick,
+.menu-card {
+  background: var(--panel-bg);
+  border: 2px solid var(--gold-strong);
+  border-radius: 14px;
+  box-shadow:
+    inset 0 0 0 1px rgb(255 233 173 / 20%),
+    0 8px 24px rgb(0 0 0 / 45%);
+}
+
+/* 위쪽 가운데 보석 장식 */
+.welcome-card,
+.waiting-card,
+.dialog,
+.menu-card {
+  position: relative;
+}
+.welcome-card::before,
+.waiting-card::before,
+.dialog::before,
+.menu-card::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  transform: translateX(-50%) rotate(45deg);
+  background: linear-gradient(135deg, #ff9bd0, #c2186b);
+  border: 2px solid var(--gold);
+  box-shadow: 0 0 8px rgb(255 120 190 / 60%);
+}
+
+.online-card h3,
+.dialog h2 {
+  color: var(--gold);
+  letter-spacing: 0.04em;
+}
+
+/* ---------- 버튼 ---------- */
+
+.btn {
+  background: linear-gradient(180deg, #4d3172, #2e1d48);
+  border: 1px solid var(--gold-line);
+  color: var(--gold-soft);
+}
+.btn:hover:not(:disabled) {
+  border-color: var(--gold);
+  box-shadow: 0 0 12px rgb(240 201 106 / 28%);
+}
+.btn-ghost {
+  background: rgb(27 16 41 / 60%);
+}
+.btn-primary {
+  background: linear-gradient(180deg, #ffe7a3 0%, #ebb752 55%, #c98a2c 100%);
+  border: 1px solid #fff2c9;
+  color: #3b1d4e;
+  font-weight: 800;
+  text-shadow: 0 1px 0 rgb(255 255 255 / 45%);
+  box-shadow:
+    0 3px 0 #86561b,
+    0 6px 16px rgb(0 0 0 / 40%);
+}
+.btn-primary:hover:not(:disabled) {
+  border-color: #fff8e0;
+  box-shadow:
+    0 3px 0 #86561b,
+    0 0 18px rgb(240 201 106 / 55%);
+}
+.btn-primary:disabled {
+  filter: saturate(0.4);
+}
+.btn-link {
+  color: var(--gold-soft);
+}
+
+.segmented {
+  border: 1px solid var(--gold-line);
+  background: rgb(27 16 41 / 70%);
+}
+.segmented button {
+  color: var(--text-dim);
+}
+.segmented button.active {
+  background: linear-gradient(180deg, #ffe7a3, #d9a444);
+  color: #3b1d4e;
+  font-weight: 800;
+}
+.segmented-label {
+  background: rgb(240 201 106 / 18%);
+  color: var(--gold);
+}
+
+.field > span {
+  color: var(--gold-soft);
+}
+.field input,
+.code-input {
+  background: rgb(20 12 32 / 80%);
+  border: 1px solid var(--gold-line);
+  color: var(--text);
+}
+.field input:focus,
+.code-input:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgb(240 201 106 / 20%);
+}
+
+/* ---------- 상단 바 ---------- */
+
+.page-header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  grid-template-areas: 'back title actions';
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 760px;
+  margin: 0 auto 1.2rem;
+  min-height: 48px;
+}
+.page-header-back {
+  grid-area: back;
+  display: flex;
+}
+.page-title {
+  grid-area: title;
+  margin: 0;
+  font-size: 1.55rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  background: linear-gradient(180deg, #fff6d6 0%, #f0c96a 55%, #c98a2c 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 0 #4a2560) drop-shadow(0 4px 10px rgb(0 0 0 / 55%));
+}
+.page-header-actions {
+  grid-area: actions;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.35rem;
+}
+.header-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 40px;
+  padding: 0 0.75rem;
+}
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  padding: 0;
+  font-size: 1.05rem;
+  line-height: 1;
+}
+.icon-button.active {
+  border-color: var(--gold);
+  background: rgb(240 201 106 / 22%);
+}
+
+.user-menu {
+  position: relative;
+}
+.user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 40px;
+  padding: 0 0.7rem;
+  border: 1px solid var(--gold-line);
+  border-radius: 999px;
+  background: rgb(27 16 41 / 70%);
+  color: var(--text);
+  font-size: 0.9rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.user-chip:hover,
+.user-chip[aria-expanded='true'] {
+  border-color: var(--gold);
+}
+.user-crown {
+  color: var(--gold);
+  font-size: 1.05rem;
+}
+.user-name {
+  max-width: 8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 700;
+}
+.user-rating {
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: rgb(240 201 106 / 20%);
+  color: var(--gold);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.user-caret {
+  color: var(--text-dim);
+  font-size: 0.7rem;
+}
+.user-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  min-width: 140px;
+  padding: 0.35rem;
+}
+.user-popover-item {
+  display: block;
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--gold-soft);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.user-popover-item:hover {
+  background: rgb(240 201 106 / 16%);
+}
+
+/* 좁은 화면: 제목은 아래 줄로, 버튼은 글자 없이 */
+@media (max-width: 560px) {
+  .page-header {
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      'back actions'
+      'title title';
+    row-gap: 0.6rem;
+  }
+  .page-title {
+    justify-self: center;
+  }
+  .header-button-label,
+  .user-name {
+    display: none;
+  }
+  .header-button {
+    width: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+}
+
+/* ---------- 타이틀 · 메인 ---------- */
+
+.title-body {
+  gap: 2rem;
+  padding-top: 10vh;
+}
+.logo-title img {
+  width: min(600px, 92vw);
+}
+.logo-small {
+  display: flex;
+  justify-content: center;
+}
+.logo-small img {
+  width: min(380px, 80vw);
+}
+.title-body .btn-large {
+  min-width: 220px;
+  padding: 1rem 3rem;
+  font-size: 1.3rem;
+  letter-spacing: 0.2em;
+}
+
+.menu-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  width: min(100%, 560px);
+  margin: 0.5rem auto 0;
+}
+.menu-cards-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: min(100%, 720px);
+}
+@media (max-width: 560px) {
+  .menu-cards-3 {
+    grid-template-columns: 1fr;
+  }
+}
+.menu-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  min-height: 190px;
+  padding: 1.2rem 0.8rem;
+  cursor: pointer;
+  color: var(--text);
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s,
+    border-color 0.15s;
+}
+.menu-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--gold);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 233 173 / 30%),
+    0 0 24px rgb(240 201 106 / 30%),
+    0 10px 28px rgb(0 0 0 / 50%);
+}
+.menu-cards-3 .menu-card {
+  min-height: 150px;
+}
+.menu-card-art {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.2rem;
+  height: 110px;
+}
+.menu-card-piece {
+  width: 96px;
+  height: 110px;
+}
+.menu-card-piece .piece-img {
+  filter: drop-shadow(0 4px 3px rgb(0 0 0 / 50%));
+}
+.menu-card-label {
+  font-size: 1.35rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  color: var(--gold);
+  text-shadow: 0 2px 0 #3b1d4e;
+}
+
+/* ---------- 표 · 목록 ---------- */
+
+.table-card {
+  overflow: hidden;
+  overflow-x: auto;
+}
+.data-table thead th {
+  color: var(--gold);
+  background: rgb(240 201 106 / 8%);
+}
+.data-table th,
+.data-table td {
+  border-bottom-color: rgb(240 201 106 / 16%);
+}
+.data-table tr.is-me {
+  background: rgb(240 201 106 / 16%);
+}
+
+.ability-tile {
+  background: var(--panel-bg);
+  border: 2px solid rgb(240 201 106 / 25%);
+  color: var(--text);
+}
+.ability-tile:hover {
+  border-color: var(--gold-line);
+}
+.ability-tile.selected {
+  border-color: var(--gold);
+  background: linear-gradient(180deg, rgb(92 58 128 / 95%), rgb(48 30 72 / 95%));
+  box-shadow: 0 0 16px rgb(240 201 106 / 35%);
+}
+.ability-detail-body {
+  border-color: var(--gold-strong);
+}
+.ability-detail-name {
+  color: var(--gold);
+}
+
+.player-pick {
+  border-width: 2px;
+  box-shadow: none;
+}
+.player-pick.active {
+  border-color: var(--gold);
+  box-shadow: 0 0 14px rgb(240 201 106 / 35%);
+}
+
+.room-code {
+  background: linear-gradient(180deg, #fff6d6 0%, #f0c96a 55%, #c98a2c 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+.seat-list li {
+  background: rgb(20 12 32 / 60%);
+  border: 1px solid rgb(240 201 106 / 20%);
+}
+
+/* 폼 오류: 한 줄 자리만 차지 */
+.form-error {
+  min-height: 1.3em;
+  margin: 0;
+  font-size: 0.85rem;
+  text-align: center;
+  color: #ff8a95;
+}

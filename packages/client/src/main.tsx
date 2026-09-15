@@ -8,6 +8,7 @@ import './styles/board.css';
 import './styles/effects.css';
 import './styles/clock.css';
 import './styles/art.css';
+import './styles/noble.css';
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Root element not found');
