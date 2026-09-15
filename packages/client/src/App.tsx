@@ -24,10 +24,17 @@ export function App() {
   const { session } = useSession();
   const [screen, setScreen] = useState<Screen>(initialScreen);
   const [prefs, setPrefs] = useState<SetupPrefs>(DEFAULT_SETUP_PREFS);
+  // 싱글 탭을 누르면 마지막으로 연 싱글 모드로 돌아간다
+  const [lastSingle, setLastSingle] = useState<SetupMode>('local');
 
   const changeMode = (mode: GameMode) => {
-    if (mode === 'online' || mode === 'stats' || mode === 'ranking') setScreen({ kind: mode });
-    else setScreen({ kind: 'setup', mode });
+    if (mode === 'online' || mode === 'stats' || mode === 'ranking') {
+      setScreen({ kind: mode });
+      return;
+    }
+    const single = mode === 'single' ? lastSingle : mode;
+    setLastSingle(single);
+    setScreen({ kind: 'setup', mode: single });
   };
 
   if (!session) return <WelcomeScreen />;

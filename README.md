@@ -13,7 +13,7 @@
 | `packages/ai` | 알파-베타 탐색 AI (능력 사용 포함, 난이도 3단계). 클라이언트 Web Worker에서 실행 |
 | `packages/protocol` | 클라이언트↔서버 Socket.IO 이벤트 타입 |
 | `packages/server` | 방 관리와 수 검증을 하는 권위 서버. 빌드된 클라이언트도 함께 제공 |
-| `packages/client` | React + Vite 클라이언트 (로컬 2인, AI 대전, 온라인) |
+| `packages/client` | React + Vite 클라이언트 (싱글: 로컬 플레이·AI 대전·AI 내전 / 멀티: 빠른 매칭·방 코드) |
 
 ## 실행
 
