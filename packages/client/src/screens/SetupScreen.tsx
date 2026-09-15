@@ -6,11 +6,11 @@ import { abilityUi } from '../abilityUi/specs';
 import { abilityName, COLOR_NAME } from '../abilityUi/text';
 import type { AiConfig } from '../ai/useAiOpponent';
 import { useBgm } from '../audio/bgm';
-import { uiIconSprite } from '../assets/sprites';
-import { AbilityGrid, randomAbilityId } from '../components/AbilityGrid';
 import { AbilityIconView } from '../components/AbilityIconView';
-import { Hero, ModeTabs, type GameMode } from '../components/ModeTabs';
+import { AbilityPicker } from '../components/AbilityPicker';
+import { Page } from '../components/Page';
 import type { ArenaConfig } from './ArenaScreen';
+import { SETUP_TITLE } from './SingleMenuScreen';
 
 export type AbilityChoice = Record<Color, string>;
 
@@ -43,14 +43,14 @@ export const DEFAULT_SETUP_PREFS: SetupPrefs = {
   arena: { choices: { w: RANDOM_ABILITY, b: RANDOM_ABILITY }, difficulty: { w: 'normal', b: 'normal' } },
 };
 
-export type SetupMode = Extract<GameMode, 'local' | 'ai' | 'arena'>;
+export type SetupMode = 'local' | 'ai' | 'arena';
 
 interface SetupScreenProps {
   readonly mode: SetupMode;
   readonly prefs: SetupPrefs;
   readonly onStart: (config: LocalGameConfig, prefs: SetupPrefs) => void;
   readonly onStartArena: (config: ArenaConfig, prefs: SetupPrefs) => void;
-  readonly onModeChange: (mode: GameMode) => void;
+  readonly onBack: () => void;
 }
 
 type Slot = 'w' | 'b' | 'me' | 'ai' | 'arenaW' | 'arenaB';
@@ -63,7 +63,7 @@ const DIFFICULTIES: readonly { id: Difficulty; label: string }[] = [
   { id: 'hard', label: '어려움' },
 ];
 
-export function SetupScreen({ mode, prefs: initialPrefs, onStart, onStartArena, onModeChange }: SetupScreenProps) {
+export function SetupScreen({ mode, prefs: initialPrefs, onStart, onStartArena, onBack }: SetupScreenProps) {
   const [prefs, setPrefs] = useState<SetupPrefs>(initialPrefs);
   const [editing, setEditing] = useState<Slot>(mode === 'ai' ? 'me' : mode === 'arena' ? 'arenaW' : 'w');
   const isAi = mode === 'ai';
@@ -92,7 +92,6 @@ export function SetupScreen({ mode, prefs: initialPrefs, onStart, onStartArena, 
     });
   const setArenaDifficulty = (color: Color, difficulty: Difficulty) =>
     setPrefs((prev) => ({ ...prev, arena: { ...prev.arena, difficulty: { ...prev.arena.difficulty, [color]: difficulty } } }));
-  const randomize = () => slots.forEach(({ key }) => setAbility(key, randomAbilityId()));
 
   const start = () => {
     if (isArena) {
@@ -111,9 +110,7 @@ export function SetupScreen({ mode, prefs: initialPrefs, onStart, onStartArena, 
   };
 
   return (
-    <main className="setup">
-      <Hero />
-      <ModeTabs active={mode} onChange={onModeChange} />
+    <Page title={SETUP_TITLE[mode]} onBack={onBack}>
 
       {isAi && (
         <div className="ai-options">
@@ -189,23 +186,19 @@ export function SetupScreen({ mode, prefs: initialPrefs, onStart, onStartArena, 
             </button>
           );
         })}
-        <button type="button" className="btn btn-ghost btn-icon-text" onClick={randomize}>
-          <img className="ui-icon" src={uiIconSprite('random')} alt="" draggable={false} />
-          무작위
-        </button>
       </div>
 
-      <AbilityGrid
+      <AbilityPicker
         label={`${slots.find((s) => s.key === editing)?.label ?? ''} 능력 선택`}
         selected={abilityOf(editing)}
         onSelect={(abilityId) => setAbility(editing, abilityId)}
       />
 
-      <div className="setup-footer">
+      <div className="page-actions">
         <button type="button" className="btn btn-primary btn-large" onClick={start}>
-          {isArena ? 'AI 내전 시작' : '게임 시작'}
+          시작
         </button>
       </div>
-    </main>
+    </Page>
   );
 }

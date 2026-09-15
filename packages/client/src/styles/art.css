@@ -20,12 +20,12 @@
 
 /* ---------- 배경 ---------- */
 
-.setup,
+.page,
 .game {
   position: relative;
   isolation: isolate;
 }
-.setup::before,
+.page::before,
 .game::before {
   content: '';
   position: fixed;
@@ -35,7 +35,7 @@
   background-position: center;
   image-rendering: pixelated;
 }
-.setup::before {
+.page::before {
   background-image: linear-gradient(rgb(20 18 28 / 55%), rgb(20 18 28 / 80%)), url('/assets/bg/title.webp');
 }
 .game::before {

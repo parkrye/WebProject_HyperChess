@@ -1,13 +1,11 @@
 import { type Action, type Color, type GameState } from '@hyperchess/engine';
 import { NAME_MAX_LENGTH, ROOM_CODE_LENGTH, type ColorPreference, type RoomSnapshot } from '@hyperchess/protocol';
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { abilityUi } from '../abilityUi/specs';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { abilityName, COLOR_NAME } from '../abilityUi/text';
-import { AbilityGrid } from '../components/AbilityGrid';
+import { AbilityPicker } from '../components/AbilityPicker';
 import { AbilityReveal } from '../components/AbilityReveal';
-import { AbilityIconView } from '../components/AbilityIconView';
 import { GameView } from '../components/GameView';
-import { Hero, ModeTabs, type GameMode } from '../components/ModeTabs';
+import { Page } from '../components/Page';
 import { useBgm } from '../audio/bgm';
 import { useAnimatedGame } from '../game/useAnimatedGame';
 import { useOnlineRoom, type OnlineRoom } from '../online/useOnlineRoom';
@@ -47,7 +45,13 @@ function setUrlRoom(code: string | null) {
   window.history.replaceState(null, '', url);
 }
 
-export function OnlineScreen({ onModeChange }: { onModeChange: (mode: GameMode) => void }) {
+interface OnlineScreenProps {
+  readonly onBack: () => void;
+  /** 매칭 대기 중 싱글 플레이 권유를 수락했을 때 */
+  readonly onSingle: () => void;
+}
+
+export function OnlineScreen({ onBack, onSingle }: OnlineScreenProps) {
   const room = useOnlineRoom();
   const { snapshot, you } = room;
 
@@ -65,12 +69,12 @@ export function OnlineScreen({ onModeChange }: { onModeChange: (mode: GameMode) 
     return <OnlineGame key={`${snapshot.code}-${you}`} room={room} snapshot={snapshot} game={snapshot.game} you={you} onLeave={leave} />;
   }
 
-  return <Lobby room={room} onModeChange={onModeChange} />;
+  return <Lobby room={room} onBack={onBack} onSingle={onSingle} />;
 }
 
 /* ---------- 로비 ---------- */
 
-function Lobby({ room, onModeChange }: { room: OnlineRoom; onModeChange: (mode: GameMode) => void }) {
+function Lobby({ room, onBack, onSingle }: { room: OnlineRoom } & OnlineScreenProps) {
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
   const [color, setColor] = useState<ColorPreference>('random');
   const [code, setCode] = useState(roomFromUrl);
@@ -96,49 +100,32 @@ function Lobby({ room, onModeChange }: { room: OnlineRoom; onModeChange: (mode: 
     setPending(false);
   };
 
-  const spec = abilityUi(prefs.abilityId);
   const disabled = pending || !room.connected || room.resuming;
+  const status = room.error ?? (room.resuming ? '이전 방에 다시 연결하는 중…' : !room.connected ? '서버에 연결하는 중…' : null);
   useBgm('lobby');
 
   return (
-    <main className="setup">
-      <Hero />
-      <ModeTabs active="online" onChange={onModeChange} />
-
-      <div className="online-status">
-        <span className={`conn-dot ${room.connected ? 'on' : ''}`} />
-        {room.resuming ? '이전 방에 다시 연결하는 중…' : room.connected ? '서버 연결됨' : '서버에 연결하는 중…'}
-      </div>
-      <p className={`notice notice-error notice-slot ${room.error ? '' : 'is-empty'}`} role="alert">
-        {room.error ?? '\u00a0'}
+    <Page title="멀티" onBack={onBack}>
+      <p className={`notice notice-slot ${status ? '' : 'is-empty'} ${room.error ? 'notice-error' : ''}`} role="status">
+        {status ?? '\u00a0'}
       </p>
 
       <section className="online-form">
         <label className="field">
           <span>이름</span>
           {account ? (
-            <strong>
-              {account.user.nickname} <small className="rating-tag">레이팅 {account.user.rating}</small>
-            </strong>
+            <strong>{account.user.nickname}</strong>
           ) : (
             <input
               value={prefs.name}
               maxLength={NAME_MAX_LENGTH}
-              placeholder="게스트 (랭킹 미반영)"
+              placeholder="게스트"
               onChange={(e) => update({ name: e.target.value })}
             />
           )}
         </label>
 
-        <div className="field">
-          <span>내 능력</span>
-          <strong className="chosen-ability" style={{ '--ability-color': spec.color } as CSSProperties}>
-            <AbilityIconView icon={spec.icon} size={18} />
-            {abilityName(prefs.abilityId)}
-          </strong>
-        </div>
-
-        <QuickMatch room={room} disabled={disabled} onFind={() => void room.findMatch(base)} onModeChange={onModeChange} />
+        <QuickMatch room={room} disabled={disabled} onFind={() => void room.findMatch(base)} onSingle={onSingle} />
 
         <div className="online-actions">
           <div className="online-card">
@@ -172,8 +159,8 @@ function Lobby({ room, onModeChange }: { room: OnlineRoom; onModeChange: (mode: 
         </div>
       </section>
 
-      <AbilityGrid label="내 능력 선택" selected={prefs.abilityId} onSelect={(abilityId) => update({ abilityId })} />
-    </main>
+      <AbilityPicker label="내 능력 선택" selected={prefs.abilityId} onSelect={(abilityId) => update({ abilityId })} />
+    </Page>
   );
 }
 
@@ -191,10 +178,10 @@ interface QuickMatchProps {
   readonly room: OnlineRoom;
   readonly disabled: boolean;
   readonly onFind: () => void;
-  readonly onModeChange: (mode: GameMode) => void;
+  readonly onSingle: () => void;
 }
 
-function QuickMatch({ room, disabled, onFind, onModeChange }: QuickMatchProps) {
+function QuickMatch({ room, disabled, onFind, onSingle }: QuickMatchProps) {
   const [elapsedMs, setElapsedMs] = useState(0);
   const [suggest, setSuggest] = useState(false);
   const { matching } = room;
@@ -217,15 +204,15 @@ function QuickMatch({ room, disabled, onFind, onModeChange }: QuickMatchProps) {
 
   const goSingle = () => {
     room.cancelMatch();
-    onModeChange('single');
+    onSingle();
   };
 
   return (
     <div className="online-card quick-match">
       <h3>빠른 매칭</h3>
-      {/* 대기 전후로 같은 두 줄 구조를 유지해 높이가 변하지 않게 한다 */}
-      <p className="quick-match-status" aria-live="polite">
-        {matching ? `상대를 찾는 중… ${formatElapsed(elapsedMs)}` : '먼저 기다리던 상대와 바로 대국합니다'}
+      {/* 대기 전후로 같은 구조를 유지해 높이가 변하지 않게 한다 */}
+      <p className={`quick-match-status ${matching ? '' : 'is-hidden'}`} aria-live="polite">
+        {matching ? `상대를 찾는 중… ${formatElapsed(elapsedMs)}` : '\u00a0'}
       </p>
       {matching ? (
         <button type="button" className="btn btn-ghost" onClick={room.cancelMatch}>
@@ -240,8 +227,7 @@ function QuickMatch({ room, disabled, onFind, onModeChange }: QuickMatchProps) {
       {suggest && matching && (
         <div className="dialog-backdrop">
           <div className="dialog" role="dialog" aria-label="싱글 플레이 권유">
-            <h2>상대를 찾지 못했어요</h2>
-            <p>{formatElapsed(elapsedMs)} 동안 기다렸어요. 기다리는 동안 싱글 플레이를 해 보시겠어요?</p>
+            <h2>싱글 플레이를 할까요?</h2>
             <div className="dialog-actions">
               <button type="button" className="btn btn-primary" onClick={goSingle}>
                 싱글 플레이로
@@ -274,10 +260,8 @@ function WaitingRoom({ snapshot, you, onLeave }: { snapshot: RoomSnapshot; you: 
   };
 
   return (
-    <main className="setup waiting">
-      <Hero />
+    <Page title="대기실" onBack={onLeave} backLabel="나가기">
       <section className="waiting-card">
-        <p>친구에게 방 코드를 알려주세요</p>
         <div className="room-code">{snapshot.code}</div>
         <button type="button" className="btn" onClick={copy}>
           {copied ? '링크 복사됨' : '초대 링크 복사'}
@@ -291,22 +275,18 @@ function WaitingRoom({ snapshot, you, onLeave }: { snapshot: RoomSnapshot; you: 
                 {seat ? (
                   <>
                     <strong>{seat.name}</strong>
-                    <small className="rating-tag">{seat.rating ?? '게스트'}</small>
                     {color === you && <span className="seat-tag">나</span>}
                     <span className="seat-ability">{abilityName(seat.abilityId)}</span>
                   </>
                 ) : (
-                  <span className="seat-empty">상대를 기다리는 중…</span>
+                  <span className="seat-empty">대기 중</span>
                 )}
               </li>
             );
           })}
         </ul>
-        <button type="button" className="btn btn-ghost" onClick={onLeave}>
-          방 나가기
-        </button>
       </section>
-    </main>
+    </Page>
   );
 }
 

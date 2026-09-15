@@ -90,95 +90,102 @@ button {
   background: #2a2433;
 }
 
-/* ---------- 설정 화면 ---------- */
+/* ---------- 페이지 공통 ---------- */
 
-.setup {
-  max-width: 1080px;
-  margin: 0 auto;
-  padding: 1.5rem 1rem 6.5rem;
+/* 모든 요소가 문서 흐름 안에 있어 스크롤해도 서로 겹치지 않는다 (고정·sticky 요소 없음) */
+.page {
+  min-height: 100dvh;
+  padding-inline: 16px;
+  padding-block: max(12px, env(safe-area-inset-top)) calc(1.5rem + env(safe-area-inset-bottom));
 }
-.setup-hero {
-  text-align: center;
-  margin-bottom: 1.2rem;
-}
-.setup-hero h1 {
-  font-size: clamp(2.2rem, 8vw, 3.6rem);
-  letter-spacing: 0.08em;
-  margin: 0;
-  font-weight: 900;
-}
-.setup-hero h1 span {
-  background: linear-gradient(90deg, #b57bff, #3fe0d0);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-.setup-hero p {
-  color: var(--text-dim);
-  margin: 0.3rem 0 0;
-}
-
-.mode-tabs {
-  display: flex;
+.page-header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
   gap: 0.5rem;
-  justify-content: center;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
+  max-width: 760px;
+  margin: 0 auto 1rem;
+  min-height: 44px;
 }
-.mode-tab {
-  border: 1px solid var(--line);
-  background: var(--bg-elev);
-  border-radius: 999px;
-  padding: 0.45rem 1rem;
+.page-header-side {
   display: flex;
-  gap: 0.4rem;
-  align-items: baseline;
+  align-items: center;
 }
-.mode-tab.active {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 20%, var(--bg-elev));
+.page-header-end {
+  justify-content: flex-end;
 }
-.mode-tab-main {
-  min-width: 7rem;
+.page-title {
+  margin: 0;
+  font-size: 1.25rem;
+  white-space: nowrap;
+}
+.page-body {
+  max-width: 760px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.page-actions {
+  display: flex;
   justify-content: center;
-  padding: 0.6rem 1.4rem;
-  font-size: 1.05rem;
+}
+.title-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  padding-top: 8vh;
+}
+.menu-list {
+  display: grid;
+  gap: 0.7rem;
+  width: min(100%, 360px);
+  margin: 0 auto;
+}
+.menu-button {
+  padding: 1rem;
+  font-size: 1.15rem;
   font-weight: 700;
 }
-.sub-tabs {
-  max-width: 420px;
-  margin: -0.4rem auto 1rem;
-}
-/* 통계·랭킹 바로가기: 왼쪽 위 (소리 버튼은 오른쪽 위) */
-.quick-links {
-  position: fixed;
-  top: max(12px, env(safe-area-inset-top));
-  left: 12px;
-  z-index: 20;
+.account-line {
   display: flex;
-  gap: 0.35rem;
-}
-.quick-link {
-  display: inline-flex;
+  justify-content: center;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.45rem 0.7rem;
-  font-size: 0.85rem;
-  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  gap: 0.7rem;
 }
-.quick-link.active {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 25%, var(--bg));
+.table-card {
+  width: min(100%, 640px);
+  margin: 0 auto;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-elev) 92%, transparent);
 }
-@media (max-width: 520px) {
-  .quick-link {
-    font-size: 0;
-    gap: 0;
-  }
-  .quick-link span {
-    font-size: 1.05rem;
-  }
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
 }
+.data-table th,
+.data-table td {
+  padding: 0.6rem 0.8rem;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.data-table thead th {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+.data-table tbody tr:last-child > * {
+  border-bottom: none;
+}
+.data-table tr.is-me {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+/* ---------- 설정 화면 ---------- */
+
 .quick-match-status {
   margin: 0;
   font-size: 0.85rem;
@@ -187,26 +194,12 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.mode-tab:disabled {
-  opacity: 0.5;
-}
-.mode-tab small {
-  font-size: 0.7rem;
-  color: var(--text-dim);
-}
 
 .player-picks {
   display: flex;
   gap: 0.6rem;
   flex-wrap: wrap;
   justify-content: center;
-  margin-bottom: 1rem;
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  padding: 0.6rem 0;
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
-  backdrop-filter: blur(8px);
 }
 .player-pick {
   display: flex;
@@ -231,48 +224,61 @@ button {
   font-size: 0.85rem;
 }
 
-.ability-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
-  gap: 0.75rem;
-}
-.ability-card {
-  text-align: left;
-  border: 2px solid var(--line);
-  background: var(--bg-elev);
-  border-radius: var(--radius);
-  padding: 0.9rem;
-  cursor: pointer;
+.ability-picker {
   display: flex;
   flex-direction: column;
+  gap: 0.75rem;
+}
+.ability-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
   gap: 0.5rem;
-  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
 }
-.ability-card:hover {
-  transform: translateY(-2px);
+.ability-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.6rem 0.3rem;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-elev);
+  cursor: pointer;
+  font-size: 0.85rem;
+  white-space: nowrap;
 }
-.ability-card.selected {
+.ability-tile.selected {
   border-color: var(--ability-color);
-  box-shadow: 0 0 22px color-mix(in srgb, var(--ability-color) 30%, transparent);
-  background: color-mix(in srgb, var(--ability-color) 8%, var(--bg-elev));
+  background: color-mix(in srgb, var(--ability-color) 12%, var(--bg-elev));
 }
-.ability-card p {
-  margin: 0;
+/* 모든 능력 설명을 겹쳐 가장 긴 설명 높이로 고정 */
+.ability-detail-stack {
+  display: grid;
+}
+.ability-detail-stack > * {
+  grid-area: 1 / 1;
+}
+.ability-detail-body {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--ability-color) 50%, var(--line));
+  border-radius: 12px;
+  background: var(--bg-elev);
+}
+.ability-detail-name small {
+  margin-left: 0.3rem;
+  font-weight: 400;
+  font-size: 0.75rem;
   color: var(--text-dim);
+}
+.ability-detail-body p {
+  margin: 0;
   font-size: 0.85rem;
   line-height: 1.45;
-}
-.ability-card-head {
-  display: flex;
-  gap: 0.6rem;
-  align-items: center;
-}
-.ability-card-head strong {
-  display: block;
-}
-.ability-card-head small {
   color: var(--text-dim);
-  font-size: 0.72rem;
 }
 .ability-icon {
   display: grid;
@@ -301,17 +307,6 @@ button {
 }
 .ability-stats dd {
   margin: 0;
-}
-
-.setup-footer {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  justify-content: center;
-  padding: 0.9rem 1rem calc(0.9rem + env(safe-area-inset-bottom));
-  background: linear-gradient(transparent, var(--bg) 40%);
 }
 
 /* ---------- 게임 화면 ---------- */
@@ -728,31 +723,11 @@ button {
   border-color: color-mix(in srgb, var(--danger) 50%, transparent);
 }
 
-.online-status {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  color: var(--text-dim);
-  font-size: 0.85rem;
-  margin-bottom: 0.8rem;
-}
-.conn-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #6b6480;
-}
-.conn-dot.on {
-  background: #4ade80;
-  box-shadow: 0 0 8px #4ade80;
-}
-
 .online-form {
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
-  max-width: 640px;
+  width: 100%;
   margin: 0 auto 1.4rem;
 }
 .field {
@@ -839,10 +814,6 @@ button {
   background: var(--bg-elev);
   text-align: center;
 }
-.waiting-card p {
-  margin: 0;
-  color: var(--text-dim);
-}
 .room-code {
   font-size: clamp(2.4rem, 12vw, 3.4rem);
   font-weight: 900;
@@ -921,19 +892,6 @@ button {
 }
 
 /* ---------- 계정·랭킹 ---------- */
-
-.account-badge {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 0.2rem 0.6rem;
-  margin-top: 0.4rem;
-  padding: 0.3rem 0.8rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--bg-elev) 80%, transparent);
-  font-size: 0.85rem;
-}
 .welcome-card {
   display: flex;
   flex-direction: column;
@@ -950,197 +908,9 @@ button {
   flex-direction: column;
   gap: 0.7rem;
 }
-.welcome-hint {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--text-dim);
-}
-.welcome-divider {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  font-size: 0.8rem;
-  color: var(--text-dim);
-}
-.welcome-divider::before,
-.welcome-divider::after {
-  content: '';
-  flex: 1;
-  border-top: 1px solid var(--line);
-}
-.rating-tag {
-  margin-left: 0.4rem;
-  font-size: 0.75rem;
-  font-weight: 400;
-  color: var(--text-dim);
-}
-.ranking-hint {
-  text-align: center;
-  font-size: 0.85rem;
-  color: var(--text-dim);
-}
-.ranking-card {
-  max-width: 640px;
-  margin-inline: auto;
-  overflow-x: auto;
-}
-.ranking-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-.ranking-table th,
-.ranking-table td {
-  padding: 0.5rem;
-  text-align: left;
-  border-bottom: 1px solid var(--line);
-  white-space: nowrap;
-}
-.ranking-table th {
-  font-size: 0.8rem;
-  color: var(--text-dim);
-}
-.ranking-table tr.is-me {
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
-}
 
 /* ---------- 통계 ---------- */
-
-.stats-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-  justify-content: center;
-  margin: 0.4rem 0 1rem;
-}
-.stats-filters .segmented button {
-  white-space: nowrap;
-  padding-inline: 0.8rem;
-}
-.chip-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  justify-content: center;
-}
-.chip {
-  padding: 0.4rem 0.8rem;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--bg-elev);
-  cursor: pointer;
-}
-.chip.active {
-  background: color-mix(in srgb, var(--accent) 30%, var(--bg-elev-2));
-  border-color: var(--accent);
-  font-weight: 700;
-}
-.stats-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem 1rem;
-  align-items: baseline;
-  justify-content: center;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
-}
-.stats-summary strong {
-  font-size: 1.4rem;
-}
-.stats-card {
-  margin-bottom: 1rem;
-  padding: 1rem;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--bg-elev) 92%, transparent);
-}
-.stats-card h2 {
-  margin: 0;
-  font-size: 1.1rem;
-}
-.stats-hint {
-  margin: 0.2rem 0 0.8rem;
-  font-size: 0.8rem;
-  opacity: 0.7;
-}
-.stats-ranking {
-  display: grid;
-  gap: 0.45rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.stats-row {
-  display: grid;
-  grid-template-columns: minmax(7rem, 9rem) 1fr 3rem;
-  grid-template-areas: 'name bar rate' 'name count count';
-  align-items: center;
-  column-gap: 0.6rem;
-}
-.stats-name {
-  grid-area: name;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-weight: 600;
-}
-.stats-bar {
-  grid-area: bar;
-  position: relative;
-  height: 12px;
-  border-radius: 6px;
-  background: var(--bg-elev-2);
-  overflow: hidden;
-}
 /* 50% 기준선 */
-.stats-bar::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: rgb(255 255 255 / 45%);
-}
-.stats-bar-fill {
-  display: block;
-  height: 100%;
-  width: calc(var(--rate) * 100%);
-  background: var(--ability-color);
-}
-.stats-rate {
-  grid-area: rate;
-  text-align: right;
-}
-.stats-count {
-  grid-area: count;
-  opacity: 0.65;
-  font-size: 0.75rem;
-}
-.stats-matrix-scroll {
-  overflow-x: auto;
-}
-.stats-matrix {
-  border-collapse: collapse;
-  font-size: 0.8rem;
-  margin: 0 auto;
-}
-.stats-matrix th,
-.stats-matrix td {
-  padding: 0.3rem;
-  text-align: center;
-  min-width: 2.2rem;
-}
-.stats-matrix tbody th {
-  text-align: right;
-  white-space: nowrap;
-  font-weight: 600;
-}
-.stats-matrix td {
-  border: 1px solid var(--line);
-}
-.stats-matrix td.stats-empty {
-  background: none;
-}
 
 /* ---------- AI 내전 ---------- */
 
@@ -1169,16 +939,6 @@ button {
 }
 .arena-tally {
   margin: 0.6rem 0 0.3rem;
-  font-weight: 700;
-}
-.arena-recent {
-  margin: 0;
-  padding-left: 1.2rem;
-  font-size: 0.82rem;
-  opacity: 0.85;
-}
-.arena-winner {
-  color: #ffd76a;
   font-weight: 700;
 }
 

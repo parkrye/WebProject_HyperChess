@@ -1,15 +1,22 @@
 import { useState } from 'react';
-import type { GameMode } from './components/ModeTabs';
+import { useSession } from './auth/session';
 import { ArenaScreen, type ArenaConfig } from './screens/ArenaScreen';
 import { LocalGameScreen } from './screens/GameScreen';
+import { MainScreen } from './screens/MainScreen';
 import { OnlineScreen } from './screens/OnlineScreen';
 import { RankingScreen } from './screens/RankingScreen';
-import { StatsScreen } from './screens/StatsScreen';
-import { WelcomeScreen } from './screens/WelcomeScreen';
-import { useSession } from './auth/session';
 import { DEFAULT_SETUP_PREFS, SetupScreen, type LocalGameConfig, type SetupMode, type SetupPrefs } from './screens/SetupScreen';
+import { SingleMenuScreen } from './screens/SingleMenuScreen';
+import { StatsScreen } from './screens/StatsScreen';
+import { TitleScreen } from './screens/TitleScreen';
+import { WelcomeScreen } from './screens/WelcomeScreen';
 
+/** 페이지: 타이틀 → (로그인) → 메인 → 싱글/멀티/랭킹/통계 → 설정 → 대국 */
 type Screen =
+  | { kind: 'title' }
+  | { kind: 'login' }
+  | { kind: 'main' }
+  | { kind: 'single' }
   | { kind: 'setup'; mode: SetupMode }
   | { kind: 'online' }
   | { kind: 'stats' }
@@ -17,62 +24,65 @@ type Screen =
   | { kind: 'game'; config: LocalGameConfig; mode: 'local' | 'ai'; round: number }
   | { kind: 'arena'; config: ArenaConfig };
 
-const initialScreen = (): Screen =>
-  new URLSearchParams(window.location.search).has('room') ? { kind: 'online' } : { kind: 'setup', mode: 'local' };
+/** 초대 링크(?room=)로 들어오면 바로 멀티로 */
+const initialScreen = (): Screen => (new URLSearchParams(window.location.search).has('room') ? { kind: 'online' } : { kind: 'title' });
 
 export function App() {
   const { session } = useSession();
   const [screen, setScreen] = useState<Screen>(initialScreen);
   const [prefs, setPrefs] = useState<SetupPrefs>(DEFAULT_SETUP_PREFS);
-  // 싱글 탭을 누르면 마지막으로 연 싱글 모드로 돌아간다
-  const [lastSingle, setLastSingle] = useState<SetupMode>('local');
-
-  const changeMode = (mode: GameMode) => {
-    if (mode === 'online' || mode === 'stats' || mode === 'ranking') {
-      setScreen({ kind: mode });
-      return;
-    }
-    const single = mode === 'single' ? lastSingle : mode;
-    setLastSingle(single);
-    setScreen({ kind: 'setup', mode: single });
+  const go = (next: Screen) => {
+    setScreen(next);
+    window.scrollTo(0, 0);
   };
 
-  if (!session) return <WelcomeScreen />;
+  // 타이틀 이외의 페이지는 계정(게스트 포함)을 고른 뒤에 들어간다
+  if (!session && screen.kind !== 'title') {
+    return <WelcomeScreen onDone={() => go(screen.kind === 'login' ? { kind: 'main' } : screen)} onBack={() => go({ kind: 'title' })} />;
+  }
 
   switch (screen.kind) {
+    case 'title':
+      return <TitleScreen onStart={() => go(session ? { kind: 'main' } : { kind: 'login' })} />;
+    case 'login':
+      return <WelcomeScreen onDone={() => go({ kind: 'main' })} onBack={() => go({ kind: 'title' })} />;
+    case 'main':
+      return <MainScreen onSelect={(target) => go({ kind: target })} onBack={() => go({ kind: 'title' })} />;
+    case 'single':
+      return <SingleMenuScreen onSelect={(mode) => go({ kind: 'setup', mode })} onBack={() => go({ kind: 'main' })} />;
     case 'setup':
       return (
         <SetupScreen
           key={screen.mode}
           mode={screen.mode}
           prefs={prefs}
-          onModeChange={changeMode}
+          onBack={() => go({ kind: 'single' })}
           onStart={(config, nextPrefs) => {
             setPrefs(nextPrefs);
-            setScreen({ kind: 'game', config, mode: screen.mode === 'ai' ? 'ai' : 'local', round: 0 });
+            go({ kind: 'game', config, mode: screen.mode === 'ai' ? 'ai' : 'local', round: 0 });
           }}
           onStartArena={(config, nextPrefs) => {
             setPrefs(nextPrefs);
-            setScreen({ kind: 'arena', config });
+            go({ kind: 'arena', config });
           }}
         />
       );
     case 'online':
-      return <OnlineScreen onModeChange={changeMode} />;
+      return <OnlineScreen onBack={() => go({ kind: 'main' })} onSingle={() => go({ kind: 'single' })} />;
     case 'stats':
-      return <StatsScreen onModeChange={changeMode} />;
+      return <StatsScreen onBack={() => go({ kind: 'main' })} />;
     case 'ranking':
-      return <RankingScreen onModeChange={changeMode} />;
+      return <RankingScreen onBack={() => go({ kind: 'main' })} />;
     case 'game':
       return (
         <LocalGameScreen
           key={screen.round}
           config={screen.config}
           onRestart={() => setScreen({ ...screen, round: screen.round + 1 })}
-          onMenu={() => setScreen({ kind: 'setup', mode: screen.mode })}
+          onMenu={() => go({ kind: 'setup', mode: screen.mode })}
         />
       );
     case 'arena':
-      return <ArenaScreen config={screen.config} onMenu={() => setScreen({ kind: 'setup', mode: 'arena' })} />;
+      return <ArenaScreen config={screen.config} onMenu={() => go({ kind: 'setup', mode: 'arena' })} />;
   }
 }

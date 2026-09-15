@@ -63,7 +63,6 @@ export function AbilityReveal({ abilities, randomized, names, onDone }: AbilityR
         <span className="reveal-vs">VS</span>
         {card('b', 5)}
       </div>
-      <p className="reveal-skip">{settled ? '대국을 시작합니다' : '능력 결정 중… (눌러서 건너뛰기)'}</p>
     </div>
   );
 }
