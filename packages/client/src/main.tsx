@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { SessionProvider } from './auth/session';
 import { registerServiceWorker } from './pwa/registerServiceWorker';
 import './styles/global.css';
 import './styles/board.css';
@@ -15,6 +16,8 @@ registerServiceWorker();
 
 createRoot(root).render(
   <StrictMode>
-    <App />
+    <SessionProvider>
+      <App />
+    </SessionProvider>
   </StrictMode>,
 );
