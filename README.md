@@ -95,6 +95,21 @@ npm run balance -- --mode league --include-none --focus paladin,heavyInfantry --
 AI 버전 비교(개발용): 이전 버전 `search.ts`, `evaluate.ts`를 `packages/ai/tools/baseline/`에 복사한 뒤
 `npx tsx packages/ai/tools/versus.ts --games 40 --ms 500`
 
+## AI 평가 가중치 튜닝 (Texel)
+
+AI 평가 함수는 `항목값 × 가중치`의 합이다(`packages/ai/src/features.ts`, 가중치는 `src/weights.ts`, 자원 가치는 능력별로 따로). 수순이 저장된 대국 기록으로 가중치를 학습할 수 있다.
+
+1. 밸런스 측정(`balance.bat`)이나 AI 내전으로 기록을 모은다. 권장 2만~5만 판 (예: 리그전 대진당 400판)
+2. 루트의 **`tune.bat`을 더블클릭**한다. 측정 보고서를 기록으로 가져온 뒤, 기록을 재생해 조용한 국면(체크·직전 잡기 제외)을 뽑고 결과 예측 오차가 줄도록 학습한다
+3. `reports/tune-날짜-시각.md`에 기존/튜닝 가중치와 검증 오차가 저장되고, 검증 오차가 줄었을 때만 적용 여부를 묻는다
+
+```bash
+npm run tune -- --per-game 16 --epochs 800 --yes   # 보고서만
+npm run tune -- --apply                             # 바로 적용
+```
+
+적용하면 AI 강도가 바뀌므로 밸런스를 다시 측정한다. 되돌리려면 `git checkout packages/ai/src/weights.ts`.
+
 ## 아트·BGM 에셋
 
 AI로 생성한 원본(`.docs/art-prompts.md` 프롬프트)을 게임용으로 가공해 `packages/client/public/assets/`에 넣는다.

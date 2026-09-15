@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { evaluate } from '../src/evaluate';
 import { dot, extractFeatures, weightObject, weightVector, WEIGHT_KEYS } from '../src/features';
 import { WEIGHTS } from '../src/weights';
+import { LEGACY_WEIGHTS } from './legacyWeights';
 import { evaluate as legacyEvaluate } from './legacyEvaluate';
 
 function seeded(seed: number) {
@@ -37,11 +38,11 @@ function randomPositions(games: number, plies: number): GameState[] {
 describe('평가 항목 (선형 평가)', () => {
   const positions = randomPositions(44, 80);
 
-  it('기본 가중치의 평가는 기존 평가 함수와 모든 국면에서 같다', () => {
+  it('선형화 이전 가중치로 계산하면 기존 평가 함수와 모든 국면에서 같다 (튜닝 적용과 무관)', () => {
     expect(positions.length).toBeGreaterThan(1000);
+    const legacy = weightVector(LEGACY_WEIGHTS);
     for (const state of positions) {
-      expect(evaluate(state, 'w')).toBeCloseTo(legacyEvaluate(state, 'w'), 6);
-      expect(evaluate(state, 'b')).toBeCloseTo(legacyEvaluate(state, 'b'), 6);
+      expect(dot(legacy, extractFeatures(state))).toBeCloseTo(legacyEvaluate(state, 'w'), 6);
     }
   });
 
@@ -51,5 +52,6 @@ describe('평가 항목 (선형 평가)', () => {
     expect(Object.keys(weightObject(weights))).toEqual(WEIGHT_KEYS);
     const state = positions[500];
     expect(dot(weights, extractFeatures(state))).toBeCloseTo(evaluate(state, 'w'), 6);
+    expect(evaluate(state, 'b')).toBeCloseTo(-evaluate(state, 'w'), 6);
   });
 });
