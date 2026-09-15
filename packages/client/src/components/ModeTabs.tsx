@@ -2,11 +2,12 @@ import { uiSprite } from '../assets/sprites';
 import { useInstallPrompt } from '../pwa/useInstallPrompt';
 import { SoundToggle } from './SoundToggle';
 
-export type GameMode = 'local' | 'ai' | 'online';
+export type GameMode = 'local' | 'ai' | 'arena' | 'online';
 
 const MODES: readonly { id: GameMode; label: string; enabled: boolean }[] = [
   { id: 'local', label: '로컬 2인', enabled: true },
   { id: 'ai', label: 'AI 대전', enabled: true },
+  { id: 'arena', label: 'AI 내전', enabled: true },
   { id: 'online', label: '온라인', enabled: true },
 ];
 

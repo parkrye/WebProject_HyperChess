@@ -1,12 +1,11 @@
 import { opposite, STANDARD_TIME_CONTROL } from '@hyperchess/engine';
 import { useCallback, useMemo, useState } from 'react';
-import { useAiOpponent } from '../ai/useAiOpponent';
+import { useAiPlayers } from '../ai/useAiOpponent';
 import { AbilityReveal } from '../components/AbilityReveal';
 import { GameView } from '../components/GameView';
 import { useLocalGame } from '../game/useGame';
+import { DIFFICULTY_LABEL } from '../abilityUi/text';
 import type { LocalGameConfig } from './SetupScreen';
-
-const DIFFICULTY_LABEL = { easy: '쉬움', normal: '보통', hard: '어려움' } as const;
 
 interface LocalGameScreenProps {
   readonly config: LocalGameConfig;
@@ -39,7 +38,8 @@ function LocalGameBoard({ config, onRestart, onMenu }: LocalGameScreenProps) {
   const setup = useMemo(() => ({ abilities: config.abilities, timeControl: STANDARD_TIME_CONTROL }), [config.abilities]);
   const { state, busy, stageView, dispatch } = useLocalGame(setup);
   const { ai } = config;
-  const { thinking } = useAiOpponent(state, ai, busy, dispatch);
+  const aiPlayers = useMemo(() => (ai ? { [ai.color]: ai.difficulty } : {}), [ai]);
+  const { thinking } = useAiPlayers(state, aiPlayers, busy, dispatch);
 
   const myColor = ai ? opposite(ai.color) : null;
   const seats = ai

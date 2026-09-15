@@ -11,27 +11,44 @@ export interface AiConfig {
   readonly difficulty: Difficulty;
 }
 
+/** AI가 맡은 색과 난이도 (AI 대전은 한쪽, AI 내전은 양쪽) */
+export type AiPlayers = Readonly<Partial<Record<Color, Difficulty>>>;
+
+export interface AiPlayerOptions {
+  /** 일시정지 중에는 수를 계산하지 않는다 */
+  readonly paused?: boolean;
+  readonly minThinkMs?: number;
+}
+
 /** AI 차례가 되면 Web Worker에서 수를 계산해 dispatch 한다 */
-export function useAiOpponent(state: GameState, ai: AiConfig | null, busy: boolean, dispatch: (action: Action) => void) {
+export function useAiPlayers(
+  state: GameState,
+  players: AiPlayers,
+  busy: boolean,
+  dispatch: (action: Action) => void,
+  { paused = false, minThinkMs = MIN_THINK_MS }: AiPlayerOptions = {},
+) {
   const workerRef = useRef<Worker | null>(null);
   const requestId = useRef(0);
   const [thinking, setThinking] = useState(false);
+  const hasAi = Object.keys(players).length > 0;
 
   useEffect(() => {
-    if (!ai) return;
+    if (!hasAi) return;
     const worker = new Worker(new URL('./ai.worker.ts', import.meta.url), { type: 'module' });
     workerRef.current = worker;
     return () => {
       worker.terminate();
       workerRef.current = null;
     };
-  }, [ai]);
+  }, [hasAi]);
 
-  const aiTurn = !!ai && state.turn === ai.color && state.result.kind === 'ongoing';
+  const difficulty = players[state.turn];
+  const aiTurn = !!difficulty && state.result.kind === 'ongoing';
 
   useEffect(() => {
     const worker = workerRef.current;
-    if (!aiTurn || busy || !worker) return;
+    if (!aiTurn || busy || paused || !worker) return;
 
     const id = ++requestId.current;
     const startedAt = performance.now();
@@ -42,7 +59,7 @@ export function useAiOpponent(state: GameState, ai: AiConfig | null, busy: boole
       const response = event.data;
       if (response.id !== id) return;
       worker.removeEventListener('message', onMessage);
-      const delay = Math.max(0, MIN_THINK_MS - (performance.now() - startedAt));
+      const delay = Math.max(0, minThinkMs - (performance.now() - startedAt));
       window.setTimeout(() => {
         if (cancelled) return;
         setThinking(false);
@@ -52,14 +69,14 @@ export function useAiOpponent(state: GameState, ai: AiConfig | null, busy: boole
     };
 
     worker.addEventListener('message', onMessage);
-    worker.postMessage({ id, state, difficulty: ai!.difficulty } satisfies AiRequest);
+    worker.postMessage({ id, state, difficulty: difficulty! } satisfies AiRequest);
 
     return () => {
       cancelled = true;
       worker.removeEventListener('message', onMessage);
       setThinking(false);
     };
-  }, [aiTurn, busy, state, ai, dispatch]);
+  }, [aiTurn, busy, paused, state, difficulty, minThinkMs, dispatch]);
 
   return { thinking: aiTurn && thinking };
 }

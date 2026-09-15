@@ -44,6 +44,6 @@ export default defineConfig({
   server: {
     port: 5173,
     // 개발 중에는 게임 서버(Socket.IO)로 프록시
-    proxy: { '/socket.io': { target: SERVER_URL, ws: true } },
+    proxy: { '/socket.io': { target: SERVER_URL, ws: true }, '/api': { target: SERVER_URL } },
   },
 });
