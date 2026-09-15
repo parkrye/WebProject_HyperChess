@@ -8,6 +8,10 @@ export interface TargetStep {
   readonly prompt: string;
   /** choice 전용 버튼 라벨 */
   readonly label?: (value: number | string) => string;
+  /** choice 전용: 패널 크기 측정에 쓸 대표 값들 */
+  readonly samples?: readonly (number | string)[];
+  /** 남은 선택지 중 이 값을 가진 것이 없으면 건너뛴다 */
+  readonly optional?: boolean;
 }
 
 export interface AbilityUiSpec {
@@ -23,9 +27,13 @@ export interface AbilityUiSpec {
 
 export type AbilityIcon =
   | 'telekinesis' | 'haste' | 'teleport' | 'revive' | 'rewind'
-  | 'shield' | 'lance' | 'wheel' | 'cross' | 'crown' | 'heir' | 'random';
+  | 'shield' | 'lance' | 'wheel' | 'cross' | 'crown' | 'heir' | 'random'
+  | 'alchemy' | 'brainwash' | 'wall' | 'march' | 'snipe';
 
 const squareStep = (key: string, prompt: string): TargetStep => ({ key, kind: 'square', prompt });
+
+const PIECE_NAME: Readonly<Record<string, string>> = { p: '폰', n: '나이트', b: '비숍', r: '룩', q: '퀸', k: '승급 킹' };
+const pieceLabel = (value: number | string) => PIECE_NAME[String(value)] ?? String(value);
 
 const ENHANCE_PROMPT = (piece: string) => [squareStep('square', `강화할 ${piece}을(를) 선택하세요`)];
 
@@ -64,6 +72,23 @@ export const ABILITY_UI: Readonly<Record<string, AbilityUiSpec>> = {
   paladin: { color: '#f5f0c8', icon: 'cross', steps: ENHANCE_PROMPT('비숍') },
   empress: { color: '#ff5fa2', icon: 'crown', steps: [] },
   heir: { color: '#ffd76b', icon: 'heir', steps: [squareStep('square', '계승자로 삼을 기물을 선택하세요')] },
+  alchemy: {
+    color: '#5fe0a0',
+    icon: 'alchemy',
+    steps: [
+      squareStep('square', '바꿀 말을 선택하세요'),
+      { key: 'type', kind: 'choice', prompt: '어떤 말로 바꿀까요?', label: pieceLabel, samples: ['r', 'b', 'n', 'p'] },
+      { key: 'promotion', kind: 'choice', prompt: '프로모션할 말을 선택하세요', label: pieceLabel, samples: ['q', 'r', 'b', 'n'], optional: true },
+    ],
+  },
+  brainwash: { color: '#ff5ce1', icon: 'brainwash', steps: [squareStep('square', '세뇌할 상대 말을 선택하세요')] },
+  wall: { color: '#c79a62', icon: 'wall', steps: [squareStep('square', '성벽을 세울 칸을 선택하세요')] },
+  march: { color: '#f2b84b', icon: 'march', steps: [] },
+  snipe: {
+    color: '#ff4a4a',
+    icon: 'snipe',
+    steps: [squareStep('from', '저격할 말을 선택하세요'), squareStep('to', '저격 대상을 선택하세요')],
+  },
 };
 
 const FALLBACK: AbilityUiSpec = { color: '#aaaaaa', icon: 'crown', steps: [] };

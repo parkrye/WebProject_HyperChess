@@ -1,4 +1,4 @@
-import { royalSquares } from '@hyperchess/engine';
+import { offset, royalSquares, type Square } from '@hyperchess/engine';
 import { abilityUi } from '../abilityUi/specs';
 import { revertChanges } from '../game/replay';
 import type { AbilityEffect } from './types';
@@ -120,6 +120,93 @@ const heir: AbilityEffect = async (ctx) => {
   await stage.wait(800);
 };
 
+/** 금빛 변성 문양이 돌고, 말이 납작해졌다가 다른 말로 펼쳐진다 */
+const alchemy: AbilityEffect = async (ctx) => {
+  const { stage, event, after } = ctx;
+  const { color } = abilityUi(event.abilityId);
+  const square = Number(event.params.square);
+  const id = pieceIdAt(ctx, square);
+
+  stage.overlay({ kind: 'sigil', square, color, duration: 1300 });
+  if (id) stage.pieceFx(id, 'transmute');
+  await stage.wait(330);
+  stage.showBoard(after.board);
+  await stage.wait(420);
+  stage.overlay({ kind: 'burst', square, color, duration: 800 });
+  await stage.wait(450);
+};
+
+/** 가둔 두 말에서 최면 광선이 뻗고, 대상이 흔들리다 색이 바뀐다 */
+const brainwash: AbilityEffect = async (ctx) => {
+  const { stage, event, before, after } = ctx;
+  const { color } = abilityUi(event.abilityId);
+  const square = Number(event.params.square);
+  const id = pieceIdAt(ctx, square);
+  const owned = (sq: Square | null): sq is Square => sq !== null && before.board[sq]?.color === event.color;
+  const pairs = [
+    [offset(square, -1, 0), offset(square, 1, 0)],
+    [offset(square, 0, -1), offset(square, 0, 1)],
+  ].filter(([a, b]) => owned(a) && owned(b)) as Square[][];
+
+  for (const from of pairs.flat()) stage.overlay({ kind: 'beam', square: from, to: square, color, duration: 1200 });
+  if (id) stage.pieceFx(id, 'hypnotize');
+  stage.overlay({ kind: 'ring', square, color, duration: 1400 });
+  await stage.wait(1100);
+  stage.showBoard(after.board);
+  if (id) stage.pieceFx(id, 'empower');
+  stage.overlay({ kind: 'burst', square, color, duration: 800 });
+  await stage.wait(550);
+};
+
+/** 흙먼지와 함께 땅에서 성벽이 솟아오르고 보드가 울린다 */
+const wall: AbilityEffect = async ({ stage, event, after }) => {
+  const { color } = abilityUi(event.abilityId);
+  const square = Number(event.params.square);
+
+  stage.overlay({ kind: 'dust', square, color, duration: 900 });
+  await stage.wait(160);
+  stage.showWalls(after.walls);
+  stage.overlay({ kind: 'shockwave', color, duration: 500 });
+  await stage.wait(700);
+};
+
+/** 북소리처럼 폰들이 한꺼번에 발을 구르며 전진한다 */
+const march: AbilityEffect = async ({ stage, event, after }) => {
+  const { color } = abilityUi(event.abilityId);
+  const marched = event.changes.flatMap((change) => (change.type === 'move' ? [change] : []));
+  const promoted = event.changes.flatMap((change) => (change.type === 'transform' ? [change.square] : []));
+
+  stage.overlay({ kind: 'speedlines', side: event.color, color, duration: 900 });
+  marched.forEach(({ pieceId }) => stage.pieceFx(pieceId, 'stomp'));
+  await stage.wait(260);
+  stage.showBoard(after.board);
+  stage.overlay({ kind: 'shockwave', color, duration: 450 });
+  marched.forEach(({ to }) => stage.overlay({ kind: 'dust', square: to, color, duration: 600 }));
+  await stage.wait(420);
+  for (const square of promoted) stage.overlay({ kind: 'burst', square, color, duration: 800 });
+  await stage.wait(promoted.length > 0 ? 500 : 150);
+};
+
+/** 조준선이 대상에 고정된 뒤 섬광 한 줄기로 꿰뚫는다. 쏜 말은 반동만 받고 자리에 남는다 */
+const snipe: AbilityEffect = async (ctx) => {
+  const { stage, event, before, after } = ctx;
+  const { color } = abilityUi(event.abilityId);
+  const from = Number(event.params.from);
+  const to = Number(event.params.to);
+  const shooterId = pieceIdAt(ctx, from);
+  const target = before.board[to];
+
+  stage.overlay({ kind: 'crosshair', square: to, color, duration: 900 });
+  await stage.wait(620);
+  if (shooterId) stage.pieceFx(shooterId, 'recoil');
+  stage.overlay({ kind: 'beam', square: from, to, color, duration: 380 });
+  await stage.wait(120);
+  stage.showBoard(after.board);
+  if (target) stage.overlay({ kind: 'shatter', square: to, piece: target, color, duration: 700 });
+  stage.overlay({ kind: 'burst', square: to, color, duration: 650 });
+  await stage.wait(560);
+};
+
 export const ABILITY_EFFECTS: Readonly<Record<string, AbilityEffect>> = {
   telekinesis,
   haste,
@@ -132,4 +219,9 @@ export const ABILITY_EFFECTS: Readonly<Record<string, AbilityEffect>> = {
   paladin: enhance,
   empress,
   heir,
+  alchemy,
+  brainwash,
+  wall,
+  march,
+  snipe,
 };

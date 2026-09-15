@@ -13,8 +13,8 @@ interface AbilityPanelProps {
   readonly busy: boolean;
 }
 
-/** 크기 측정용 선택지 버튼 수 (시간 역행 1~3턴) */
-const SIZER_CHOICES = 3;
+/** 크기 측정용 선택지 값 (시간 역행 1~3턴) */
+const SIZER_CHOICES: readonly number[] = [1, 2, 3];
 
 /**
  * 능력 패널. 차례·대상 선택·게임 종료에 따라 내용이 바뀌어도 높이가 변하지 않도록
@@ -113,9 +113,9 @@ function AbilitySizers({ abilityId }: { abilityId: string | null }) {
   const longestPrompt = steps.reduce((longest, s) => (s.prompt.length > longest.length ? s.prompt : longest), '');
   const choiceStep = steps.find((s) => s.kind === 'choice');
   const choices = choiceStep
-    ? Array.from({ length: SIZER_CHOICES }, (_, i) => (
-        <button key={i} type="button" className="btn btn-ability">
-          {choiceStep.label ? choiceStep.label(i + 1) : String(i + 1)}
+    ? (choiceStep.samples ?? SIZER_CHOICES).map((value) => (
+        <button key={String(value)} type="button" className="btn btn-ability">
+          {choiceStep.label ? choiceStep.label(value) : String(value)}
         </button>
       ))
     : null;

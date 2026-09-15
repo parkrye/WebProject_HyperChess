@@ -27,8 +27,8 @@ export function pieceSprite(piece: Piece, rules: PlayerRules): string {
   return standardPieceSprite(type, color);
 }
 
-/** 능력 아이콘 이름 → 아이콘 스프라이트 */
-const ICON_SPRITE: Readonly<Record<AbilityIcon, string>> = {
+/** 능력 아이콘 이름 → 아이콘 스프라이트 (아트가 아직 없는 아이콘은 AbilityIconView가 벡터로 그린다) */
+const ICON_SPRITE: Readonly<Partial<Record<AbilityIcon, string>>> = {
   telekinesis: 'telekinesis',
   haste: 'haste',
   teleport: 'teleport',
@@ -43,7 +43,10 @@ const ICON_SPRITE: Readonly<Record<AbilityIcon, string>> = {
   random: 'random',
 };
 
-export const abilityIconSprite = (icon: AbilityIcon) => `${ASSETS}/icons/${ICON_SPRITE[icon]}.png`;
+export const abilityIconSprite = (icon: AbilityIcon): string | null => {
+  const name = ICON_SPRITE[icon];
+  return name ? `${ASSETS}/icons/${name}.png` : null;
+};
 
 export type UiIcon = 'none' | 'random' | 'settings' | 'flip' | 'exit';
 export const uiIconSprite = (icon: UiIcon) => `${ASSETS}/icons/${icon}.png`;

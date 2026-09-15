@@ -10,6 +10,7 @@ import {
   type GameState,
   type Piece,
   type Square,
+  type Wall,
 } from '@hyperchess/engine';
 import type { CSSProperties } from 'react';
 import { abilityUi } from '../abilityUi/specs';
@@ -137,6 +138,7 @@ function OverlayView({ overlay, leftColor }: { overlay: Overlay; leftColor: Colo
 
 export function Board({ state, stage, interaction, leftColor, busy }: BoardProps) {
   const board: BoardData = stage.board ?? state.board;
+  const walls: readonly Wall[] = stage.walls ?? state.walls;
   const animating = busy || stage.board !== null;
   const turnSpec = abilityUi(state.players[state.turn].abilityId ?? '');
 
@@ -193,6 +195,21 @@ export function Board({ state, stage, interaction, leftColor, busy }: BoardProps
       </div>
 
       <div className="board-pieces">
+        {walls.map((wall) => {
+          const { x, y } = position(wall.square, leftColor);
+          const wallStyle = {
+            transform: `translate(${x * 100}%, ${y * 100}%)`,
+            zIndex: y + 1,
+            '--wall-owner': abilityUi(state.players[wall.owner].abilityId ?? '').color,
+          } as CSSProperties;
+          return (
+            <div key={`wall-${wall.square}-${wall.owner}`} className={`wall wall-${wall.owner}`} style={wallStyle} title={`성벽 · ${wall.turnsLeft}턴 남음`}>
+              <div className="wall-body">
+                <span className="wall-turns">{wall.turnsLeft}</span>
+              </div>
+            </div>
+          );
+        })}
         {pieces.map(({ piece, square }) => {
           const { x, y } = position(square, leftColor);
           const badge = pieceBadge(piece);

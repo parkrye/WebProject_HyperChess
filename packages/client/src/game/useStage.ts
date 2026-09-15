@@ -1,9 +1,10 @@
-import type { Board } from '@hyperchess/engine';
+import type { Board, Wall } from '@hyperchess/engine';
 import { useCallback, useMemo, useRef, useState, type RefObject } from 'react';
 import type { Overlay, OverlaySpec, PieceFx, ScreenFx, Stage } from '../effects/types';
 
 export interface StageView {
   readonly board: Board | null;
+  readonly walls: readonly Wall[] | null;
   readonly overlays: readonly Overlay[];
   readonly pieceFx: Readonly<Record<string, PieceFx>>;
   readonly screenFx: ScreenFx | null;
@@ -12,6 +13,7 @@ export interface StageView {
 /** speed: 연출 배속 (2면 두 배 빠르게). 기본 1배 */
 export function useStage(speed?: RefObject<number>) {
   const [board, setBoard] = useState<Board | null>(null);
+  const [walls, setWalls] = useState<readonly Wall[] | null>(null);
   const [overlays, setOverlays] = useState<Overlay[]>([]);
   const [pieceFx, setPieceFx] = useState<Record<string, PieceFx>>({});
   const [screenFx, setScreenFx] = useState<ScreenFx | null>(null);
@@ -21,6 +23,7 @@ export function useStage(speed?: RefObject<number>) {
   const api = useMemo<Stage>(
     () => ({
       showBoard: (next) => setBoard(next),
+      showWalls: (next) => setWalls(next),
       overlay: (spec: OverlaySpec) => {
         const overlay: Overlay = { ...spec, duration: scale(spec.duration), id: nextId.current++ };
         setOverlays((list) => [...list, overlay]);
@@ -41,11 +44,12 @@ export function useStage(speed?: RefObject<number>) {
 
   const reset = useCallback(() => {
     setBoard(null);
+    setWalls(null);
     setOverlays([]);
     setPieceFx({});
     setScreenFx(null);
   }, []);
 
-  const view: StageView = { board, overlays, pieceFx, screenFx };
+  const view: StageView = { board, walls, overlays, pieceFx, screenFx };
   return { api, view, reset };
 }

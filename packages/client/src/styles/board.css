@@ -195,3 +195,50 @@
     opacity: 0.45;
   }
 }
+
+/* ---------- 성벽 ---------- */
+
+.wall {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 12.5%;
+  height: 12.5%;
+}
+.wall-body {
+  position: absolute;
+  inset: 7%;
+  border-radius: 3px;
+  border: 2px solid #3a2a18;
+  background:
+    linear-gradient(#3a2a18, #3a2a18) 0 33% / 100% 2px no-repeat,
+    linear-gradient(#3a2a18, #3a2a18) 0 66% / 100% 2px no-repeat,
+    linear-gradient(90deg, transparent 48%, #3a2a18 48% 52%, transparent 52%) 0 0 / 100% 33% no-repeat,
+    linear-gradient(90deg, transparent 23%, #3a2a18 23% 27%, transparent 27% 73%, #3a2a18 73% 77%, transparent 77%) 0 50% / 100% 33% no-repeat,
+    linear-gradient(90deg, transparent 48%, #3a2a18 48% 52%, transparent 52%) 0 100% / 100% 34% no-repeat,
+    linear-gradient(160deg, #d9b98a, #a07a4c 60%, #7d5b36);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--wall-owner) 70%, transparent), 0 4px 0 rgb(0 0 0 / 35%);
+  animation: wall-rise 0.45s cubic-bezier(0.2, 1.3, 0.4, 1) backwards;
+}
+.wall-turns {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  min-width: 1.3em;
+  padding: 0 3px;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.3em;
+  text-align: center;
+  color: #1b1410;
+  background: var(--wall-owner);
+  border: 1px solid #3a2a18;
+}
+
+@keyframes wall-rise {
+  from {
+    transform: translateY(40%) scaleY(0.1);
+    opacity: 0;
+  }
+}

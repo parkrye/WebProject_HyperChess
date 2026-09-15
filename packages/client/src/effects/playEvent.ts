@@ -22,6 +22,12 @@ async function playMove({ stage, event, before, after }: EffectContext): Promise
     stage.overlay({ kind: 'burst', square: change.square, color: CAPTURE_COLOR, duration: 650 });
   }
   if (hasted) stage.overlay({ kind: 'speedlines', side: event.color, color: abilityUi('haste').color, duration: 500 });
+  // 수명이 다한 성벽은 흙먼지를 남기고 무너진다
+  for (const wall of before.walls) {
+    if (after.walls.some((w) => w.square === wall.square)) continue;
+    stage.overlay({ kind: 'dust', square: wall.square, color: abilityUi('wall').color, duration: 700 });
+  }
+  if (before.walls.length !== after.walls.length) stage.showWalls(after.walls);
   await stage.wait(MOVE_MS + 40);
 }
 

@@ -36,6 +36,11 @@ const COST_LABEL: Record<string, string> = {
   paladin: String(COSTS.paladin),
   empress: String(COSTS.empress),
   heir: String(COSTS.heir),
+  alchemy: String(COSTS.alchemy),
+  brainwash: `폰 ${COSTS.brainwash.p} · 나이트/비숍 ${COSTS.brainwash.n} · 룩 ${COSTS.brainwash.r} · 퀸 ${COSTS.brainwash.q}`,
+  wall: String(COSTS.wall),
+  march: String(COSTS.march),
+  snipe: String(COSTS.snipe),
 };
 
 export const costLabel = (abilityId: string) => COST_LABEL[abilityId] ?? '-';

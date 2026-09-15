@@ -21,6 +21,18 @@ describe('targeting', () => {
     expect(completedParams(spec, options, picks)).toEqual({ a: sq('a1'), b: sq('e1') });
   });
 
+  it('연금술은 프로모션 칸에서 폰을 고를 때만 프로모션 단계를 거친다', () => {
+    const state = withResource(createGame({ abilities: { w: 'alchemy' }, fen: 'R7/8/7k/8/8/8/8/4K2R w - - 0 1' }), 'w', 1);
+    const spec = abilityUi('alchemy');
+    const options = legalAbilityOptions(state);
+
+    expect(completedParams(spec, options, { square: sq('h1'), type: 'n' })).toEqual({ square: sq('h1'), type: 'n' });
+    const promoting = { square: sq('a8'), type: 'p' };
+    expect(currentStep(spec, promoting, options)?.key).toBe('promotion');
+    expect(completedParams(spec, options, { ...promoting, promotion: 'q' })).toEqual({ ...promoting, promotion: 'q' });
+    expect(completedParams(spec, options, { square: sq('a8'), type: 'n' })).toEqual({ square: sq('a8'), type: 'n' });
+  });
+
   it('선택이 덜 끝나면 파라미터를 만들지 않는다', () => {
     const spec = abilityUi('telekinesis');
     expect(completedParams(spec, [{ from: 1, to: 2 }], { from: 1 })).toBeNull();

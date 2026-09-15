@@ -36,7 +36,7 @@ export function useInteraction(state: GameState, dispatch: (action: Action) => v
   const abilityId = state.players[state.turn].abilityId;
   const spec = abilityUi(abilityId ?? '');
   const options = useMemo(() => uiOptions(spec, abilityOptions), [spec, abilityOptions]);
-  const step = picks ? currentStep(spec, picks) : null;
+  const step = picks ? currentStep(spec, picks, options) : null;
   const stepChoices = picks && step ? stepValues(options, picks, step.key) : [];
 
   const selectedTargets = selected === null ? [] : moves.filter((m) => m.from === selected);

@@ -202,6 +202,115 @@
   }
 }
 
+/* 연금술: 서로 반대로 도는 원과 마름모 문양 */
+.fx-sigil::before,
+.fx-sigil::after {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  border: 2px dashed var(--fx-color);
+  border-radius: 50%;
+  box-shadow: 0 0 12px var(--fx-color);
+  animation: sigil-spin var(--fx-duration) ease-out forwards;
+}
+.fx-sigil::after {
+  inset: 8%;
+  border-style: solid;
+  border-radius: 0;
+  transform: rotate(45deg);
+  animation-name: sigil-spin-reverse;
+}
+
+/* 저격: 조준선이 좁혀지며 고정 */
+.fx-crosshair::before {
+  content: '';
+  width: 80%;
+  height: 80%;
+  border-radius: 50%;
+  border: 2px solid var(--fx-color);
+  background:
+    linear-gradient(var(--fx-color), var(--fx-color)) center / 2px 100% no-repeat,
+    linear-gradient(var(--fx-color), var(--fx-color)) center / 100% 2px no-repeat;
+  box-shadow: 0 0 10px var(--fx-color);
+  animation: crosshair-lock var(--fx-duration) ease-out forwards;
+}
+
+/* 흙먼지 (성벽 설치·붕괴, 총진군 발소리) */
+.fx-dust::before {
+  content: '';
+  width: 110%;
+  height: 50%;
+  margin-top: 60%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, color-mix(in srgb, var(--fx-color) 75%, transparent), transparent 70%);
+  animation: dust var(--fx-duration) ease-out forwards;
+}
+
+/* 보드 전체가 한 번 울리는 충격파 */
+.fx-shockwave {
+  border: 4px solid var(--fx-color);
+  border-radius: 6px;
+  box-shadow: inset 0 0 30px var(--fx-color);
+  animation: flash var(--fx-duration) ease-out forwards;
+}
+
+@keyframes sigil-spin {
+  from {
+    transform: scale(0.2) rotate(0deg);
+    opacity: 0;
+  }
+  30% {
+    transform: scale(1) rotate(120deg);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.1) rotate(360deg);
+    opacity: 0;
+  }
+}
+@keyframes sigil-spin-reverse {
+  from {
+    transform: scale(0.2) rotate(45deg);
+    opacity: 0;
+  }
+  30% {
+    transform: scale(1) rotate(-75deg);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.1) rotate(-315deg);
+    opacity: 0;
+  }
+}
+@keyframes crosshair-lock {
+  0% {
+    transform: scale(2.6) rotate(-90deg);
+    opacity: 0;
+  }
+  55% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  80% {
+    transform: scale(0.9);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+}
+@keyframes dust {
+  from {
+    transform: scale(0.4);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.6, 1.1) translateY(-20%);
+    opacity: 0;
+  }
+}
+
 /* ---------- 말 연출 ---------- */
 
 .pfx-levitate {
@@ -231,6 +340,55 @@
 .pfx-afterimage .piece-svg {
   filter: drop-shadow(calc(var(--fwd, 1) * -10px) 0 0 rgb(63 224 208 / 45%))
     drop-shadow(calc(var(--fwd, 1) * -20px) 0 0 rgb(63 224 208 / 20%));
+}
+
+.pfx-transmute {
+  animation: transmute 0.7s ease-in-out;
+}
+.pfx-hypnotize {
+  animation: hypnotize 0.9s ease-in-out infinite;
+}
+.pfx-recoil {
+  animation: recoil 0.35s ease-out;
+}
+.pfx-stomp {
+  animation: stomp 0.3s ease-out;
+}
+
+@keyframes transmute {
+  40% {
+    transform: scaleX(0.05) scaleY(1.15);
+    filter: brightness(2.6) sepia(1) hue-rotate(80deg);
+  }
+  60% {
+    transform: scaleX(0.05) scaleY(1.15);
+    filter: brightness(2.6) sepia(1) hue-rotate(80deg);
+  }
+}
+@keyframes hypnotize {
+  0%,
+  100% {
+    transform: rotate(-7deg);
+    filter: hue-rotate(0deg) saturate(1.6) drop-shadow(0 0 8px #ff5ce1);
+  }
+  50% {
+    transform: rotate(7deg) scale(0.94);
+    filter: hue-rotate(160deg) saturate(1.6) drop-shadow(0 0 8px #ff5ce1);
+  }
+}
+@keyframes recoil {
+  30% {
+    transform: translateX(calc(var(--fwd, 1) * -14%)) scale(1.05);
+    filter: brightness(1.8);
+  }
+}
+@keyframes stomp {
+  40% {
+    transform: translateY(-16%) scale(1.08);
+  }
+  70% {
+    transform: translateY(2%) scale(1.05, 0.92);
+  }
 }
 
 @keyframes land {
