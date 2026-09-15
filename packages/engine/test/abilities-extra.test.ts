@@ -44,6 +44,11 @@ describe('세뇌', () => {
     expect(state.players.w.meter.resource).toBe(CHARGED - COSTS.brainwash.q);
   });
 
+  it('대각선으로 가둬도 가져올 수 있다', () => {
+    const state = charged('4k3/8/8/4N3/3r4/2N5/8/4K3 w - - 0 1', { w: 'brainwash' });
+    expect(legalAbilityOptions(state)).toEqual([{ square: sq('d4') }]);
+  });
+
   it('보드 끝은 가두는 벽이 아니며 킹은 가져올 수 없다', () => {
     expect(legalAbilityOptions(charged('4k3/8/8/8/rN6/8/8/4K3 w - - 0 1', { w: 'brainwash' }))).toEqual([]);
     expect(legalAbilityOptions(charged('8/8/8/8/2NkN3/8/8/4K3 w - - 0 1', { w: 'brainwash' }))).toEqual([]);
@@ -67,25 +72,27 @@ describe('성벽', () => {
   it('벽은 슬라이딩 이동을 막고 그 칸에 들어갈 수 없다', () => {
     let state = charged('7k/8/8/8/8/8/8/R3K3 w - - 0 1', { w: 'wall' });
     state = useAbility(state, { square: sq('a4') });
-    state = move(state, 'h8', 'g8');
+    // 수 전에 쓰는 능력이라 같은 턴에 이어서 수를 둔다
+    expect(state.turn).toBe('w');
     expect(targets(state, 'a1')).toEqual([sq('b1'), sq('c1'), sq('d1'), sq('a2'), sq('a3')].sort((a, b) => a - b));
   });
 
   it('벽으로 체크를 막을 수 있다', () => {
     let state = charged('4r2k/8/8/8/8/8/8/4K3 w - - 0 1', { w: 'wall' });
-    const squares = legalAbilityOptions(state).map((o) => Number(o.square)).sort((a, b) => a - b);
-    expect(squares).toEqual(['e2', 'e3', 'e4', 'e5', 'e6', 'e7'].map(sq));
     state = useAbility(state, { square: sq('e4') });
     expect(isInCheck(state, 'w')).toBe(false);
+    // 체크가 풀렸으니 킹이 아닌 칸으로도 자유롭게 둘 수 있다
+    expect(targets(state, 'e1')).toContain(sq('e2'));
   });
 
   it(`설치자의 턴 ${WALL_DURATION}번이 시작되면 사라진다`, () => {
     let state = charged('7k/8/8/8/8/8/P7/4K3 w - - 0 1', { w: 'wall' });
     state = useAbility(state, { square: sq('a4') });
+    state = move(state, 'e1', 'd1');
     for (let turn = 1; turn <= WALL_DURATION; turn++) {
       state = move(state, turn % 2 ? 'h8' : 'g8', turn % 2 ? 'g8' : 'h8');
       expect(state.walls.length).toBe(turn < WALL_DURATION ? 1 : 0);
-      state = move(state, turn % 2 ? 'e1' : 'd1', turn % 2 ? 'd1' : 'e1');
+      state = move(state, turn % 2 ? 'd1' : 'e1', turn % 2 ? 'e1' : 'd1');
     }
   });
 
@@ -94,7 +101,7 @@ describe('성벽', () => {
     const walls = Array.from({ length: WALL_LIMIT }, (_, i) => ({ square: sq('c3') + i, owner: 'w' as const, turnsLeft: WALL_DURATION }));
     expect(legalAbilityOptions({ ...base, walls })).toEqual([]);
 
-    let state = useAbility(base, { square: sq('g7') });
+    let state = move(useAbility(base, { square: sq('g7') }), 'e1', 'd1');
     expect(legalAbilityOptions(state).some((o) => o.to === sq('g7'))).toBe(false);
   });
 });

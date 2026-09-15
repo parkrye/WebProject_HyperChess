@@ -111,7 +111,7 @@ function pawnMoves(ctx: MoveGenContext, from: Square, piece: Piece): GeneratedMo
     if (target === null) continue;
     const occupant = board[target];
     if (occupant && occupant.color !== piece.color) add(target, 'normal');
-    else if (!occupant && enPassant && enPassant.target === target && enPassant.pawnColor !== piece.color) add(target, 'enPassant');
+    else if (!occupant && enPassant && enPassant.target === target && enPassant.pawnColor !== piece.color && !isWall(walls, target)) add(target, 'enPassant');
   }
 
   if (hasKingSteps(piece)) {

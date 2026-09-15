@@ -1,4 +1,4 @@
-import { offset, royalSquares, type Square } from '@hyperchess/engine';
+import { royalSquares, trappingSquares } from '@hyperchess/engine';
 import { abilityUi } from '../abilityUi/specs';
 import { revertChanges } from '../game/replay';
 import type { AbilityEffect } from './types';
@@ -142,13 +142,8 @@ const brainwash: AbilityEffect = async (ctx) => {
   const { color } = abilityUi(event.abilityId);
   const square = Number(event.params.square);
   const id = pieceIdAt(ctx, square);
-  const owned = (sq: Square | null): sq is Square => sq !== null && before.board[sq]?.color === event.color;
-  const pairs = [
-    [offset(square, -1, 0), offset(square, 1, 0)],
-    [offset(square, 0, -1), offset(square, 0, 1)],
-  ].filter(([a, b]) => owned(a) && owned(b)) as Square[][];
 
-  for (const from of pairs.flat()) stage.overlay({ kind: 'beam', square: from, to: square, color, duration: 1200 });
+  for (const from of trappingSquares(before.board, square, event.color)) stage.overlay({ kind: 'beam', square: from, to: square, color, duration: 1200 });
   if (id) stage.pieceFx(id, 'hypnotize');
   stage.overlay({ kind: 'ring', square, color, duration: 1400 });
   await stage.wait(1100);
