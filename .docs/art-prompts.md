@@ -187,16 +187,16 @@ Pixel art timer UI sheet for a cute noble superpower chess game, 2D subculture s
 
 ### 4-6. 성벽 오브젝트 (1×4)
 
-성벽 칸에 올라가는 오브젝트. 말과 같이 **오른쪽을 바라보는 옆모습**으로 그린다(상대 진영 성벽은 코드에서 좌우 반전). 지금은 CSS 벽돌 무늬로 그린다(`board.css`의 `.wall-body`). 남은 턴 숫자는 게임이 겹쳐 표시하므로 그리지 않는다.
+성벽 칸에 올라가는 오브젝트. 말과 같이 **오른쪽을 향하는 옆모습**으로 그린다(상대 진영 성벽은 코드에서 좌우 반전). 벽은 좌우 대칭이라 모델이 방향을 잘 못 잡으므로, 왼쪽 끝은 비스듬한 버팀벽·오른쪽 끝은 화살 구멍이 난 수직면·깃발은 오른쪽으로 날리게 해서 방향을 드러낸다. 그래도 왼쪽을 향해 나오면 **좌우 반전해서 저장**한다(픽셀 아트라 반전해도 품질 손실 없음). 지금은 CSS 벽돌 무늬로 그린다(`board.css`의 `.wall-body`). 남은 턴 숫자는 게임이 겹쳐 표시하므로 그리지 않는다.
 
 | 1 | 2 | 3 | 4 |
 |---|---|---|---|
 | 새 성벽 | 금 간 성벽 (마지막 턴) | 무너지는 성벽 | 잔해 |
 
 ```text
-Pixel art board object sheet for a cute noble superpower chess game, 2D subculture style, rich royal palette. Transparent background (alpha PNG). Canvas 1024x256, exact 1x4 grid of 256x256 cells, each object centered and filling about 86% of the cell, no grid lines, no text or numbers. Drawn on a 64x64 pixel grid per cell upscaled 4x nearest neighbor, 1px dark outline, top-left light. Side profile facing right, same as the chess pieces: the wall's front face points to the right side of the canvas, its battlements and gold trim seen from the right, standing on a chessboard square. Cell 1: sturdy sandy brown brick castle wall block with three battlements and a small gold trim band, clean and new. Cell 2: the same wall cracked with a few loose bricks (last turn). Cell 3: collapsing wall, bricks breaking apart mid-fall. Cell 4: low pile of rubble and pebbles with a little dust. Same size, base line and lighting in all four cells.
+Pixel art board object sheet for a cute noble superpower chess game, 2D subculture style, rich royal palette. Transparent background (alpha PNG). Canvas 1024x256, exact 1x4 grid of 256x256 cells, each object centered and filling about 86% of the cell, no grid lines, no text. Drawn on a 64x64 pixel grid per cell upscaled 4x nearest neighbor, 1px dark outline, light from top-left. Strict flat 2D side elevation, orthographic, no perspective: no front face, no top face, not 3/4 view, not facing left. The wall is asymmetric and points RIGHT: a sloped stone buttress on the LEFT end, a flat vertical defensive face with two arrow slits on the RIGHT end, and a small crimson pennant on top streaming to the RIGHT. Cell 1: sandy brown brick wall, new, gold trim band. Cell 2: same wall cracked, loose bricks. Cell 3: same wall collapsing. Cell 4: low rubble pile with dust. Identical orientation and base line in all cells.
 ```
-(939자)
+(921자)
 
 ### 4-7. 추가 능력 이펙트 스프라이트 (4×4, 행마다 4프레임)
 
