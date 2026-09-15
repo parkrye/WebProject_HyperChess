@@ -8,6 +8,7 @@ import { createApiHandler } from './api';
 import { registerHandlers } from './handlers';
 import { ResultStore } from './results';
 import { RoomManager } from './rooms';
+import { UserStore } from './users';
 import { createStaticHandler } from './static';
 
 const PORT = Number(process.env.PORT ?? 3000);
@@ -17,20 +18,24 @@ const CLIENT_DIST = fileURLToPath(new URL('../../client/dist', import.meta.url))
 const DATA_DIR = process.env.HYPERCHESS_DATA ?? fileURLToPath(new URL('../data', import.meta.url));
 
 const results = new ResultStore(join(DATA_DIR, 'results.jsonl'), { seedFiles: [join(DATA_DIR, 'simulation.jsonl')] });
+const users = new UserStore(join(DATA_DIR, 'users.json'));
 const rooms = new RoomManager({
-  onGameEnd: (game) => {
+  onGameEnd: (game, players) => {
     const record = toGameRecord(game, 'online');
-    if (record) results.add(record);
+    if (!record) return;
+    results.add(record);
+    users.applyGame(players, record.winner);
   },
+  ratingOf: (userId) => users.ratingOf(userId),
 });
-const httpServer = createServer(createApiHandler(results, createStaticHandler(CLIENT_DIST)));
+const httpServer = createServer(createApiHandler({ results, users }, createStaticHandler(CLIENT_DIST)));
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
   // 개발 중 Vite(5173)에서 직접 붙는 경우 허용
   cors: { origin: true },
   maxHttpBufferSize: 64 * 1024,
 });
 
-io.on('connection', (socket) => registerHandlers(io, socket, rooms));
+io.on('connection', (socket) => registerHandlers(io, socket, rooms, users));
 
 setInterval(() => {
   const removed = rooms.sweep(ROOM_IDLE_MS);

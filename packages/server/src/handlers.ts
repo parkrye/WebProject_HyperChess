@@ -1,7 +1,8 @@
 import { IllegalActionError, type Action } from '@hyperchess/engine';
 import type { Ack, ClientToServerEvents, ServerToClientEvents } from '@hyperchess/protocol';
 import type { Server, Socket } from 'socket.io';
-import { RoomError, type RoomManager } from './rooms';
+import { RoomError, type RoomManager, type SeatIdentity } from './rooms';
+import type { UserStore } from './users';
 
 type GameServer = Server<ClientToServerEvents, ServerToClientEvents>;
 type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
@@ -54,7 +55,15 @@ export function broadcastRoom(io: GameServer, rooms: RoomManager, code: string |
   scheduleClock(io, rooms, code);
 }
 
-export function registerHandlers(io: GameServer, socket: GameSocket, rooms: RoomManager) {
+export function registerHandlers(io: GameServer, socket: GameSocket, rooms: RoomManager, users: UserStore) {
+  /** 세션 토큰이 있으면 유저로, 없으면 게스트로 참가. 토큰이 잘못되었으면 거부한다 */
+  const identify = (authToken: unknown): SeatIdentity | null => {
+    if (authToken === undefined || authToken === null || authToken === '') return null;
+    const user = users.authenticate(authToken);
+    if (!user) throw new RoomError('로그인이 만료되었습니다. 다시 로그인해 주세요');
+    return { userId: user.id, nickname: user.nickname };
+  };
+
   const respond = <T>(ack: unknown, run: () => { code: string | null; data: T }) => {
     const reply = typeof ack === 'function' ? (ack as (result: Ack<T>) => void) : () => {};
     try {
@@ -73,14 +82,14 @@ export function registerHandlers(io: GameServer, socket: GameSocket, rooms: Room
 
   socket.on('room:create', (request, ack) =>
     respond(ack, () => {
-      const result = rooms.create(socket.id, request);
+      const result = rooms.create(socket.id, request, identify(request?.authToken));
       return { code: result.code, data: result };
     }),
   );
 
   socket.on('room:join', (request, ack) =>
     respond(ack, () => {
-      const result = rooms.join(socket.id, request);
+      const result = rooms.join(socket.id, request, identify(request?.authToken));
       return { code: result.code, data: result };
     }),
   );

@@ -36,6 +36,14 @@ interface Seat {
   abilityId: string;
   readonly token: string;
   socketId: string | null;
+  /** 로그인 유저 id, 게스트는 null */
+  readonly userId: string | null;
+}
+
+/** 로그인한 참가자 (핸들러가 세션 토큰으로 확인해 넘긴다) */
+export interface SeatIdentity {
+  readonly userId: string;
+  readonly nickname: string;
 }
 
 interface Room {
@@ -50,8 +58,10 @@ interface Room {
 export interface RoomManagerOptions {
   readonly random?: () => number;
   readonly now?: () => number;
-  /** 대국이 끝났을 때 한 번 호출 (기록 저장용) */
-  readonly onGameEnd?: (game: GameState) => void;
+  /** 대국이 끝났을 때 한 번 호출 (기록·레이팅 반영용) */
+  readonly onGameEnd?: (game: GameState, players: Readonly<Record<Color, string | null>>) => void;
+  /** 스냅샷에 표시할 유저 레이팅 */
+  readonly ratingOf?: (userId: string) => number | null;
 }
 
 export interface SeatBinding {
@@ -64,21 +74,23 @@ export class RoomManager {
   private readonly socketSeats = new Map<string, { code: string; color: Color }>();
   private readonly random: () => number;
   private readonly now: () => number;
-  private readonly onGameEnd: (game: GameState) => void;
+  private readonly onGameEnd: NonNullable<RoomManagerOptions['onGameEnd']>;
+  private readonly ratingOf: NonNullable<RoomManagerOptions['ratingOf']>;
 
   constructor(options: RoomManagerOptions = {}) {
     this.random = options.random ?? Math.random;
     this.now = options.now ?? Date.now;
     this.onGameEnd = options.onGameEnd ?? (() => {});
+    this.ratingOf = options.ratingOf ?? (() => null);
   }
 
-  create(socketId: string, request: CreateRoomRequest): JoinResult {
+  create(socketId: string, request: CreateRoomRequest, identity: SeatIdentity | null = null): JoinResult {
     this.detach(socketId);
     const code = this.generateCode();
     const color = request.color === 'random' ? (this.random() < 0.5 ? 'w' : 'b') : request.color;
     if (!COLORS.includes(color)) throw new RoomError('잘못된 색 선택입니다');
 
-    const seat = this.createSeat(socketId, request.name, request.abilityId);
+    const seat = this.createSeat(socketId, request.name, request.abilityId, identity);
     const room: Room = {
       code,
       seats: { w: null, b: null, [color]: seat } as Record<Color, Seat | null>,
@@ -91,13 +103,14 @@ export class RoomManager {
     return { code, color, token: seat.token };
   }
 
-  join(socketId: string, request: JoinRoomRequest): JoinResult {
+  join(socketId: string, request: JoinRoomRequest, identity: SeatIdentity | null = null): JoinResult {
     const room = this.requireRoom(normalizeCode(request.code));
     const color = COLORS.find((c) => room.seats[c] === null);
     if (!color) throw new RoomError('방이 가득 찼습니다');
+    if (identity && COLORS.some((c) => room.seats[c]?.userId === identity.userId)) throw new RoomError('같은 계정으로 양쪽에 앉을 수 없습니다');
 
     this.detach(socketId);
-    const seat = this.createSeat(socketId, request.name, request.abilityId);
+    const seat = this.createSeat(socketId, request.name, request.abilityId, identity);
     room.seats[color] = seat;
     room.abandonedAt = null;
     this.socketSeats.set(socketId, { code: room.code, color });
@@ -192,7 +205,13 @@ export class RoomManager {
     const seatInfo = (color: Color) => {
       const seat = room.seats[color];
       return seat
-        ? { name: seat.name, abilityId: seat.abilityId, randomized: seat.choice === RANDOM_ABILITY, connected: seat.socketId !== null }
+        ? {
+            name: seat.name,
+            abilityId: seat.abilityId,
+            randomized: seat.choice === RANDOM_ABILITY,
+            connected: seat.socketId !== null,
+            rating: seat.userId ? this.ratingOf(seat.userId) : null,
+          }
         : null;
     };
     const status = !room.game ? 'waiting' : room.game.result.kind === 'ongoing' ? 'playing' : 'finished';
@@ -253,7 +272,9 @@ export class RoomManager {
   private updateGame(room: Room, next: GameState) {
     const wasOngoing = room.game?.result.kind === 'ongoing';
     room.game = next;
-    if (wasOngoing && next.result.kind !== 'ongoing') this.onGameEnd(next);
+    if (wasOngoing && next.result.kind !== 'ongoing') {
+      this.onGameEnd(next, { w: room.seats.w?.userId ?? null, b: room.seats.b?.userId ?? null });
+    }
   }
 
   private startGameIfReady(room: Room) {
@@ -268,10 +289,11 @@ export class RoomManager {
     if (this.socketSeats.has(socketId)) this.leave(socketId);
   }
 
-  private createSeat(socketId: string, rawName: string, abilityId: string): Seat {
+  private createSeat(socketId: string, rawName: string, abilityId: string, identity: SeatIdentity | null): Seat {
     if (!isAbilityChoice(abilityId)) throw new RoomError('존재하지 않는 능력입니다');
-    const name = String(rawName ?? '').trim().slice(0, NAME_MAX_LENGTH) || '플레이어';
-    return { name, choice: abilityId, abilityId, token: randomUUID(), socketId };
+    // 로그인 유저는 닉네임을 그대로 쓴다
+    const name = identity?.nickname ?? (String(rawName ?? '').trim().slice(0, NAME_MAX_LENGTH) || '게스트');
+    return { name, choice: abilityId, abilityId, token: randomUUID(), socketId, userId: identity?.userId ?? null };
   }
 
   private generateCode(): string {

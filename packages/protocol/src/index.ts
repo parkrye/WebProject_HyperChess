@@ -83,6 +83,39 @@ export interface StatsResponse {
   readonly matchups: readonly MatchupStat[];
 }
 
+/* ---------- 유저·랭킹 ---------- */
+
+export const NICKNAME_MIN_LENGTH = 2;
+export const NICKNAME_MAX_LENGTH = 16;
+export const PASSWORD_MIN_LENGTH = 4;
+/** 신규 유저와 게스트(고정)의 레이팅 */
+export const INITIAL_RATING = 1000;
+
+/** 온라인 대국 기준 공개 정보 */
+export interface PublicUser {
+  readonly id: string;
+  readonly nickname: string;
+  readonly rating: number;
+  readonly games: number;
+  readonly wins: number;
+  readonly draws: number;
+  readonly losses: number;
+}
+
+export interface AuthRequest {
+  readonly nickname: string;
+  readonly password: string;
+}
+
+export interface AuthResponse {
+  readonly token: string;
+  readonly user: PublicUser;
+}
+
+export interface RankingEntry extends PublicUser {
+  readonly rank: number;
+}
+
 export const ROOM_CODE_LENGTH = 5;
 export const NAME_MAX_LENGTH = 16;
 
@@ -95,6 +128,8 @@ export interface SeatInfo {
   /** 무작위로 결정된 능력인지 */
   readonly randomized: boolean;
   readonly connected: boolean;
+  /** 로그인 유저의 레이팅, 게스트는 null */
+  readonly rating: number | null;
 }
 
 export type RoomStatus = 'waiting' | 'playing' | 'finished';
@@ -123,12 +158,15 @@ export interface CreateRoomRequest {
   readonly name: string;
   readonly abilityId: string;
   readonly color: ColorPreference;
+  /** 로그인 세션 토큰 (없으면 게스트: 랭킹 미반영) */
+  readonly authToken?: string;
 }
 
 export interface JoinRoomRequest {
   readonly code: string;
   readonly name: string;
   readonly abilityId: string;
+  readonly authToken?: string;
 }
 
 export interface ResumeRequest {
