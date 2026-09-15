@@ -93,6 +93,7 @@ function stateKey(state: GameState): string {
     if (piece.title) key += piece.title[0];
     if (!piece.moved && (piece.type === 'k' || piece.type === 'r')) key += '*';
   }
+  for (const wall of state.walls) key += `#${wall.square}${wall.owner}${wall.turnsLeft}`;
   const { turnState, players, enPassant } = state;
   key += `|${state.turn}${enPassant?.target ?? '-'}${turnState.movesMade}${turnState.movesAllowed}${turnState.abilityUsed ? 'u' : ''}`;
   for (const color of ['w', 'b'] as const) {
