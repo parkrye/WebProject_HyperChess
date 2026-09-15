@@ -1,8 +1,15 @@
 import { IllegalActionError, type Action } from '@hyperchess/engine';
-import type { Ack, ClientToServerEvents, ServerToClientEvents } from '@hyperchess/protocol';
+import { isAbilityChoice, type Ack, type ClientToServerEvents, type ServerToClientEvents } from '@hyperchess/protocol';
 import type { Server, Socket } from 'socket.io';
 import { RoomError, type RoomManager, type SeatIdentity } from './rooms';
+import type { Matchmaker } from './matchmaking';
 import type { UserStore } from './users';
+
+export interface HandlerDeps {
+  readonly rooms: RoomManager;
+  readonly users: UserStore;
+  readonly matchmaker: Matchmaker;
+}
 
 type GameServer = Server<ClientToServerEvents, ServerToClientEvents>;
 type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
@@ -55,7 +62,7 @@ export function broadcastRoom(io: GameServer, rooms: RoomManager, code: string |
   scheduleClock(io, rooms, code);
 }
 
-export function registerHandlers(io: GameServer, socket: GameSocket, rooms: RoomManager, users: UserStore) {
+export function registerHandlers(io: GameServer, socket: GameSocket, { rooms, users, matchmaker }: HandlerDeps) {
   /** 세션 토큰이 있으면 유저로, 없으면 게스트로 참가. 토큰이 잘못되었으면 거부한다 */
   const identify = (authToken: unknown): SeatIdentity | null => {
     if (authToken === undefined || authToken === null || authToken === '') return null;
@@ -82,6 +89,7 @@ export function registerHandlers(io: GameServer, socket: GameSocket, rooms: Room
 
   socket.on('room:create', (request, ack) =>
     respond(ack, () => {
+      matchmaker.cancel(socket.id);
       const result = rooms.create(socket.id, request, identify(request?.authToken));
       return { code: result.code, data: result };
     }),
@@ -89,6 +97,7 @@ export function registerHandlers(io: GameServer, socket: GameSocket, rooms: Room
 
   socket.on('room:join', (request, ack) =>
     respond(ack, () => {
+      matchmaker.cancel(socket.id);
       const result = rooms.join(socket.id, request, identify(request?.authToken));
       return { code: result.code, data: result };
     }),
@@ -101,6 +110,23 @@ export function registerHandlers(io: GameServer, socket: GameSocket, rooms: Room
     }),
   );
 
+  socket.on('match:find', (request, ack) =>
+    respond(ack, () => {
+      if (!isAbilityChoice(String(request?.abilityId))) throw new RoomError('존재하지 않는 능력입니다');
+      const identity = identify(request.authToken);
+      const partner = matchmaker.enqueue({ socketId: socket.id, request, identity });
+      if (!partner) return { code: null, data: { matched: false } };
+
+      // 먼저 기다린 쪽이 방을 만들고 새로 온 쪽이 참가한다 (색은 무작위)
+      const host = rooms.create(partner.socketId, { ...partner.request, color: 'random' }, partner.identity);
+      const guest = rooms.join(socket.id, { ...request, code: host.code }, identity);
+      io.to(partner.socketId).emit('match:found', host);
+      socket.emit('match:found', guest);
+      return { code: host.code, data: { matched: true } };
+    }),
+  );
+  socket.on('match:cancel', () => matchmaker.cancel(socket.id));
+
   socket.on('game:action', (action, ack) =>
     respond(ack, () => {
       if (!isAction(action)) throw new RoomError('잘못된 요청입니다');
@@ -112,5 +138,8 @@ export function registerHandlers(io: GameServer, socket: GameSocket, rooms: Room
   socket.on('game:rematch', (ack) => respond(ack, () => ({ code: rooms.voteRematch(socket.id), data: null })));
 
   socket.on('room:leave', () => broadcastRoom(io, rooms, rooms.leave(socket.id)));
-  socket.on('disconnect', () => broadcastRoom(io, rooms, rooms.disconnect(socket.id)));
+  socket.on('disconnect', () => {
+    matchmaker.cancel(socket.id);
+    broadcastRoom(io, rooms, rooms.disconnect(socket.id));
+  });
 }

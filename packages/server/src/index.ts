@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { Server } from 'socket.io';
 import { createApiHandler } from './api';
 import { registerHandlers } from './handlers';
+import { Matchmaker } from './matchmaking';
 import { ResultStore } from './results';
 import { RoomManager } from './rooms';
 import { UserStore } from './users';
@@ -28,6 +29,7 @@ const rooms = new RoomManager({
   },
   ratingOf: (userId) => users.ratingOf(userId),
 });
+const matchmaker = new Matchmaker();
 const httpServer = createServer(createApiHandler({ results, users }, createStaticHandler(CLIENT_DIST)));
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
   // 개발 중 Vite(5173)에서 직접 붙는 경우 허용
@@ -35,7 +37,7 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
   maxHttpBufferSize: 64 * 1024,
 });
 
-io.on('connection', (socket) => registerHandlers(io, socket, rooms, users));
+io.on('connection', (socket) => registerHandlers(io, socket, { rooms, users, matchmaker }));
 
 setInterval(() => {
   const removed = rooms.sweep(ROOM_IDLE_MS);

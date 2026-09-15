@@ -169,6 +169,13 @@ export interface JoinRoomRequest {
   readonly authToken?: string;
 }
 
+/** 빠른 매칭: 짝이 지어지면 서버가 방을 만들어 match:found로 알린다 */
+export interface MatchRequest {
+  readonly name: string;
+  readonly abilityId: string;
+  readonly authToken?: string;
+}
+
 export interface ResumeRequest {
   readonly code: string;
   readonly token: string;
@@ -179,6 +186,9 @@ export interface ClientToServerEvents {
   'room:join': (request: JoinRoomRequest, ack: (result: Ack<JoinResult>) => void) => void;
   'room:resume': (request: ResumeRequest, ack: (result: Ack<JoinResult>) => void) => void;
   'room:leave': () => void;
+  /** matched: 바로 짝이 지어졌는지 (false면 대기열에서 기다림) */
+  'match:find': (request: MatchRequest, ack: (result: Ack<{ matched: boolean }>) => void) => void;
+  'match:cancel': () => void;
   'game:action': (action: Action, ack: (result: Ack<null>) => void) => void;
   'game:resign': (ack: (result: Ack<null>) => void) => void;
   'game:rematch': (ack: (result: Ack<null>) => void) => void;
@@ -188,4 +198,6 @@ export interface ServerToClientEvents {
   /** you: 이 소켓의 색 (재대결 시 색이 바뀔 수 있음) */
   'room:state': (snapshot: RoomSnapshot, you: Color) => void;
   'room:closed': (reason: string) => void;
+  /** 빠른 매칭 성사: 참가한 방 정보 */
+  'match:found': (result: JoinResult) => void;
 }
