@@ -11,8 +11,8 @@ const SOURCES: readonly { id: ResultSource; label: string }[] = [
   { id: 'simulation', label: '시뮬레이션' },
   { id: 'arena', label: 'AI 내전' },
   { id: 'ai', label: 'AI 대전' },
-  { id: 'local', label: '로컬 2인' },
-  { id: 'online', label: '온라인' },
+  { id: 'local', label: '로컬 플레이' },
+  { id: 'online', label: '멀티' },
 ];
 
 const NONE_LABEL = '능력 없음';

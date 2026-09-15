@@ -85,10 +85,12 @@ function Lobby({ room, onModeChange }: { room: OnlineRoom; onModeChange: (mode: 
       return next;
     });
 
+  // 로그인 유저는 세션 토큰으로 참가해 닉네임·레이팅이 쓰인다
+  const base = { name: prefs.name, abilityId: prefs.abilityId, ...(account ? { authToken: account.token } : {}) };
+
   const submit = async (kind: 'create' | 'join') => {
     setPending(true);
-    // 로그인 유저는 세션 토큰으로 참가해 닉네임·레이팅이 쓰인다
-    const base = { name: prefs.name, abilityId: prefs.abilityId, ...(account ? { authToken: account.token } : {}) };
+    if (room.matching) room.cancelMatch();
     if (kind === 'create') await room.create({ ...base, color });
     else await room.join({ ...base, code });
     setPending(false);
@@ -136,6 +138,8 @@ function Lobby({ room, onModeChange }: { room: OnlineRoom; onModeChange: (mode: 
           </strong>
         </div>
 
+        <QuickMatch room={room} disabled={disabled} onFind={() => void room.findMatch(base)} onModeChange={onModeChange} />
+
         <div className="online-actions">
           <div className="online-card">
             <h3>방 만들기</h3>
@@ -170,6 +174,86 @@ function Lobby({ room, onModeChange }: { room: OnlineRoom; onModeChange: (mode: 
 
       <AbilityGrid label="내 능력 선택" selected={prefs.abilityId} onSelect={(abilityId) => update({ abilityId })} />
     </main>
+  );
+}
+
+/* ---------- 빠른 매칭 ---------- */
+
+/** 이 시간마다 상대를 못 찾으면 싱글 플레이를 권한다 */
+const MATCH_SUGGEST_MS = 30_000;
+
+const formatElapsed = (ms: number) => {
+  const seconds = Math.floor(ms / 1000);
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+};
+
+interface QuickMatchProps {
+  readonly room: OnlineRoom;
+  readonly disabled: boolean;
+  readonly onFind: () => void;
+  readonly onModeChange: (mode: GameMode) => void;
+}
+
+function QuickMatch({ room, disabled, onFind, onModeChange }: QuickMatchProps) {
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const [suggest, setSuggest] = useState(false);
+  const { matching } = room;
+
+  useEffect(() => {
+    setElapsedMs(0);
+    setSuggest(false);
+    if (!matching) return;
+    const startedAt = Date.now();
+    let nextSuggestAt = MATCH_SUGGEST_MS;
+    const timer = window.setInterval(() => {
+      const elapsed = Date.now() - startedAt;
+      setElapsedMs(elapsed);
+      if (elapsed < nextSuggestAt) return;
+      setSuggest(true);
+      nextSuggestAt += MATCH_SUGGEST_MS;
+    }, 250);
+    return () => window.clearInterval(timer);
+  }, [matching]);
+
+  const goSingle = () => {
+    room.cancelMatch();
+    onModeChange('single');
+  };
+
+  return (
+    <div className="online-card quick-match">
+      <h3>빠른 매칭</h3>
+      {/* 대기 전후로 같은 두 줄 구조를 유지해 높이가 변하지 않게 한다 */}
+      <p className="quick-match-status" aria-live="polite">
+        {matching ? `상대를 찾는 중… ${formatElapsed(elapsedMs)}` : '먼저 기다리던 상대와 바로 대국합니다'}
+      </p>
+      {matching ? (
+        <button type="button" className="btn btn-ghost" onClick={room.cancelMatch}>
+          매칭 취소
+        </button>
+      ) : (
+        <button type="button" className="btn btn-primary" disabled={disabled} onClick={onFind}>
+          대국 찾기
+        </button>
+      )}
+
+      {suggest && matching && (
+        <div className="dialog-backdrop">
+          <div className="dialog" role="dialog" aria-label="싱글 플레이 권유">
+            <h2>상대를 찾지 못했어요</h2>
+            <p>{formatElapsed(elapsedMs)} 동안 기다렸어요. 기다리는 동안 싱글 플레이를 해 보시겠어요?</p>
+            <div className="dialog-actions">
+              <button type="button" className="btn btn-primary" onClick={goSingle}>
+                싱글 플레이로
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => setSuggest(false)}>
+                계속 기다리기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

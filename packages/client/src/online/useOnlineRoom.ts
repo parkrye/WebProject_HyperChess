@@ -5,6 +5,7 @@ import type {
   CreateRoomRequest,
   JoinResult,
   JoinRoomRequest,
+  MatchRequest,
   RoomSnapshot,
   ServerToClientEvents,
 } from '@hyperchess/protocol';
@@ -57,6 +58,8 @@ export function useOnlineRoom() {
   const [you, setYou] = useState<Color | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [resuming, setResuming] = useState(() => loadSession() !== null);
+  /** 빠른 매칭 대기 중 */
+  const [matching, setMatching] = useState(false);
 
   useEffect(() => {
     const socket: GameSocket = io({ transports: ['websocket', 'polling'] });
@@ -78,7 +81,11 @@ export function useOnlineRoom() {
         setResuming(false);
       }
     });
-    socket.on('disconnect', () => setConnected(false));
+    socket.on('disconnect', () => {
+      setConnected(false);
+      // 연결이 끊기면 서버 대기열에서도 빠진다
+      setMatching(false);
+    });
     socket.on('room:state', (next, color) => {
       setSnapshot(next);
       setYou(color);
@@ -111,6 +118,19 @@ export function useOnlineRoom() {
     setYou(result.color);
   }, []);
 
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket) return;
+    const onFound = (result: JoinResult) => {
+      setMatching(false);
+      enter(result);
+    };
+    socket.on('match:found', onFound);
+    return () => {
+      socket.off('match:found', onFound);
+    };
+  }, [enter]);
+
   return {
     connected,
     resuming,
@@ -120,6 +140,16 @@ export function useOnlineRoom() {
     clearError: () => setError(null),
     create: async (req: CreateRoomRequest) => enter(await run((s) => s.emitWithAck('room:create', req))),
     join: async (req: JoinRoomRequest) => enter(await run((s) => s.emitWithAck('room:join', req))),
+    matching,
+    findMatch: async (req: MatchRequest) => {
+      const result = await run((s) => s.emitWithAck('match:find', req));
+      // 바로 짝이 지어졌으면 match:found가 이미 처리한다
+      if (result && !result.matched) setMatching(true);
+    },
+    cancelMatch: () => {
+      socketRef.current?.emit('match:cancel');
+      setMatching(false);
+    },
     act: (action: Action) => run((s) => s.emitWithAck('game:action', action)),
     resign: () => run((s) => s.emitWithAck('game:resign')),
     rematch: () => run((s) => s.emitWithAck('game:rematch')),
