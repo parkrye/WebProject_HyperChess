@@ -180,6 +180,15 @@ button {
 .data-table tbody tr:last-child > * {
   border-bottom: none;
 }
+.stats-tabs {
+  width: min(100%, 640px);
+  margin: 0 auto;
+}
+.stats-ability {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
 .data-table tr.is-me {
   background: color-mix(in srgb, var(--accent) 22%, transparent);
 }

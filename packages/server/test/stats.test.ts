@@ -34,13 +34,15 @@ describe('computeStats', () => {
 
   it('분류별 합계: 대전은 로컬·멀티, AI 내전은 시뮬레이션 포함', () => {
     const extra = [record('haste', 'rewind', 'w', { source: 'local' }), record('haste', 'rewind', null, { source: 'ai' })];
-    const summary = summarizeCategories([...records, ...extra]);
+    const summary = summarizeCategories([...records, ...extra]).map(({ abilities, ...rest }) => rest);
     expect(summary).toEqual([
       { category: 'all', games: 7, whiteWins: 3, blackWins: 2, draws: 2 },
       { category: 'versus', games: 2, whiteWins: 1, blackWins: 1, draws: 0 },
       { category: 'ai', games: 1, whiteWins: 0, blackWins: 0, draws: 1 },
       { category: 'arena', games: 4, whiteWins: 2, blackWins: 1, draws: 1 },
     ]);
+    const versusHaste = summarizeCategories([...records, ...extra])[1].abilities.find((a) => a.abilityId === 'haste');
+    expect(versusHaste).toEqual({ abilityId: 'haste', games: 2, wins: 1, draws: 0, losses: 1 });
   });
 
   it('출처·버전으로 거른다', () => {
