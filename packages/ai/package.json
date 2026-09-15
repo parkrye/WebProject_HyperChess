@@ -11,7 +11,8 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "balance": "tsx tools/balance.ts"
+    "balance": "tsx tools/balance.ts",
+    "tune": "tsx tools/tune.ts"
   },
   "dependencies": {
     "@hyperchess/engine": "*"
