@@ -1,13 +1,13 @@
 import type { Difficulty } from '@hyperchess/ai';
 import type { Color } from '@hyperchess/engine';
-import { RANDOM_ABILITY, resolveAbilityChoice, type GameRecordInput } from '@hyperchess/protocol';
+import { RANDOM_ABILITY, resolveAbilityChoice, toGameRecord, type GameRecordInput } from '@hyperchess/protocol';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { abilityName, COLOR_NAME, DIFFICULTY_LABEL, resultText } from '../abilityUi/text';
 import { useAiPlayers } from '../ai/useAiOpponent';
 import { AbilityReveal } from '../components/AbilityReveal';
 import { GameView } from '../components/GameView';
 import { useLocalGame } from '../game/useGame';
-import { reportResult, toGameRecord } from '../stats/reportResult';
+import { reportResult } from '../stats/reportResult';
 
 export interface ArenaConfig {
   /** 능력 선택값 (무작위면 대국마다 새로 뽑는다) */

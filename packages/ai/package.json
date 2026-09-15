@@ -17,6 +17,7 @@
     "@hyperchess/engine": "*"
   },
   "devDependencies": {
+    "@hyperchess/protocol": "*",
     "tsx": "*"
   }
 }

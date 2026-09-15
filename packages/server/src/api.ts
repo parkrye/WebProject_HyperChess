@@ -1,5 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { ResultSource } from '@hyperchess/protocol';
 import { parseGameRecord, type ResultStore } from './results';
+import { computeStats } from './stats';
 
 const MAX_BODY_BYTES = 8 * 1024;
 
@@ -32,11 +34,18 @@ async function postResult(req: IncomingMessage, res: ServerResponse, results: Re
 /** /api/* 요청을 처리하고, 나머지는 fallback(정적 파일)으로 넘긴다 */
 export function createApiHandler(results: ResultStore, fallback: HttpHandler): HttpHandler {
   return (req, res) => {
-    const path = (req.url ?? '/').split('?')[0];
+    const url = new URL(req.url ?? '/', 'http://localhost');
+    const path = url.pathname;
     if (!path.startsWith('/api/')) return fallback(req, res);
 
     if (path === '/api/results' && req.method === 'POST') {
       void postResult(req, res, results);
+      return;
+    }
+    if (path === '/api/stats' && req.method === 'GET') {
+      const sources = (url.searchParams.get('source') ?? '').split(',').filter(Boolean) as ResultSource[];
+      const version = Number(url.searchParams.get('version'));
+      sendJson(res, 200, computeStats(results.all(), { sources, version: Number.isInteger(version) && version > 0 ? version : undefined }));
       return;
     }
     sendJson(res, 404, { ok: false, error: '없는 API입니다' });

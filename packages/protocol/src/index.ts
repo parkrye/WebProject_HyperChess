@@ -35,6 +35,54 @@ export interface GameRecord extends GameRecordInput {
   readonly playedAt: number;
 }
 
+/** 끝난 게임 상태에서 대국 기록을 만든다 (진행 중이면 null) */
+export function toGameRecord(
+  state: GameState,
+  source: ResultSource,
+  difficulty?: Partial<Record<Color, string>>,
+): GameRecordInput | null {
+  const { result } = state;
+  if (result.kind === 'ongoing') return null;
+  return {
+    source,
+    balanceVersion: BALANCE_VERSION,
+    abilities: { w: state.players.w.abilityId, b: state.players.b.abilityId },
+    winner: result.kind === 'win' ? result.winner : null,
+    reason: result.reason,
+    plies: state.log.length,
+    ...(difficulty ? { difficulty } : {}),
+  };
+}
+
+export interface AbilityStat {
+  /** null은 능력 없음 */
+  readonly abilityId: string | null;
+  readonly games: number;
+  readonly wins: number;
+  readonly draws: number;
+  readonly losses: number;
+}
+
+/** abilityId 입장에서 본 opponentId 상대 전적 (같은 능력끼리는 제외) */
+export interface MatchupStat {
+  readonly abilityId: string | null;
+  readonly opponentId: string | null;
+  readonly games: number;
+  readonly wins: number;
+  readonly draws: number;
+}
+
+export interface StatsResponse {
+  readonly total: number;
+  readonly whiteWins: number;
+  readonly blackWins: number;
+  readonly draws: number;
+  readonly bySource: Readonly<Partial<Record<ResultSource, number>>>;
+  readonly versions: readonly number[];
+  readonly abilities: readonly AbilityStat[];
+  readonly matchups: readonly MatchupStat[];
+}
+
 export const ROOM_CODE_LENGTH = 5;
 export const NAME_MAX_LENGTH = 16;
 

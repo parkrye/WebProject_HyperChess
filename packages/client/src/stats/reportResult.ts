@@ -1,27 +1,7 @@
-import type { Color, GameState } from '@hyperchess/engine';
-import { BALANCE_VERSION, type GameRecordInput, type ResultSource } from '@hyperchess/protocol';
+import type { GameRecordInput } from '@hyperchess/protocol';
 
 const PENDING_KEY = 'hyperchess.pendingResults';
 const MAX_PENDING = 200;
-
-/** 끝난 게임 상태에서 대국 기록을 만든다 (진행 중이면 null) */
-export function toGameRecord(
-  state: GameState,
-  source: ResultSource,
-  difficulty?: Partial<Record<Color, string>>,
-): GameRecordInput | null {
-  const { result } = state;
-  if (result.kind === 'ongoing') return null;
-  return {
-    source,
-    balanceVersion: BALANCE_VERSION,
-    abilities: { w: state.players.w.abilityId, b: state.players.b.abilityId },
-    winner: result.kind === 'win' ? result.winner : null,
-    reason: result.reason,
-    plies: state.log.length,
-    ...(difficulty ? { difficulty } : {}),
-  };
-}
 
 function readPending(): GameRecordInput[] {
   try {
