@@ -116,7 +116,7 @@ Pixel art icon sheet for a cute noble superpower chess game UI, 2D subculture st
 
 ### 4-1b. 추가 능력 아이콘 (1×5)
 
-지금은 클라이언트가 벡터 배지(`AbilityIconView`)로 대신 그린다. 만든 뒤 셀을 잘라 `public/assets/icons/<능력 id>.png`로 넣고 `sprites.ts`의 `ICON_SPRITE`에 등록한다. 보석 색은 게임의 능력 대표 색과 맞춘다.
+적용 완료: `npm run import-assets -w @hyperchess/client -- --src <폴더> --only extra`가 `sprites/추가 능력 아이콘.png`를 잘라 `public/assets/icons/<능력 id>.png`로 넣는다. 보석 색은 게임의 능력 대표 색과 맞춘다.
 
 | 1 | 2 | 3 | 4 | 5 |
 |---|---|---|---|---|
@@ -187,7 +187,7 @@ Pixel art timer UI sheet for a cute noble superpower chess game, 2D subculture s
 
 ### 4-6. 성벽 오브젝트 (1×4)
 
-성벽 칸에 올라가는 오브젝트. 말과 같이 **오른쪽을 향하는 옆모습**으로 그린다(상대 진영 성벽은 코드에서 좌우 반전). 벽은 좌우 대칭이라 모델이 방향을 잘 못 잡으므로, 왼쪽 끝은 비스듬한 버팀벽·오른쪽 끝은 화살 구멍이 난 수직면·깃발은 오른쪽으로 날리게 해서 방향을 드러낸다. 그래도 왼쪽을 향해 나오면 **좌우 반전해서 저장**한다(픽셀 아트라 반전해도 품질 손실 없음). 지금은 CSS 벽돌 무늬로 그린다(`board.css`의 `.wall-body`). 남은 턴 숫자는 게임이 겹쳐 표시하므로 그리지 않는다.
+성벽 칸에 올라가는 오브젝트. 말과 같이 **오른쪽을 향하는 옆모습**으로 그린다(상대 진영 성벽은 코드에서 좌우 반전). 벽은 좌우 대칭이라 모델이 방향을 잘 못 잡으므로, 왼쪽 끝은 비스듬한 버팀벽·오른쪽 끝은 화살 구멍이 난 수직면·깃발은 오른쪽으로 날리게 해서 방향을 드러낸다. 그래도 왼쪽을 향해 나오면 **좌우 반전해서 저장**한다(픽셀 아트라 반전해도 품질 손실 없음). 적용 완료(`sprites/성벽 오브젝트.png` → `public/assets/board/wall*.png`). 마지막 턴에는 금 간 성벽, 사라질 때 무너지는 컷을 쓰고 잔해 컷은 아직 쓰지 않는다. 남은 턴 숫자는 게임이 겹쳐 표시하므로 그리지 않는다.
 
 | 1 | 2 | 3 | 4 |
 |---|---|---|---|
@@ -200,7 +200,7 @@ Pixel art board object sheet for a cute noble superpower chess game, 2D subcultu
 
 ### 4-7. 추가 능력 이펙트 스프라이트 (4×4, 행마다 4프레임)
 
-새 능력 연출용. 지금은 CSS로 대신 그린다(`effects.css`의 `fx-sigil`·`fx-crosshair`·`fx-dust`, 세뇌는 `beam`+`hypnotize`).
+적용 완료(`sprites/추가 능력 이펙트 스프라이트.png` → `public/assets/fx/{sigil,hypnosis,crosshair,dust}.png`). 생성본은 5프레임에 완성 컷이 첫 칸에 있어, 가공 스크립트가 등장 → 절정 → 소멸 순으로 재배치한다.
 
 | 행 | 애니메이션 (1→4 프레임) | 쓰는 곳 |
 |---|---|---|
@@ -309,8 +309,8 @@ Instrumental defeat and draw music for a cute noble superpower chess game with 2
 | 4-4 이펙트 | `assets/fx/effects.png` | `burst-1`~`burst-4` 등 |
 | 4-5 타이머 | `assets/ui/timer.png` | `digit-0`~`digit-9`, `colon`, `hourglass`, `plate`, `plate-active`, `plate-warning`, `gauge` |
 | 4-1b 추가 아이콘 | `assets/icons/<능력 id>.png` | `alchemy`, `brainwash`, `wall`, `march`, `snipe` |
-| 4-6 성벽 | `assets/board/wall.png` | `wall`, `wall-cracked`, `wall-collapse`, `wall-rubble` |
-| 4-7 추가 이펙트 | `assets/fx/effects-extra.png` | `sigil-1`~`sigil-4`, `hypnosis-1`~`hypnosis-4`, `crosshair-1`~`crosshair-4`, `dust-1`~`dust-4` |
+| 4-6 성벽 | `assets/board/wall*.png` | `wall`, `wall-cracked`, `wall-collapse`, `wall-rubble` |
+| 4-7 추가 이펙트 | `assets/fx/<이름>.png` (5프레임 가로 스트립) | `sigil`, `hypnosis`, `crosshair`, `dust` |
 | 5 로고 | `assets/ui/logo.png` | — |
 | 6 BGM | `assets/bgm/<곡>.ogg` | `title`, `lobby`, `battle`, `tension`, `victory`, `defeat` |
 

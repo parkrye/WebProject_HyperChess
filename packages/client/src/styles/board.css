@@ -207,23 +207,28 @@
 }
 .wall-body {
   position: absolute;
-  inset: 7%;
-  border-radius: 3px;
-  border: 2px solid #3a2a18;
-  background:
-    linear-gradient(#3a2a18, #3a2a18) 0 33% / 100% 2px no-repeat,
-    linear-gradient(#3a2a18, #3a2a18) 0 66% / 100% 2px no-repeat,
-    linear-gradient(90deg, transparent 48%, #3a2a18 48% 52%, transparent 52%) 0 0 / 100% 33% no-repeat,
-    linear-gradient(90deg, transparent 23%, #3a2a18 23% 27%, transparent 27% 73%, #3a2a18 73% 77%, transparent 77%) 0 50% / 100% 33% no-repeat,
-    linear-gradient(90deg, transparent 48%, #3a2a18 48% 52%, transparent 52%) 0 100% / 100% 34% no-repeat,
-    linear-gradient(160deg, #d9b98a, #a07a4c 60%, #7d5b36);
-  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--wall-owner) 70%, transparent), 0 4px 0 rgb(0 0 0 / 35%);
+  inset: 0;
   animation: wall-rise 0.45s cubic-bezier(0.2, 1.3, 0.4, 1) backwards;
+}
+.wall-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  user-select: none;
+  /* 말처럼 칸보다 조금 크게, 바닥 기준으로 그린다 */
+  transform: scale(1.12);
+  transform-origin: 50% 90%;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--wall-owner) 70%, transparent));
+}
+.wall-img.face-left {
+  transform: scale(-1.12, 1.12);
 }
 .wall-turns {
   position: absolute;
-  right: -4px;
-  bottom: -4px;
+  right: 0;
+  bottom: 0;
   min-width: 1.3em;
   padding: 0 3px;
   border-radius: 999px;

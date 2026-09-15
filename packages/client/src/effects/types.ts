@@ -3,7 +3,7 @@ import type { AbilityIcon } from '../abilityUi/specs';
 
 export type OverlayKind =
   | 'ring' | 'pillar' | 'burst' | 'beam' | 'stamp' | 'flash' | 'speedlines' | 'clock' | 'scanlines' | 'shatter'
-  | 'sigil' | 'crosshair' | 'dust' | 'shockwave';
+  | 'sigil' | 'hypnosis' | 'crosshair' | 'dust' | 'shockwave' | 'wallFall';
 
 export interface OverlaySpec {
   readonly kind: OverlayKind;

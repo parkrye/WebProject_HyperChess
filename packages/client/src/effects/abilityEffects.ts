@@ -145,7 +145,7 @@ const brainwash: AbilityEffect = async (ctx) => {
 
   for (const from of trappingSquares(before.board, square, event.color)) stage.overlay({ kind: 'beam', square: from, to: square, color, duration: 1200 });
   if (id) stage.pieceFx(id, 'hypnotize');
-  stage.overlay({ kind: 'ring', square, color, duration: 1400 });
+  stage.overlay({ kind: 'hypnosis', square, color, duration: 1400 });
   await stage.wait(1100);
   stage.showBoard(after.board);
   if (id) stage.pieceFx(id, 'empower');

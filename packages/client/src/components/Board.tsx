@@ -14,7 +14,7 @@ import {
 } from '@hyperchess/engine';
 import type { CSSProperties } from 'react';
 import { abilityUi } from '../abilityUi/specs';
-import { badgeSprite, effectStripSprite, pieceSprite, type BadgeSprite, type EffectStrip } from '../assets/sprites';
+import { badgeSprite, effectStripSprite, pieceSprite, wallSprite, type BadgeSprite, type EffectStrip } from '../assets/sprites';
 import type { Overlay } from '../effects/types';
 import type { InteractionController } from '../game/useInteraction';
 import type { StageView } from '../game/useStage';
@@ -67,6 +67,7 @@ function effectStrip(overlay: Overlay): EffectStrip | null {
   if (overlay.kind === 'ring') return 'ring';
   if (overlay.kind === 'pillar') return 'pillar';
   if (overlay.kind === 'stamp' && overlay.icon === 'crown') return 'crown';
+  if (overlay.kind === 'sigil' || overlay.kind === 'hypnosis' || overlay.kind === 'crosshair' || overlay.kind === 'dust') return overlay.kind;
   return null;
 }
 
@@ -113,6 +114,14 @@ function OverlayView({ overlay, leftColor }: { overlay: Overlay; leftColor: Colo
       transform: `rotate(${Math.atan2(dy, dx)}rad)`,
     };
     return <div className="fx fx-beam" style={beamStyle} />;
+  }
+
+  if (overlay.kind === 'wallFall') {
+    return (
+      <div className="fx fx-wall-fall fx-square" style={placed}>
+        <img className={`wall-img ${overlay.side && overlay.side !== leftColor ? 'face-left' : ''}`} src={wallSprite('wall-collapse')} alt="" draggable={false} />
+      </div>
+    );
   }
 
   if (overlay.kind === 'shatter' && overlay.piece) {
@@ -203,8 +212,14 @@ export function Board({ state, stage, interaction, leftColor, busy }: BoardProps
             '--wall-owner': abilityUi(state.players[wall.owner].abilityId ?? '').color,
           } as CSSProperties;
           return (
-            <div key={`wall-${wall.square}-${wall.owner}`} className={`wall wall-${wall.owner}`} style={wallStyle} title={`성벽 · ${wall.turnsLeft}턴 남음`}>
+            <div key={`wall-${wall.square}-${wall.owner}`} className="wall" style={wallStyle} title={`성벽 · ${wall.turnsLeft}턴 남음`}>
               <div className="wall-body">
+                <img
+                  className={`wall-img ${wall.owner !== leftColor ? 'face-left' : ''}`}
+                  src={wallSprite(wall.turnsLeft === 1 ? 'wall-cracked' : 'wall')}
+                  alt=""
+                  draggable={false}
+                />
                 <span className="wall-turns">{wall.turnsLeft}</span>
               </div>
             </div>

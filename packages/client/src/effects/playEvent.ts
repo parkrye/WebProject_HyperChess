@@ -25,6 +25,7 @@ async function playMove({ stage, event, before, after }: EffectContext): Promise
   // 수명이 다한 성벽은 흙먼지를 남기고 무너진다
   for (const wall of before.walls) {
     if (after.walls.some((w) => w.square === wall.square)) continue;
+    stage.overlay({ kind: 'wallFall', square: wall.square, side: wall.owner, color: abilityUi('wall').color, duration: 700 });
     stage.overlay({ kind: 'dust', square: wall.square, color: abilityUi('wall').color, duration: 700 });
   }
   if (before.walls.length !== after.walls.length) stage.showWalls(after.walls);

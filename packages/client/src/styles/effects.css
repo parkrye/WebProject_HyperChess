@@ -202,48 +202,11 @@
   }
 }
 
-/* 연금술: 서로 반대로 도는 원과 마름모 문양 */
-.fx-sigil::before,
-.fx-sigil::after {
-  content: '';
-  position: absolute;
-  inset: -20%;
-  border: 2px dashed var(--fx-color);
-  border-radius: 50%;
-  box-shadow: 0 0 12px var(--fx-color);
-  animation: sigil-spin var(--fx-duration) ease-out forwards;
-}
-.fx-sigil::after {
-  inset: 8%;
-  border-style: solid;
-  border-radius: 0;
-  transform: rotate(45deg);
-  animation-name: sigil-spin-reverse;
-}
+/* 연금술 문양·세뇌 소용돌이·조준선·흙먼지는 스프라이트 스트립(fx/*.png)으로 그린다 */
 
-/* 저격: 조준선이 좁혀지며 고정 */
-.fx-crosshair::before {
-  content: '';
-  width: 80%;
-  height: 80%;
-  border-radius: 50%;
-  border: 2px solid var(--fx-color);
-  background:
-    linear-gradient(var(--fx-color), var(--fx-color)) center / 2px 100% no-repeat,
-    linear-gradient(var(--fx-color), var(--fx-color)) center / 100% 2px no-repeat;
-  box-shadow: 0 0 10px var(--fx-color);
-  animation: crosshair-lock var(--fx-duration) ease-out forwards;
-}
-
-/* 흙먼지 (성벽 설치·붕괴, 총진군 발소리) */
-.fx-dust::before {
-  content: '';
-  width: 110%;
-  height: 50%;
-  margin-top: 60%;
-  border-radius: 50%;
-  background: radial-gradient(ellipse, color-mix(in srgb, var(--fx-color) 75%, transparent), transparent 70%);
-  animation: dust var(--fx-duration) ease-out forwards;
+/* 수명이 다한 성벽: 무너지는 컷이 가라앉으며 사라진다 */
+.fx-wall-fall .wall-img {
+  animation: wall-fall var(--fx-duration) ease-in forwards;
 }
 
 /* 보드 전체가 한 번 울리는 충격파 */
@@ -254,59 +217,12 @@
   animation: flash var(--fx-duration) ease-out forwards;
 }
 
-@keyframes sigil-spin {
+@keyframes wall-fall {
   from {
-    transform: scale(0.2) rotate(0deg);
-    opacity: 0;
-  }
-  30% {
-    transform: scale(1) rotate(120deg);
     opacity: 1;
   }
   to {
-    transform: scale(1.1) rotate(360deg);
-    opacity: 0;
-  }
-}
-@keyframes sigil-spin-reverse {
-  from {
-    transform: scale(0.2) rotate(45deg);
-    opacity: 0;
-  }
-  30% {
-    transform: scale(1) rotate(-75deg);
-    opacity: 1;
-  }
-  to {
-    transform: scale(1.1) rotate(-315deg);
-    opacity: 0;
-  }
-}
-@keyframes crosshair-lock {
-  0% {
-    transform: scale(2.6) rotate(-90deg);
-    opacity: 0;
-  }
-  55% {
-    transform: scale(1) rotate(0deg);
-    opacity: 1;
-  }
-  80% {
-    transform: scale(0.9);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(0.9);
-    opacity: 0;
-  }
-}
-@keyframes dust {
-  from {
-    transform: scale(0.4);
-    opacity: 1;
-  }
-  to {
-    transform: scale(1.6, 1.1) translateY(-20%);
+    translate: 0 25%;
     opacity: 0;
   }
 }

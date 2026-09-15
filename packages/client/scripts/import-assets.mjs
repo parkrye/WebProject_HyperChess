@@ -1,8 +1,9 @@
 /**
  * AI로 생성한 아트·BGM 원본을 게임용 에셋으로 가공한다.
  *
- * 사용: npm run import-assets -w @hyperchess/client -- --src "C:/Users/me/Downloads"
+ * 사용: npm run import-assets -w @hyperchess/client -- --src "C:/Users/me/Downloads" [--only extra]
  *   --src 폴더 아래 sprites/ (png), bgms/ (mp3) 를 읽어 public/assets/ 에 쓴다.
+ *   --only extra: 추가 능력 시트(아이콘·성벽·이펙트)만 가공한다
  *
  * 처리 내용
  *   - 그리드 시트: 셀마다 실제 그림 영역을 찾아 잘라내고 같은 배율로 맞춘다
@@ -21,6 +22,8 @@ const argIndex = process.argv.indexOf('--src');
 const SRC = argIndex >= 0 ? process.argv[argIndex + 1] : join(process.env.USERPROFILE ?? '', 'Downloads');
 const SPRITES = join(SRC, 'sprites');
 const BGMS = join(SRC, 'bgms');
+const onlyIndex = process.argv.indexOf('--only');
+const ONLY = onlyIndex >= 0 ? process.argv[onlyIndex + 1] : null;
 
 /* ---------- 원시 이미지 도우미 ---------- */
 
@@ -101,18 +104,16 @@ const toSharp = (img) => sharp(img.data, { raw: { width: img.width, height: img.
  * 그리드 시트를 셀 단위로 가공한다.
  * 모든 셀에 같은 배율을 적용해 그림 크기 비율을 유지하고, size×size 캔버스에 배치한다.
  */
-async function sliceSheet({ file, cols, rows, names, size, padding = 0.06, align = 'bottom', minSpeckRatio = 0.05, alphaThreshold = 150 }) {
+async function sliceSheet({ file, cols, rows, names, size, padding = 0.06, align = 'bottom', minSpeckRatio = 0.05, alphaThreshold = 150, byContent = false }) {
   const sheet = await load(join(SPRITES, file));
-  const cellW = sheet.width / cols;
-  const cellH = sheet.height / rows;
+  const rects = byContent ? contentGrid(sheet, cols, rows, alphaThreshold) : uniformGrid(sheet, cols, rows);
   const cells = [];
 
   for (let index = 0; index < cols * rows; index++) {
     const name = names[index];
     if (!name) continue;
-    const col = index % cols;
-    const row = Math.floor(index / cols);
-    const cell = crop(sheet, Math.round(col * cellW), Math.round(row * cellH), Math.floor(cellW), Math.floor(cellH));
+    const { x, y, w, h } = rects[index];
+    const cell = crop(sheet, x, y, w, h);
     removeSpecks(binarizeAlpha(cell, alphaThreshold), minSpeckRatio);
     const bounds = opaqueBounds(cell);
     if (!bounds) throw new Error(`${file} ${name}: 빈 셀`);
@@ -137,22 +138,114 @@ async function sliceSheet({ file, cols, rows, names, size, padding = 0.06, align
   console.log(`  ${file}: ${cells.length}개`);
 }
 
-/** 가로 스트립(프레임 애니메이션): 행마다 frames개의 셀을 frameSize 정사각형으로 이어 붙인다 */
-async function sliceStrips({ file, cols, rows, names, frameSize, alphaThreshold = 160, minSpeckRatio = 0.08 }) {
-  const sheet = await load(join(SPRITES, file));
+function uniformGrid(sheet, cols, rows) {
   const cellW = sheet.width / cols;
   const cellH = sheet.height / rows;
+  return Array.from({ length: cols * rows }, (_, index) => ({
+    x: Math.round((index % cols) * cellW),
+    y: Math.round(Math.floor(index / cols) * cellH),
+    w: Math.floor(cellW),
+    h: Math.floor(cellH),
+  }));
+}
+
+/** 그림이 있는 줄·칸 구간. 빈 틈이 가장 좁은 곳부터 합쳐 count개로 맞춘다 */
+function contentRuns(counts, count) {
+  const runs = [];
+  counts.forEach((value, i) => {
+    const last = runs[runs.length - 1];
+    if (value === 0) return;
+    if (last && last.end === i - 1) last.end = i;
+    else runs.push({ start: i, end: i });
+  });
+  while (runs.length > count) {
+    let merge = 0;
+    for (let i = 1; i < runs.length - 1; i++) {
+      if (runs[i + 1].start - runs[i].end < runs[merge + 1].start - runs[merge].end) merge = i;
+    }
+    runs.splice(merge, 2, { start: runs[merge].start, end: runs[merge + 1].end });
+  }
+  if (runs.length !== count) throw new Error(`그림 구간이 ${runs.length}개라 ${count}개로 나눌 수 없음`);
+  return runs;
+}
+
+/**
+ * 셀 간격이 고르지 않거나 그림이 셀 경계를 넘는 시트: 실제 그림 구간을 찾아
+ * 구간 사이 빈 틈의 가운데를 경계로 삼는다
+ */
+function contentGrid(sheet, cols, rows, alphaThreshold) {
+  const colCounts = new Array(sheet.width).fill(0);
+  const rowCounts = new Array(sheet.height).fill(0);
+  for (let y = 0; y < sheet.height; y++) {
+    for (let x = 0; x < sheet.width; x++) {
+      if (sheet.data[(y * sheet.width + x) * 4 + 3] < alphaThreshold) continue;
+      colCounts[x]++;
+      rowCounts[y]++;
+    }
+  }
+  const edges = (runs, length) =>
+    runs.map((run, i) => ({
+      start: i === 0 ? 0 : Math.floor((runs[i - 1].end + run.start) / 2),
+      end: i === runs.length - 1 ? length : Math.floor((run.end + runs[i + 1].start) / 2),
+    }));
+  const xs = edges(contentRuns(colCounts, cols), sheet.width);
+  const ys = edges(contentRuns(rowCounts, rows), sheet.height);
+  return Array.from({ length: cols * rows }, (_, index) => {
+    const cx = xs[index % cols];
+    const cy = ys[Math.floor(index / cols)];
+    return { x: cx.start, y: cy.start, w: cx.end - cx.start, h: cy.end - cy.start };
+  });
+}
+
+/** 가로 스트립(프레임 애니메이션): 행마다 frames개의 셀을 frameSize 정사각형으로 이어 붙인다 */
+/** 그림 영역 중심에 맞춘 정사각형으로 자른다 (넘치는 곳은 투명) */
+function squareAroundContent(img) {
+  const bounds = opaqueBounds(img) ?? { x: 0, y: 0, w: img.width, h: img.height };
+  const side = Math.max(bounds.w, bounds.h);
+  const left = Math.round(bounds.x + bounds.w / 2 - side / 2);
+  const top = Math.round(bounds.y + bounds.h / 2 - side / 2);
+  const data = Buffer.alloc(side * side * 4);
+  for (let y = 0; y < side; y++) {
+    const sy = top + y;
+    if (sy < 0 || sy >= img.height) continue;
+    for (let x = 0; x < side; x++) {
+      const sx = left + x;
+      if (sx < 0 || sx >= img.width) continue;
+      img.data.copy(data, (y * side + x) * 4, (sy * img.width + sx) * 4, (sy * img.width + sx) * 4 + 4);
+    }
+  }
+  return { data, width: side, height: side };
+}
+
+/**
+ * order: 행마다 원본 칸 순서를 재배치 (생성 모델이 완성 컷을 첫 칸에 두는 경우)
+ * byContent면 행 안의 모든 프레임을 같은 크기 정사각형으로 맞춰 크기 변화가 유지되게 한다
+ */
+async function sliceStrips({ file, cols, rows, names, frameSize, alphaThreshold = 160, minSpeckRatio = 0.08, byContent = false, order = null }) {
+  const sheet = await load(join(SPRITES, file));
+  const rects = byContent ? contentGrid(sheet, cols, rows, alphaThreshold) : uniformGrid(sheet, cols, rows);
   for (let row = 0; row < rows; row++) {
     const frames = [];
     for (let col = 0; col < cols; col++) {
-      const cell = crop(sheet, Math.round(col * cellW), Math.round(row * cellH), Math.floor(cellW), Math.floor(cellH));
+      const { x, y, w, h } = rects[row * cols + (order ? order[row][col] : col)];
+      const cell = crop(sheet, x, y, w, h);
       removeSpecks(binarizeAlpha(cell, alphaThreshold), minSpeckRatio);
-      const side = Math.min(cell.width, cell.height);
-      const square = crop(cell, Math.floor((cell.width - side) / 2), Math.floor((cell.height - side) / 2), side, side);
-      frames.push(await toSharp(square).resize(frameSize, frameSize, { kernel: 'lanczos3' }).png().toBuffer());
+      const square = byContent
+        ? squareAroundContent(cell)
+        : crop(cell, Math.floor((cell.width - Math.min(cell.width, cell.height)) / 2), Math.floor((cell.height - Math.min(cell.width, cell.height)) / 2), Math.min(cell.width, cell.height), Math.min(cell.width, cell.height));
+      frames.push(square);
+    }
+    // 한 행의 프레임은 가장 큰 프레임 기준 같은 배율로 줄인다 (작은 프레임은 가운데 배치)
+    const maxSide = Math.max(...frames.map((f) => f.width));
+    const buffers = [];
+    for (const frame of frames) {
+      const scaled = Math.max(1, Math.round((frame.width / maxSide) * frameSize));
+      const resized = await toSharp(frame).resize(scaled, scaled, { kernel: 'lanczos3' }).png().toBuffer();
+      const offset = Math.floor((frameSize - scaled) / 2);
+      buffers.push(await sharp({ create: { width: frameSize, height: frameSize, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).composite([{ input: resized, left: offset, top: offset }]).png().toBuffer());
     }
     await sharp({ create: { width: frameSize * cols, height: frameSize, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
-      .composite(frames.map((input, col) => ({ input, left: col * frameSize, top: 0 })))
+      .composite(buffers.map((input, col) => ({ input, left: col * frameSize, top: 0 })))
       .png({ compressionLevel: 9 })
       .toFile(join(OUT, `${names[row]}.png`));
   }
@@ -182,10 +275,32 @@ function measureFrameHole(img) {
 
 /* ---------- 실행 ---------- */
 
+/** 추가 능력(연금술·세뇌·성벽·총진군·저격) 시트. 셀 간격이 고르지 않아 그림 구간 기준으로 자른다 */
+async function importExtraAbilities() {
+  await sliceSheet({
+    file: '추가 능력 아이콘.png', cols: 5, rows: 1, size: 128, padding: 0.03, align: 'center', byContent: true,
+    names: ['alchemy', 'brainwash', 'wall', 'march', 'snipe'].map((n) => `icons/${n}`),
+  });
+  await sliceSheet({
+    file: '성벽 오브젝트.png', cols: 4, rows: 1, size: 256, byContent: true, minSpeckRatio: 0.002,
+    names: ['wall', 'wall-cracked', 'wall-collapse', 'wall-rubble'].map((n) => `board/${n}`),
+  });
+  await sliceStrips({
+    file: '추가 능력 이펙트 스프라이트.png', cols: 5, rows: 4, frameSize: 192, alphaThreshold: 110, minSpeckRatio: 0.01, byContent: true,
+    names: ['fx/sigil', 'fx/hypnosis', 'fx/crosshair', 'fx/dust'],
+    // 첫 칸이 완성 컷이라 등장 → 절정 → 소멸 순으로 재배치
+    order: [[1, 2, 0, 3, 4], [1, 2, 3, 0, 4], [1, 0, 2, 3, 4], [1, 0, 2, 3, 4]],
+  });
+}
+
 async function main() {
   if (!existsSync(SPRITES)) throw new Error(`스프라이트 폴더가 없습니다: ${SPRITES}`);
   for (const dir of ['', 'pieces', 'icons', 'badges', 'ui', 'fx', 'board', 'bg', 'bgm']) mkdirSync(join(OUT, dir), { recursive: true });
   console.log(`원본: ${SRC}`);
+  if (ONLY === 'extra') {
+    await importExtraAbilities();
+    return;
+  }
 
   await sliceSheet({
     file: '기본 말 + 왕족 상태.png', cols: 4, rows: 4, size: 256,
@@ -215,6 +330,7 @@ async function main() {
     file: '능력 이펙트 스프라이트.png', cols: 5, rows: 4, frameSize: 192,
     names: ['fx/burst', 'fx/ring', 'fx/pillar', 'fx/crown'],
   });
+  await importExtraAbilities();
 
   // 로고: 후광 제거, 떨어진 반짝이는 유지
   const logo = removeSpecks(binarizeAlpha(await load(join(SPRITES, '로고.png')), 170), 0.0004);

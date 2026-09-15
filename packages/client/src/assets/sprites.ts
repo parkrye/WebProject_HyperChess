@@ -27,8 +27,8 @@ export function pieceSprite(piece: Piece, rules: PlayerRules): string {
   return standardPieceSprite(type, color);
 }
 
-/** 능력 아이콘 이름 → 아이콘 스프라이트 (아트가 아직 없는 아이콘은 AbilityIconView가 벡터로 그린다) */
-const ICON_SPRITE: Readonly<Partial<Record<AbilityIcon, string>>> = {
+/** 능력 아이콘 이름 → 아이콘 스프라이트 */
+const ICON_SPRITE: Readonly<Record<AbilityIcon, string>> = {
   telekinesis: 'telekinesis',
   haste: 'haste',
   teleport: 'teleport',
@@ -41,12 +41,18 @@ const ICON_SPRITE: Readonly<Partial<Record<AbilityIcon, string>>> = {
   crown: 'empress',
   heir: 'heir',
   random: 'random',
+  alchemy: 'alchemy',
+  brainwash: 'brainwash',
+  wall: 'wall',
+  march: 'march',
+  snipe: 'snipe',
 };
 
-export const abilityIconSprite = (icon: AbilityIcon): string | null => {
-  const name = ICON_SPRITE[icon];
-  return name ? `${ASSETS}/icons/${name}.png` : null;
-};
+export const abilityIconSprite = (icon: AbilityIcon) => `${ASSETS}/icons/${ICON_SPRITE[icon]}.png`;
+
+/** 성벽 상태: 평소 · 마지막 턴(금 감) · 무너지는 중 */
+export type WallSprite = 'wall' | 'wall-cracked' | 'wall-collapse';
+export const wallSprite = (state: WallSprite) => `${ASSETS}/board/${state}.png`;
 
 export type UiIcon = 'none' | 'random' | 'settings' | 'flip' | 'exit';
 export const uiIconSprite = (icon: UiIcon) => `${ASSETS}/icons/${icon}.png`;
@@ -62,6 +68,6 @@ export const uiSprite = {
 } as const;
 
 /** 가로 스트립 이펙트 (5프레임) */
-export type EffectStrip = 'burst' | 'ring' | 'pillar' | 'crown';
+export type EffectStrip = 'burst' | 'ring' | 'pillar' | 'crown' | 'sigil' | 'hypnosis' | 'crosshair' | 'dust';
 export const EFFECT_FRAMES = 5;
 export const effectStripSprite = (strip: EffectStrip) => `${ASSETS}/fx/${strip}.png`;
