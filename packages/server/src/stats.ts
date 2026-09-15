@@ -1,4 +1,4 @@
-import type { AbilityStat, GameRecord, MatchupStat, ResultSource, StatsResponse } from '@hyperchess/protocol';
+import { STATS_CATEGORIES, type AbilityStat, type CategorySummary, type GameRecord, type MatchupStat, type ResultSource, type StatsResponse } from '@hyperchess/protocol';
 
 export interface StatsFilter {
   /** 비어 있으면 전체 출처 */
@@ -69,6 +69,14 @@ export function computeStats(records: readonly GameRecord[], filter: StatsFilter
       return { abilityId: fromKey(self), opponentId: fromKey(other), games: t.games, wins: t.wins, draws: t.draws };
     }),
   };
+}
+
+/** 분류별 판 수와 백·흑 승, 무승부 합계 (전 버전 합산) */
+export function summarizeCategories(records: readonly GameRecord[]): CategorySummary[] {
+  return STATS_CATEGORIES.map(({ id, sources }) => {
+    const { total, whiteWins, blackWins, draws } = computeStats(records, { sources });
+    return { category: id, games: total, whiteWins, blackWins, draws };
+  });
 }
 
 function getOrCreate(map: Map<string, Tally>, id: string): Tally {

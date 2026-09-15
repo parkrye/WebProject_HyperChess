@@ -2,7 +2,7 @@ import type { Difficulty } from '@hyperchess/ai';
 import type { Color } from '@hyperchess/engine';
 import { RANDOM_ABILITY, resolveAbilityChoice, toGameRecord, type GameRecordInput } from '@hyperchess/protocol';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { abilityName, COLOR_NAME, DIFFICULTY_LABEL, resultText } from '../abilityUi/text';
+import { COLOR_NAME, DIFFICULTY_LABEL, resultText } from '../abilityUi/text';
 import { useAiPlayers } from '../ai/useAiOpponent';
 import { AbilityReveal } from '../components/AbilityReveal';
 import { GameView } from '../components/GameView';
@@ -25,7 +25,6 @@ const SPEEDS: readonly { id: Speed; label: string }[] = [
 ];
 const AI_THINK_MS = 450;
 const NEXT_GAME_MS = 3000;
-const RECENT_LIMIT = 8;
 
 interface Tally {
   readonly games: number;
@@ -57,7 +56,6 @@ export function ArenaScreen({ config, onMenu }: ArenaScreenProps) {
   const [continuous, setContinuous] = useState(true);
   const [finished, setFinished] = useState(false);
   const [tally, setTally] = useState<Tally>({ games: 0, w: 0, b: 0, draws: 0 });
-  const [recent, setRecent] = useState<readonly GameRecordInput[]>([]);
   const speedRef = useRef<number>(speed);
   speedRef.current = speed;
 
@@ -77,7 +75,6 @@ export function ArenaScreen({ config, onMenu }: ArenaScreenProps) {
       b: t.b + (record.winner === 'b' ? 1 : 0),
       draws: t.draws + (record.winner === null ? 1 : 0),
     }));
-    setRecent((list) => [record, ...list].slice(0, RECENT_LIMIT));
     void reportResult(record);
   }, []);
 
@@ -108,15 +105,6 @@ export function ArenaScreen({ config, onMenu }: ArenaScreenProps) {
       <p className="arena-tally">
         {tally.games}판 · 백 {tally.w}승 · 흑 {tally.b}승 · 무 {tally.draws}
       </p>
-      {recent.length > 0 && (
-        <ol className="arena-recent">
-          {recent.map((record, index) => (
-            <li key={tally.games - index}>
-              <RecordLine record={record} />
-            </li>
-          ))}
-        </ol>
-      )}
     </section>
   );
 
@@ -145,17 +133,6 @@ export function ArenaScreen({ config, onMenu }: ArenaScreenProps) {
       controls={controls}
       resultActions={resultActions}
     />
-  );
-}
-
-function RecordLine({ record }: { record: GameRecordInput }) {
-  const side = (color: Color) => (
-    <span className={record.winner === color ? 'arena-winner' : ''}>{abilityName(record.abilities[color] ?? 'random')}</span>
-  );
-  return (
-    <>
-      {side('w')} vs {side('b')} — {record.winner ? `${COLOR_NAME[record.winner]} 승` : '무승부'}
-    </>
   );
 }
 

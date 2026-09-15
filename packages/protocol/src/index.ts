@@ -72,6 +72,24 @@ export interface MatchupStat {
   readonly draws: number;
 }
 
+/** 통계 화면 분류: 전체 · 대전(로컬·멀티) · AI 대전 · AI 내전(시뮬레이션 포함) */
+export type StatsCategory = 'all' | 'versus' | 'ai' | 'arena';
+
+export const STATS_CATEGORIES: readonly { readonly id: StatsCategory; readonly sources: readonly ResultSource[] }[] = [
+  { id: 'all', sources: [] },
+  { id: 'versus', sources: ['local', 'online'] },
+  { id: 'ai', sources: ['ai'] },
+  { id: 'arena', sources: ['arena', 'simulation'] },
+];
+
+export interface CategorySummary {
+  readonly category: StatsCategory;
+  readonly games: number;
+  readonly whiteWins: number;
+  readonly blackWins: number;
+  readonly draws: number;
+}
+
 export interface StatsResponse {
   readonly total: number;
   readonly whiteWins: number;

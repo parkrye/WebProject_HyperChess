@@ -3,14 +3,19 @@ import { useState, type FormEvent } from 'react';
 import { useBgm } from '../audio/bgm';
 import { loginUser, registerUser } from '../auth/api';
 import { useSession } from '../auth/session';
-import { Hero } from '../components/ModeTabs';
+import { Page } from '../components/Page';
 
-type Tab = 'register' | 'login';
+type Tab = 'login' | 'register';
 
-/** 처음 실행하면 게스트 · 새 계정 · 로그인 중 하나로 시작한다 */
-export function WelcomeScreen() {
+interface WelcomeScreenProps {
+  readonly onDone: () => void;
+  readonly onBack: () => void;
+}
+
+/** 로그인 · 새 계정 · 게스트 중 하나로 시작한다 */
+export function WelcomeScreen({ onDone, onBack }: WelcomeScreenProps) {
   const { startAsGuest, signIn } = useSession();
-  const [tab, setTab] = useState<Tab>('register');
+  const [tab, setTab] = useState<Tab>('login');
   const [nickname, setNickname] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -23,23 +28,27 @@ export function WelcomeScreen() {
     setPending(true);
     setError(null);
     try {
-      const auth = await (tab === 'register' ? registerUser : loginUser)({ nickname, password });
-      signIn(auth);
+      signIn(await (tab === 'register' ? registerUser : loginUser)({ nickname, password }));
+      onDone();
     } catch (e) {
       setError(e instanceof Error ? e.message : '요청을 처리하지 못했어요');
       setPending(false);
     }
   };
 
+  const guest = () => {
+    startAsGuest();
+    onDone();
+  };
+
   return (
-    <main className="setup welcome">
-      <Hero />
+    <Page onBack={onBack}>
       <section className="welcome-card">
         <div className="segmented" role="tablist" aria-label="계정">
           {(
             [
-              ['register', '새 계정'],
               ['login', '로그인'],
+              ['register', '새 계정'],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -81,23 +90,18 @@ export function WelcomeScreen() {
               onChange={(e) => setPassword(e.target.value)}
             />
           </label>
-          <p className={`welcome-hint ${tab === 'register' ? '' : 'is-hidden'}`}>
-            닉네임 {NICKNAME_MIN_LENGTH}~{NICKNAME_MAX_LENGTH}자(글자·숫자·_·-), 비밀번호 {PASSWORD_MIN_LENGTH}자 이상. 온라인 대국 결과가 랭킹에 반영됩니다.
-          </p>
           <p className={`notice notice-error notice-slot ${error ? '' : 'is-empty'}`} role="alert">
-            {error ?? '\u00a0'}
+            {error ?? ' '}
           </p>
           <button type="submit" className="btn btn-primary" disabled={pending}>
-            {pending ? '처리 중…' : tab === 'register' ? '가입하고 시작' : '로그인'}
+            {tab === 'register' ? '가입' : '로그인'}
           </button>
         </form>
 
-        <div className="welcome-divider">또는</div>
-        <button type="button" className="btn btn-ghost" onClick={startAsGuest}>
+        <button type="button" className="btn btn-ghost" onClick={guest}>
           게스트로 시작
         </button>
-        <p className="welcome-hint">게스트의 대국도 통계에는 반영되지만 랭킹에는 오르지 않습니다.</p>
       </section>
-    </main>
+    </Page>
   );
 }

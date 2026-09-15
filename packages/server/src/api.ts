@@ -1,7 +1,7 @@
 import type { ResultSource } from '@hyperchess/protocol';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { parseGameRecord, type ResultStore } from './results';
-import { computeStats } from './stats';
+import { computeStats, summarizeCategories } from './stats';
 import { UserError, type UserStore } from './users';
 
 const MAX_BODY_BYTES = 8 * 1024;
@@ -62,6 +62,8 @@ const ROUTES: Readonly<Record<string, Route>> = {
     const version = Number(url.searchParams.get('version'));
     return [200, computeStats(results.all(), { sources, version: Number.isInteger(version) && version > 0 ? version : undefined })];
   },
+
+  'GET /api/stats/summary': async (_req, _url, { results }) => [200, summarizeCategories(results.all())],
 
   'POST /api/auth/register': async (req, _url, { users }) => {
     const body = await readJson(req);
