@@ -232,6 +232,28 @@
 .piece-img.face-left {
   transform: scaleX(-1);
 }
+/*
+ * 보드 위 말은 칸보다 조금 크게 그려 형태가 잘 보이게 한다 (살짝 칸을 벗어남).
+ * 발밑 기준으로 키워 위쪽으로 더 튀어나오게 하고, 아래 칸의 말이 위 칸의 말을 덮는다.
+ */
+.board {
+  --piece-scale: 1.24;
+  overflow: visible;
+}
+.board-squares {
+  border-radius: inherit;
+  overflow: hidden;
+}
+.board .piece-body {
+  padding: 0;
+}
+.board .piece-img {
+  transform: scale(var(--piece-scale));
+  transform-origin: 50% 85%;
+}
+.board .piece-img.face-left {
+  transform: scale(calc(-1 * var(--piece-scale)), var(--piece-scale));
+}
 .pfx-afterimage .piece-img {
   filter: drop-shadow(calc(var(--fwd, 1) * -10px) 0 0 rgb(63 224 208 / 45%))
     drop-shadow(calc(var(--fwd, 1) * -20px) 0 0 rgb(63 224 208 / 20%));
