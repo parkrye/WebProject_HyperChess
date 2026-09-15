@@ -38,33 +38,34 @@ export function usesCheckRule(state: Pick<GameState, 'board' | 'players'>, color
   return royalSquares(state, color).length === 1;
 }
 
-export function anyRoyalAttacked(state: Pick<GameState, 'board' | 'players'>, color: Color): boolean {
+export function anyRoyalAttacked(state: Pick<GameState, 'board' | 'walls' | 'players'>, color: Color): boolean {
   const enemy = opposite(color);
-  return royalSquares(state, color).some((sq) => isSquareAttacked(state.board, sq, enemy));
+  return royalSquares(state, color).some((sq) => isSquareAttacked(state.board, sq, enemy, state.walls));
 }
 
-export function isInCheck(state: Pick<GameState, 'board' | 'players'>, color: Color): boolean {
+export function isInCheck(state: Pick<GameState, 'board' | 'walls' | 'players'>, color: Color): boolean {
   if (state.players[color].rules.queensRoyal) return false;
   const royals = royalSquares(state, color);
-  return royals.length === 1 && isSquareAttacked(state.board, royals[0], opposite(color));
+  return royals.length === 1 && isSquareAttacked(state.board, royals[0], opposite(color), state.walls);
 }
 
 function moveGenContext(state: GameState, color: Color): MoveGenContext {
   return {
     board: state.board,
+    walls: state.walls,
     enPassant: state.enPassant,
     noQueenPromotion: state.players[color].rules.noQueenPromotion,
     castlingRequiresSafety: usesCheckRule(state, color),
   };
 }
 
-function boardAttackQuery(board: Board) {
-  return (sq: Square, by: Color) => isSquareAttacked(board, sq, by);
+function boardAttackQuery(state: GameState) {
+  return (sq: Square, by: Color) => isSquareAttacked(state.board, sq, by, state.walls);
 }
 
 export function pseudoLegalMoves(state: GameState, color: Color): GeneratedMove[] {
   const ctx = moveGenContext(state, color);
-  const isAttacked = boardAttackQuery(state.board);
+  const isAttacked = boardAttackQuery(state);
   const moves: GeneratedMove[] = [];
   state.board.forEach((piece, sq) => {
     if (piece && piece.color === color) moves.push(...pseudoMovesFrom(ctx, sq, isAttacked));
@@ -85,7 +86,7 @@ function legalityChecker(state: GameState, color: Color): (move: GeneratedMove) 
   const enemy = opposite(color);
   return (move) => {
     const { board } = executeMove(state.board, move);
-    return !isSquareAttacked(board, move.from === royal ? move.to : royal, enemy);
+    return !isSquareAttacked(board, move.from === royal ? move.to : royal, enemy, state.walls);
   };
 }
 
@@ -96,7 +97,7 @@ function isLegal(state: GameState, color: Color, move: GeneratedMove): boolean {
 /** 합법 수가 하나라도 있는지 (전체 목록을 만들지 않고 조기 종료) */
 export function hasLegalMove(state: GameState, color: Color = state.turn): boolean {
   const ctx = moveGenContext(state, color);
-  const isAttacked = boardAttackQuery(state.board);
+  const isAttacked = boardAttackQuery(state);
   const legal = legalityChecker(state, color);
   for (let sq = 0; sq < state.board.length; sq++) {
     const piece = state.board[sq];
@@ -157,7 +158,7 @@ export function legalMoves(state: GameState, color: Color = state.turn): Generat
 export function findLegalMove(state: GameState, move: Move): GeneratedMove | undefined {
   const color = state.turn;
   if (state.board[move.from]?.color !== color) return undefined;
-  const candidates = pseudoMovesFrom(moveGenContext(state, color), move.from, boardAttackQuery(state.board));
+  const candidates = pseudoMovesFrom(moveGenContext(state, color), move.from, boardAttackQuery(state));
   return candidates.find(
     (candidate) =>
       candidate.to === move.to && candidate.promotion === move.promotion && isLegal(state, color, candidate),
@@ -195,5 +196,5 @@ export function diffBoards(before: Board, after: Board): PieceChange[] {
 }
 
 function samePieceShape(a: Piece, b: Piece): boolean {
-  return a.type === b.type && a.enhanced === b.enhanced && a.royal === b.royal && a.title === b.title;
+  return a.type === b.type && a.color === b.color && a.enhanced === b.enhanced && a.royal === b.royal && a.title === b.title;
 }

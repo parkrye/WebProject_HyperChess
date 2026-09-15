@@ -11,12 +11,22 @@ import {
   toSquare,
   type Delta,
 } from './square';
-import type { Board, Color, EnPassant, GeneratedMove, Piece, PieceType, Square } from './types';
+import type { Board, Color, EnPassant, GeneratedMove, Piece, PieceType, Square, Wall } from './types';
+
+export const NO_WALLS: readonly Wall[] = [];
+
+export function isWall(walls: readonly Wall[], sq: Square): boolean {
+  for (const wall of walls) {
+    if (wall.square === sq) return true;
+  }
+  return false;
+}
 
 const PROMOTION_PIECES: readonly PieceType[] = ['q', 'r', 'b', 'n'];
 
 export interface MoveGenContext {
   readonly board: Board;
+  readonly walls: readonly Wall[];
   readonly enPassant: EnPassant | null;
   readonly noQueenPromotion: boolean;
   /** 캐슬링 경로 공격 검사 여부 (체크 규칙을 쓰는 플레이어만) */
@@ -29,11 +39,13 @@ const hasKingSteps = (piece: Piece): boolean => piece.type === 'p' && (piece.enh
 /** 강화 룩/비숍은 자신의 말을 뛰어넘는다 */
 const jumpsOwnPieces = (piece: Piece): boolean => piece.enhanced && (piece.type === 'r' || piece.type === 'b');
 
-function slideTargets(board: Board, from: Square, piece: Piece, dirs: readonly Delta[], jumpOwn: boolean): Square[] {
+function slideTargets(ctx: MoveGenContext, from: Square, piece: Piece, dirs: readonly Delta[], jumpOwn: boolean): Square[] {
+  const { board, walls } = ctx;
   const result: Square[] = [];
   for (const [df, dr] of dirs) {
     let current = offset(from, df, dr);
     while (current !== null) {
+      if (isWall(walls, current)) break;
       const occupant = board[current];
       if (!occupant) {
         result.push(current);
@@ -49,11 +61,12 @@ function slideTargets(board: Board, from: Square, piece: Piece, dirs: readonly D
   return result;
 }
 
-function stepTargets(board: Board, from: Square, piece: Piece, deltas: readonly Delta[]): Square[] {
+function stepTargets(ctx: MoveGenContext, from: Square, piece: Piece, deltas: readonly Delta[]): Square[] {
+  const { board, walls } = ctx;
   const result: Square[] = [];
   for (const [df, dr] of deltas) {
     const target = offset(from, df, dr);
-    if (target === null) continue;
+    if (target === null || isWall(walls, target)) continue;
     const occupant = board[target];
     if (!occupant || occupant.color !== piece.color) result.push(target);
   }
@@ -74,7 +87,7 @@ function pushPawnMove(moves: GeneratedMove[], piece: Piece, from: Square, to: Sq
 }
 
 function pawnMoves(ctx: MoveGenContext, from: Square, piece: Piece): GeneratedMove[] {
-  const { board, enPassant } = ctx;
+  const { board, enPassant, walls } = ctx;
   const moves: GeneratedMove[] = [];
   const dir = pawnDirection(piece.color);
   const visited = new Set<Square>();
@@ -85,12 +98,12 @@ function pawnMoves(ctx: MoveGenContext, from: Square, piece: Piece): GeneratedMo
   };
 
   const oneStep = offset(from, 0, dir);
-  if (oneStep !== null && !board[oneStep]) {
+  if (oneStep !== null && !board[oneStep] && !isWall(walls, oneStep)) {
     add(oneStep, 'normal');
     const twoStep = offset(from, 0, dir * 2);
     // 강화 폰(중보병)은 시작 2칸 전진을 할 수 없다
     const canDouble = !piece.moved && !piece.enhanced && rankOf(from) === pawnStartRank(piece.color);
-    if (canDouble && twoStep !== null && !board[twoStep]) add(twoStep, 'double');
+    if (canDouble && twoStep !== null && !board[twoStep] && !isWall(walls, twoStep)) add(twoStep, 'double');
   }
 
   for (const df of [-1, 1]) {
@@ -102,7 +115,7 @@ function pawnMoves(ctx: MoveGenContext, from: Square, piece: Piece): GeneratedMo
   }
 
   if (hasKingSteps(piece)) {
-    for (const to of stepTargets(board, from, piece, KING_DELTAS)) add(to, 'normal');
+    for (const to of stepTargets(ctx, from, piece, KING_DELTAS)) add(to, 'normal');
   }
   return moves;
 }
@@ -127,7 +140,7 @@ function castlingMoves(
   for (const side of sides) {
     const rook = ctx.board[toSquare(side.rookFile, backRank)];
     if (!rook || rook.type !== 'r' || rook.color !== king.color || rook.moved) continue;
-    if (side.between.some((file) => ctx.board[toSquare(file, backRank)])) continue;
+    if (side.between.some((file) => ctx.board[toSquare(file, backRank)] || isWall(ctx.walls, toSquare(file, backRank)))) continue;
     if (ctx.castlingRequiresSafety && side.path.some((file) => isAttacked(toSquare(file, backRank), enemy))) continue;
     moves.push({ from, to: toSquare(side.kingFile, backRank), kind: 'castle' });
   }
@@ -144,35 +157,35 @@ export function pseudoMovesFrom(
   if (!piece) return [];
 
   const toMoves = (targets: Square[]): GeneratedMove[] => [...new Set(targets)].map((to) => ({ from, to, kind: 'normal' }));
-  const { board } = ctx;
   switch (piece.type) {
     case 'p':
       return pawnMoves(ctx, from, piece);
     case 'n': {
-      const targets = stepTargets(board, from, piece, KNIGHT_DELTAS);
-      if (piece.enhanced) targets.push(...slideTargets(board, from, piece, ORTHOGONAL_DELTAS, false));
+      const targets = stepTargets(ctx, from, piece, KNIGHT_DELTAS);
+      if (piece.enhanced) targets.push(...slideTargets(ctx, from, piece, ORTHOGONAL_DELTAS, false));
       return toMoves(targets);
     }
     case 'b': {
-      const targets = slideTargets(board, from, piece, DIAGONAL_DELTAS, jumpsOwnPieces(piece));
+      const targets = slideTargets(ctx, from, piece, DIAGONAL_DELTAS, jumpsOwnPieces(piece));
       // 팔라딘: 상하좌우 한 칸 이동(잡기 가능)이 추가된다
-      if (piece.enhanced) targets.push(...stepTargets(board, from, piece, ORTHOGONAL_DELTAS));
+      if (piece.enhanced) targets.push(...stepTargets(ctx, from, piece, ORTHOGONAL_DELTAS));
       return toMoves(targets);
     }
     case 'r':
-      return toMoves(slideTargets(board, from, piece, ORTHOGONAL_DELTAS, jumpsOwnPieces(piece)));
+      return toMoves(slideTargets(ctx, from, piece, ORTHOGONAL_DELTAS, jumpsOwnPieces(piece)));
     case 'q':
-      return toMoves(slideTargets(board, from, piece, [...ORTHOGONAL_DELTAS, ...DIAGONAL_DELTAS], false));
+      return toMoves(slideTargets(ctx, from, piece, [...ORTHOGONAL_DELTAS, ...DIAGONAL_DELTAS], false));
     case 'k':
-      return [...toMoves(stepTargets(board, from, piece, KING_DELTAS)), ...castlingMoves(ctx, from, piece, isAttacked)];
+      return [...toMoves(stepTargets(ctx, from, piece, KING_DELTAS)), ...castlingMoves(ctx, from, piece, isAttacked)];
   }
 }
 
-function rayHits(board: Board, from: Square, target: Square, attacker: Piece, dirs: readonly Delta[], jumpOwn: boolean): boolean {
+function rayHits(board: Board, walls: readonly Wall[], from: Square, target: Square, attacker: Piece, dirs: readonly Delta[], jumpOwn: boolean): boolean {
   for (const [df, dr] of dirs) {
     let current = offset(from, df, dr);
     while (current !== null) {
       if (current === target) return true;
+      if (isWall(walls, current)) break;
       const occupant = board[current];
       if (occupant && !(jumpOwn && occupant.color === attacker.color)) break;
       current = offset(current, df, dr);
@@ -186,7 +199,7 @@ function stepHits(from: Square, target: Square, deltas: readonly Delta[]): boole
 }
 
 /** from에 있는 말이 target 칸을 공격하는지 (target의 점유 여부와 무관) */
-export function attacks(board: Board, from: Square, target: Square): boolean {
+export function attacks(board: Board, from: Square, target: Square, walls: readonly Wall[] = NO_WALLS): boolean {
   const piece = board[from];
   if (!piece || from === target) return false;
 
@@ -197,13 +210,13 @@ export function attacks(board: Board, from: Square, target: Square): boolean {
       return hasKingSteps(piece) && stepHits(from, target, KING_DELTAS);
     }
     case 'n':
-      return stepHits(from, target, KNIGHT_DELTAS) || (piece.enhanced && rayHits(board, from, target, piece, ORTHOGONAL_DELTAS, false));
+      return stepHits(from, target, KNIGHT_DELTAS) || (piece.enhanced && rayHits(board, walls, from, target, piece, ORTHOGONAL_DELTAS, false));
     case 'b':
-      return rayHits(board, from, target, piece, DIAGONAL_DELTAS, jumpsOwnPieces(piece)) || (piece.enhanced && stepHits(from, target, ORTHOGONAL_DELTAS));
+      return rayHits(board, walls, from, target, piece, DIAGONAL_DELTAS, jumpsOwnPieces(piece)) || (piece.enhanced && stepHits(from, target, ORTHOGONAL_DELTAS));
     case 'r':
-      return rayHits(board, from, target, piece, ORTHOGONAL_DELTAS, jumpsOwnPieces(piece));
+      return rayHits(board, walls, from, target, piece, ORTHOGONAL_DELTAS, jumpsOwnPieces(piece));
     case 'q':
-      return rayHits(board, from, target, piece, [...ORTHOGONAL_DELTAS, ...DIAGONAL_DELTAS], false);
+      return rayHits(board, walls, from, target, piece, [...ORTHOGONAL_DELTAS, ...DIAGONAL_DELTAS], false);
     case 'k':
       return stepHits(from, target, KING_DELTAS);
   }
@@ -211,9 +224,9 @@ export function attacks(board: Board, from: Square, target: Square): boolean {
 
 /**
  * target이 by 색에게 공격받는지. 대상 칸에서 거꾸로 훑어 판정한다.
- * 슬라이딩 경로에서 by 색의 말을 만나면 그 뒤로는 뛰어넘는 강화 룩/비숍만 공격할 수 있다.
+ * 슬라이딩 경로에서 by 색의 말을 만나면 그 뒤로는 뛰어넘는 강화 룩/비숍만 공격할 수 있다. 성벽은 모든 공격을 막는다.
  */
-export function isSquareAttacked(board: Board, target: Square, by: Color): boolean {
+export function isSquareAttacked(board: Board, target: Square, by: Color, walls: readonly Wall[] = NO_WALLS): boolean {
   const enemyAt = (sq: Square | null) => (sq === null ? null : board[sq]?.color === by ? board[sq] : null);
 
   for (const [df, dr] of KNIGHT_DELTAS) {
@@ -235,6 +248,7 @@ export function isSquareAttacked(board: Board, target: Square, by: Color): boole
       let onlyJumpers = false;
       let current = offset(target, df, dr);
       while (current !== null) {
+        if (isWall(walls, current)) break;
         const piece = board[current];
         if (piece) {
           if (piece.color !== by) break;

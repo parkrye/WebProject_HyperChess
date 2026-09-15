@@ -20,7 +20,7 @@ export const heir: AbilityDefinition = {
     const result: AbilityParams[] = [];
     state.board.forEach((piece, square) => {
       if (!piece || piece.color !== color || piece.royal) return;
-      if (isSquareAttacked(state.board, square, enemy)) return;
+      if (isSquareAttacked(state.board, square, enemy, state.walls)) return;
       result.push({ square });
     });
     return result;

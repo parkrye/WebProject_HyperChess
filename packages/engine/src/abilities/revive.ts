@@ -1,3 +1,4 @@
+import { isWall } from '../movegen';
 import { isBackRank, neighbors } from '../square';
 import type { AbilityParams, Square } from '../types';
 import { BALANCE, COSTS } from './balance';
@@ -19,7 +20,7 @@ export const revive: AbilityDefinition = {
   candidates(state, color) {
     const slots: Square[] = [];
     state.board.forEach((piece, sq) => {
-      if (piece) return;
+      if (piece || isWall(state.walls, sq)) return;
       const touchesOwn = neighbors(sq).some((n) => state.board[n]?.color === color);
       if (touchesOwn) slots.push(sq);
     });

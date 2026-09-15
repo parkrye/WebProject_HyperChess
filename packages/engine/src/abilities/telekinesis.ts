@@ -1,3 +1,4 @@
+import { isWall } from '../movegen';
 import { ORTHOGONAL_DELTAS, isBackRank, neighbors, offset } from '../square';
 import type { AbilityParams, Board, Square } from '../types';
 import { BALANCE, COSTS } from './balance';
@@ -29,7 +30,7 @@ export const telekinesis: AbilityDefinition = {
       if (!piece) return;
       if (piece.color !== color && !isExposed(state.board, from)) return;
       for (const to of neighbors(from)) {
-        if (state.board[to]) continue;
+        if (state.board[to] || isWall(state.walls, to)) continue;
         if (piece.type === 'p' && isBackRank(to)) continue;
         result.push({ from, to });
       }

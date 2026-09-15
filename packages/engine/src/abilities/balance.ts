@@ -52,6 +52,26 @@ export const BALANCE = {
     maxResource: 8, startResource: 0, cooldownTurns: 0,
     recovery: [{ trigger: 'ownTurns', every: 3, amount: 1 }],
   },
+  alchemy: {
+    maxResource: 2, startResource: 0, cooldownTurns: 0,
+    recovery: [{ trigger: 'ownTurns', every: 5, amount: 1 }],
+  },
+  brainwash: {
+    maxResource: 6, startResource: 0, cooldownTurns: 0,
+    recovery: [{ trigger: 'ownTurns', every: 3, amount: 1 }],
+  },
+  wall: {
+    maxResource: 3, startResource: 0, cooldownTurns: 0,
+    recovery: [{ trigger: 'ownTurns', every: 4, amount: 1 }],
+  },
+  march: {
+    maxResource: 1, startResource: 0, cooldownTurns: 0,
+    recovery: [{ trigger: 'ownTurns', every: 8, amount: 1 }],
+  },
+  snipe: {
+    maxResource: 2, startResource: 0, cooldownTurns: 0,
+    recovery: [{ trigger: 'ownTurns', every: 6, amount: 1 }],
+  },
 } as const satisfies Record<string, AbilityBalance>;
 
 export const COSTS = {
@@ -66,6 +86,19 @@ export const COSTS = {
   paladin: 1,
   empress: 1,
   heir: 1,
+  alchemy: 1,
+  brainwash: { p: 2, n: 3, b: 3, r: 4, q: 6, k: 99 } satisfies Record<PieceType, number>,
+  wall: 1,
+  march: 1,
+  snipe: 1,
 } as const;
 
 export const REWIND_MAX_STEPS = 3;
+
+/** 연금술: 이 가치 이하의 말로만 바꿀 수 있다 */
+export const ALCHEMY_VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9 } as const;
+
+/** 성벽: 설치자의 턴이 이만큼 시작되면 사라진다 */
+export const WALL_DURATION = 6;
+/** 성벽: 한 플레이어가 동시에 세울 수 있는 최대 개수 */
+export const WALL_LIMIT = 3;

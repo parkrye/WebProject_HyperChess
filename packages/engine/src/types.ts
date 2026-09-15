@@ -21,6 +21,14 @@ export interface Piece {
 
 export type Board = ReadonlyArray<Piece | null>;
 
+/** 성벽: 누구도 진입·통과·공격할 수 없는 칸 */
+export interface Wall {
+  readonly square: Square;
+  readonly owner: Color;
+  /** 설치자의 턴이 이만큼 더 시작되면 사라진다 */
+  readonly turnsLeft: number;
+}
+
 export interface Move {
   readonly from: Square;
   readonly to: Square;
@@ -111,6 +119,7 @@ export interface ClockState {
 
 export interface GameState {
   readonly board: Board;
+  readonly walls: readonly Wall[];
   readonly turn: Color;
   readonly enPassant: EnPassant | null;
   readonly halfmoveClock: number;

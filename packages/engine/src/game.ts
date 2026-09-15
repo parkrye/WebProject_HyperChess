@@ -13,6 +13,7 @@ import {
   type GameResult,
   type GameState,
   type Move,
+  type Piece,
   type PieceType,
   type PlayerState,
 } from './types';
@@ -50,6 +51,7 @@ export function createGame(setup: GameSetup = {}): GameState {
 
   const initial: GameState = {
     ...parsed,
+    walls: [],
     players: { w: createPlayer('w'), b: createPlayer('b') },
     captured: { w: [], b: [] },
     turnState: { movesMade: 0, movesAllowed: 1, abilityUsed: false },
@@ -141,17 +143,9 @@ function applyMove(state: GameState, move: Move): GameState {
   const outcome = executeMove(state.board, generated);
   const event: GameEvent = { kind: 'move', color, move, changes: diffBoards(state.board, outcome.board) };
 
-  let players = state.players;
-  let captured = state.captured;
-  let board = outcome.board;
-  if (outcome.captured) {
-    captured = { ...captured, [enemy]: [...captured[enemy], outcome.captured] };
-    players = withRecovery(players, enemy, 'ownPieceCaptured', outcome.captured.type);
-    players = withRecovery(players, color, 'enemyPieceCaptured', outcome.captured.type);
-    if (outcome.captured.type === 'q' && players[enemy].rules.queensRoyal) {
-      ({ board, players } = fallOfEmpress(board, players, enemy));
-    }
-  }
+  const captures = outcome.captured ? [{ color: enemy, piece: outcome.captured }] : [];
+  const { board, players } = settleCaptures(outcome.board, state.players, captures);
+  const captured = outcome.captured ? { ...state.captured, [enemy]: [...state.captured[enemy], outcome.captured] } : state.captured;
 
   const next: GameState = {
     ...state,
@@ -237,14 +231,19 @@ function applyAbility(state: GameState, params: AbilityParams): GameState {
     resource: player.meter.resource - cost,
     cooldown: definition.balance.cooldownTurns,
   };
-  const players = {
+  const meters = {
     w: { ...applied.players.w, meter: state.players.w.meter },
     b: { ...applied.players.b, meter: state.players.b.meter },
     [color]: { ...applied.players[color], meter: spentMeter },
   };
+  // 시간 역행으로 되돌아간 경우가 아니면 능력으로 잡힌 말(저격 등)을 수로 잡은 것과 같이 처리한다
+  const { board, players } = undone
+    ? { board: applied.board, players: meters }
+    : settleCaptures(applied.board, meters, newlyCaptured(state, applied));
 
   const next: GameState = {
     ...applied,
+    board,
     players,
     turnState: { ...applied.turnState, abilityUsed: true },
     log: [...applied.log, event],
@@ -258,6 +257,25 @@ function applyAbility(state: GameState, params: AbilityParams): GameState {
   }
   if (!hasLegalMove(next, color)) return { ...next, result: noActionResult(next, color) };
   return next;
+}
+
+function newlyCaptured(before: GameState, after: GameState): { color: Color; piece: Piece }[] {
+  return COLORS.flatMap((color) => {
+    const known = new Set(before.captured[color].map((piece) => piece.id));
+    return after.captured[color].filter((piece) => !known.has(piece.id)).map((piece) => ({ color, piece }));
+  });
+}
+
+/** 잡힌 말에 따른 자원 회복과 여제 해제 */
+function settleCaptures(board: GameState['board'], players: GameState['players'], captures: readonly { color: Color; piece: Piece }[]) {
+  let result = { board, players };
+  for (const { color, piece } of captures) {
+    let nextPlayers = withRecovery(result.players, color, 'ownPieceCaptured', piece.type);
+    nextPlayers = withRecovery(nextPlayers, opposite(color), 'enemyPieceCaptured', piece.type);
+    result = { board: result.board, players: nextPlayers };
+    if (piece.type === 'q' && nextPlayers[color].rules.queensRoyal) result = fallOfEmpress(result.board, nextPlayers, color);
+  }
+  return result;
 }
 
 /* ---------- 턴 진행 ---------- */
@@ -283,13 +301,21 @@ function beginTurn(state: GameState): GameState {
     ...state,
     players: { ...state.players, [color]: { ...player, meter: { ...player.meter, turnsTaken: player.meter.turnsTaken + 1 } } },
   };
-  const recovered: GameState = { ...counted, players: withRecovery(counted.players, color, 'ownTurns') };
+  const recovered: GameState = { ...counted, walls: expireWalls(counted.walls, color), players: withRecovery(counted.players, color, 'ownTurns') };
 
   const withKey: GameState = { ...recovered, positionKeys: [...recovered.positionKeys, positionKey(recovered)] };
   const snapshot: GameState = { ...withKey, history: [], result: { kind: 'ongoing' } };
   const withHistory: GameState = { ...withKey, history: [...withKey.history, snapshot].slice(-HISTORY_LIMIT) };
 
   return { ...withHistory, result: evaluateResult(withHistory) };
+}
+
+/** 설치자의 턴이 시작될 때마다 성벽의 남은 턴을 줄이고, 다 된 성벽을 없앤다 */
+function expireWalls(walls: GameState['walls'], color: Color): GameState['walls'] {
+  if (!walls.some((wall) => wall.owner === color)) return walls;
+  return walls
+    .map((wall) => (wall.owner === color ? { ...wall, turnsLeft: wall.turnsLeft - 1 } : wall))
+    .filter((wall) => wall.turnsLeft > 0);
 }
 
 function withRecovery(players: GameState['players'], color: Color, trigger: RecoveryTrigger, capturedType?: PieceType): GameState['players'] {
@@ -359,5 +385,6 @@ function positionKey(state: GameState): string {
     return letter + castleFlag + flags;
   });
   const rules = COLORS.map((color) => (state.players[color].rules.queensRoyal ? 'E' : '-')).join('');
-  return [squares.join(','), state.turn, state.enPassant?.target ?? '-', rules].join('|');
+  const walls = state.walls.map((wall) => `${wall.square}${wall.owner}${wall.turnsLeft}`).join(',');
+  return [squares.join(','), state.turn, state.enPassant?.target ?? '-', rules, walls].join('|');
 }
