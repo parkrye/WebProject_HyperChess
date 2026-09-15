@@ -3,7 +3,6 @@ import {
   applyAction,
   checkTimeout,
   createGame,
-  getAbility,
   opposite,
   resign,
   STANDARD_TIME_CONTROL,
@@ -18,6 +17,9 @@ import {
   type JoinResult,
   type JoinRoomRequest,
   type ResumeRequest,
+  isAbilityChoice,
+  RANDOM_ABILITY,
+  resolveAbilityChoice,
   type RoomSnapshot,
 } from '@hyperchess/protocol';
 
@@ -28,7 +30,10 @@ export class RoomError extends Error {}
 
 interface Seat {
   readonly name: string;
-  readonly abilityId: string;
+  /** 선택값: 능력 id 또는 'random' */
+  readonly choice: string;
+  /** 이번 게임에서 사용하는 능력 (무작위면 게임 시작 시 결정) */
+  abilityId: string;
   readonly token: string;
   socketId: string | null;
 }
@@ -182,7 +187,9 @@ export class RoomManager {
     const room = this.requireRoom(code);
     const seatInfo = (color: Color) => {
       const seat = room.seats[color];
-      return seat ? { name: seat.name, abilityId: seat.abilityId, connected: seat.socketId !== null } : null;
+      return seat
+        ? { name: seat.name, abilityId: seat.abilityId, randomized: seat.choice === RANDOM_ABILITY, connected: seat.socketId !== null }
+        : null;
     };
     const status = !room.game ? 'waiting' : room.game.result.kind === 'ongoing' ? 'playing' : 'finished';
     return {
@@ -241,6 +248,8 @@ export class RoomManager {
   private startGameIfReady(room: Room) {
     const { w, b } = room.seats;
     if (!w || !b || room.game) return;
+    // 무작위 선택은 게임마다 새로 뽑는다 (재대결 포함)
+    for (const seat of [w, b]) seat.abilityId = resolveAbilityChoice(seat.choice, this.random);
     room.game = createGame({ abilities: { w: w.abilityId, b: b.abilityId }, timeControl: STANDARD_TIME_CONTROL, now: this.now() });
   }
 
@@ -249,13 +258,9 @@ export class RoomManager {
   }
 
   private createSeat(socketId: string, rawName: string, abilityId: string): Seat {
-    try {
-      getAbility(abilityId);
-    } catch {
-      throw new RoomError('존재하지 않는 능력입니다');
-    }
+    if (!isAbilityChoice(abilityId)) throw new RoomError('존재하지 않는 능력입니다');
     const name = String(rawName ?? '').trim().slice(0, NAME_MAX_LENGTH) || '플레이어';
-    return { name, abilityId, token: randomUUID(), socketId };
+    return { name, choice: abilityId, abilityId, token: randomUUID(), socketId };
   }
 
   private generateCode(): string {
