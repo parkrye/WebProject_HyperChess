@@ -36,7 +36,7 @@ describe('연금술', () => {
 });
 
 describe('세뇌', () => {
-  it('좌우를 가둔 상대 말을 가져온다. 비용은 말 종류에 따라 다르다', () => {
+  it('인접한 자신의 말이 2개 이상인 상대 말을 가져온다. 비용은 말 종류에 따라 다르다', () => {
     let state = charged('4k3/8/8/8/2NqN3/8/8/4K3 w - - 0 1', { w: 'brainwash' });
     expect(legalAbilityOptions(state)).toEqual([{ square: sq('d4') }]);
     state = useAbility(state, { square: sq('d4') });
@@ -44,7 +44,7 @@ describe('세뇌', () => {
     expect(state.players.w.meter.resource).toBe(CHARGED - COSTS.brainwash.q);
   });
 
-  it('대각선으로 가둬도 가져올 수 있다', () => {
+  it('대각선으로 인접해도 센다', () => {
     const state = charged('4k3/8/8/4N3/3r4/2N5/8/4K3 w - - 0 1', { w: 'brainwash' });
     expect(legalAbilityOptions(state)).toEqual([{ square: sq('d4') }]);
   });
@@ -114,7 +114,11 @@ describe('총진군', () => {
     expect(state.board[sq('b4')]?.type).toBe('p');
     expect(state.board[sq('b2')]?.type).toBe('p');
     expect(state.board[sq('b3')]).toBeNull();
-    expect(state.turn).toBe('b');
+    expect(state.turn).toBe('w');
+  });
+
+  it('전진으로 자신의 킹이 체크되면 쓸 수 없다', () => {
+    expect(legalAbilityOptions(charged('4k3/8/8/b7/8/8/3P4/4K3 w - - 0 1', { w: 'march' }))).toEqual([]);
   });
 
   it('마지막 랭크에 도달하면 퀸으로 프로모션한다', () => {

@@ -57,7 +57,7 @@ export const BALANCE = {
     recovery: [{ trigger: 'ownTurns', every: 3, amount: 1 }],
   },
   brainwash: {
-    maxResource: 6, startResource: 0, cooldownTurns: 0,
+    maxResource: 7, startResource: 0, cooldownTurns: 0,
     recovery: [{ trigger: 'ownTurns', every: 3, amount: 1 }],
   },
   wall: {
@@ -70,7 +70,7 @@ export const BALANCE = {
   },
   snipe: {
     maxResource: 2, startResource: 0, cooldownTurns: 0,
-    recovery: [{ trigger: 'ownTurns', every: 9, amount: 1 }],
+    recovery: [{ trigger: 'ownTurns', every: 12, amount: 1 }],
   },
 } as const satisfies Record<string, AbilityBalance>;
 
@@ -87,7 +87,7 @@ export const COSTS = {
   empress: 1,
   heir: 1,
   alchemy: 1,
-  brainwash: { p: 2, n: 3, b: 3, r: 4, q: 6, k: 99 } satisfies Record<PieceType, number>,
+  brainwash: { p: 3, n: 4, b: 4, r: 5, q: 7, k: 99 } satisfies Record<PieceType, number>,
   wall: 1,
   march: 1,
   snipe: 1,
@@ -97,6 +97,9 @@ export const REWIND_MAX_STEPS = 3;
 
 /** 연금술: 이 가치 이하의 말로만 바꿀 수 있다 */
 export const ALCHEMY_VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9 } as const;
+
+/** 세뇌: 상대 말의 8방향 인접 칸 중 자신의 말이 이만큼 있어야 한다 */
+export const BRAINWASH_NEIGHBORS = 2;
 
 /** 성벽: 설치자의 턴이 이만큼 시작되면 사라진다 */
 export const WALL_DURATION = 4;

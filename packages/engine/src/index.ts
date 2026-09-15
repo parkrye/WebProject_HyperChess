@@ -16,7 +16,7 @@ export {
   type GameSetup,
 } from './game';
 export { getAbility, listAbilities, registerAbility } from './abilities/registry';
-export { ALCHEMY_VALUE, BALANCE, COSTS, REWIND_MAX_STEPS, WALL_DURATION, WALL_LIMIT } from './abilities/balance';
+export { ALCHEMY_VALUE, BALANCE, BRAINWASH_NEIGHBORS, COSTS, REWIND_MAX_STEPS, WALL_DURATION, WALL_LIMIT } from './abilities/balance';
 export { isExposed } from './abilities/telekinesis';
 export { isTrapped, trappingSquares } from './abilities/brainwash';
 export type { AbilityBalance, AbilityDefinition, AbilityTiming, RecoveryRule, RecoveryTrigger } from './abilities/types';
