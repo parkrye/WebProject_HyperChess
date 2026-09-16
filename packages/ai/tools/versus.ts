@@ -3,12 +3,17 @@
  *
  * 사용: npx tsx tools/versus.ts [--games 40] [--ms 500] [--abilities telekinesis,revive] [--mirror] [--json out.json]
  *
+ * --seal-baseline 은 기준본이 능력을 아예 쓰지 않게 한다. 같은 평가·같은 가중치인데 한쪽만 능력을
+ * 쓰므로, 점수율이 곧 "AI가 그 능력에서 실제로 뽑아내는 이득"이다. 50%에 가까우면 능력을 쥐고도
+ * 활용하지 못한다는 뜻이고, 그 능력의 밸런스 수치는 이 AI로 재도 의미가 없다.
+ *
  * --mirror 는 대진마다 능력 하나를 뽑아 양쪽에 같은 능력을 준다. 양쪽 능력이 다르면 능력 상성이
  * 결과를 지배해 AI 실력 차이가 묻히므로, 실력을 재려면 동족전이어야 한다.
  *
  * --abilities 는 대진에 쓸 능력을 좁힌다. 일부 능력만 건드렸을 때 그 능력들로만 재면
  * 신호가 희석되지 않아 같은 판 수로 훨씬 또렷하게 보인다 (기본: 전체 16종).
- * 준비: 비교할 이전 버전의 search.ts, evaluate.ts 를 tools/baseline/ 에 복사 (git 추적 안 함)
+ * 준비: 비교할 이전 버전의 search.ts, evaluate.ts 를 tools/baseline/ 에 복사 (git 추적 안 함).
+ * --seal-baseline 은 양쪽 모두 현재 코드를 쓰므로 baseline/ 준비가 필요 없다.
  */
 import { applyAction, createGame, listAbilities, type Color, type GameState } from '@hyperchess/engine';
 import { writeFileSync } from 'node:fs';
@@ -24,6 +29,7 @@ interface Job {
   readonly abilities: Record<Color, string>;
   readonly seed: number;
   readonly ms: number;
+  readonly sealBaseline: boolean;
 }
 
 interface Outcome {
@@ -36,14 +42,22 @@ interface Outcome {
 
 const MAX_PLIES = 160;
 
-async function playVersus(job: Job): Promise<Outcome> {
-  // 기준본은 git에 없으므로 타입 검사가 경로를 해석하지 않도록 변수로 가져온다
+/** 기준본은 git에 없으므로 타입 검사가 경로를 해석하지 않도록 변수로 가져온다 */
+async function loadBaseline(): Promise<typeof CurrentSearcher> {
   const baselinePath = './baseline/search.ts';
-  const { Searcher: BaselineSearcher } = (await import(baselinePath)) as { Searcher: typeof CurrentSearcher };
+  const { Searcher } = (await import(baselinePath)) as { Searcher: typeof CurrentSearcher };
+  return Searcher;
+}
+
+async function playVersus(job: Job): Promise<Outcome> {
   const options = { maxDepth: 12, timeLimitMs: job.ms, quiescence: true, abilityBranchLimit: 4, noise: 0 };
   const random = seededRandom(job.seed);
   const current = new CurrentSearcher({ ...options, random });
-  const baseline = new BaselineSearcher({ ...options, random });
+  // 봉인 진단의 전제는 "같은 코드·같은 가중치인데 한쪽만 능력을 못 본다"이다. 여기서 기준본 스냅샷을
+  // 쓰면 스냅샷이 현재와 어긋난 만큼 결과가 오염되므로, 봉인일 때는 현재 탐색기를 양쪽에 쓴다.
+  const baseline = job.sealBaseline
+    ? new CurrentSearcher({ ...options, abilityBranchLimit: 0, random })
+    : new (await loadBaseline())({ ...options, random });
   const depthSum = { current: 0, baseline: 0 };
   const moves = { current: 0, baseline: 0 };
 
@@ -91,6 +105,7 @@ if (!isMainThread) {
   const pick = seededRandom(99);
 
   const mirror = process.argv.includes('--mirror');
+  const sealBaseline = process.argv.includes('--seal-baseline');
   const jobs: Job[] = [];
   for (let i = 0; i < games; i += 2) {
     // 동족전은 능력을 돌아가며 배정한다. 무작위로 뽑으면 어떤 능력은 6판, 어떤 능력은 26판이 되어
@@ -98,14 +113,14 @@ if (!isMainThread) {
     const one = mirror ? abilities[(i / 2) % abilities.length] : abilities[Math.floor(pick() * abilities.length)];
     const pair = mirror ? { w: one, b: one } : { w: one, b: abilities[Math.floor(pick() * abilities.length)] };
     for (const currentColor of ['w', 'b'] as const) {
-      jobs.push({ id: jobs.length, currentColor, abilities: pair, seed: 500 + i, ms });
+      jobs.push({ id: jobs.length, currentColor, abilities: pair, seed: 500 + i, ms, sealBaseline });
     }
   }
 
   const queue = [...jobs];
   const outcomes: Outcome[] = [];
   const workerCount = Math.min(jobs.length, cpus().length - 2);
-  console.log(`대국 ${jobs.length}판 (수당 ${ms}ms), 워커 ${workerCount}개, 능력 ${abilities.length}종${mirror ? ' · 동족전' : ''}`);
+  console.log(`대국 ${jobs.length}판 (수당 ${ms}ms), 워커 ${workerCount}개, 능력 ${abilities.length}종${mirror ? ' · 동족전' : ''}${sealBaseline ? ' · 기준본 능력 봉인' : ''}`);
 
   await Promise.all(
     Array.from({ length: workerCount }, () => {

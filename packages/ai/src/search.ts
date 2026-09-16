@@ -351,6 +351,8 @@ export class Searcher {
   }
 
   private abilityLimit(state: GameState, ply: number, depth: number): number {
+    // 0이면 어디서도 능력을 보지 않는다. 능력을 봉인한 비교군을 만들 때 쓴다
+    if (this.options.abilityBranchLimit <= 0) return 0;
     if (ply <= 1) return this.options.abilityBranchLimit;
     // 더 깊은 곳에서는 루트 플레이어 차례(짝수 ply)이고 남은 깊이가 있을 때만 소수 탐색
     const ownTurn = ply % 2 === 0;
