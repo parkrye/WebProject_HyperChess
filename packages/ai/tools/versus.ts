@@ -38,6 +38,8 @@ interface Outcome {
   readonly reason: string;
   readonly plies: number;
   readonly depth: Record<'current' | 'baseline', number>;
+  /** 이 판이 예외로 끝났으면 그 내용. 집계에서 빼고 끝에 개수만 센다 */
+  readonly failed?: string;
 }
 
 const MAX_PLIES = 160;
@@ -89,7 +91,16 @@ async function playVersus(job: Job): Promise<Outcome> {
 }
 
 if (!isMainThread) {
-  parentPort!.on('message', async (job: Job) => parentPort!.postMessage(await playVersus(job)));
+  parentPort!.on('message', async (job: Job) => {
+    try {
+      parentPort!.postMessage(await playVersus(job));
+    } catch (error) {
+      // 한 판이 터졌다고 몇 시간짜리 측정을 통째로 버리지 않는다. 무승부로 넘기면 결과가
+      // 조용히 왜곡되므로, 집계에서 빼고 끝에 개수로 드러낸다
+      const failed = error instanceof Error ? error.message : String(error);
+      parentPort!.postMessage({ id: job.id, currentScore: 0.5, reason: 'error', plies: 0, depth: { current: 0, baseline: 0 }, failed });
+    }
+  });
 } else {
   const arg = (name: string, fallback: number) => {
     const index = process.argv.indexOf(`--${name}`);
@@ -141,18 +152,23 @@ if (!isMainThread) {
     }),
   );
 
-  const score = outcomes.reduce((sum, o) => sum + o.currentScore, 0);
-  const wins = outcomes.filter((o) => o.currentScore === 1).length;
-  const draws = outcomes.filter((o) => o.currentScore === 0.5).length;
-  const avg = (key: 'current' | 'baseline') => (outcomes.reduce((s, o) => s + o.depth[key], 0) / outcomes.length).toFixed(2);
-  console.log(`현재 vs 기준본: ${wins}승 ${draws}무 ${outcomes.length - wins - draws}패, 점수율 ${((score / outcomes.length) * 100).toFixed(0)}%`);
+  const failures = outcomes.filter((o) => o.failed);
+  const played = outcomes.filter((o) => !o.failed);
+  if (failures.length > 0) console.log(`예외로 버린 판 ${failures.length}개 — 첫 예외: ${failures[0].failed}`);
+  if (played.length === 0) throw new Error('집계할 판이 없다');
+
+  const score = played.reduce((sum, o) => sum + o.currentScore, 0);
+  const wins = played.filter((o) => o.currentScore === 1).length;
+  const draws = played.filter((o) => o.currentScore === 0.5).length;
+  const avg = (key: 'current' | 'baseline') => (played.reduce((s, o) => s + o.depth[key], 0) / played.length).toFixed(2);
+  console.log(`현재 vs 기준본: ${wins}승 ${draws}무 ${played.length - wins - draws}패, 점수율 ${((score / played.length) * 100).toFixed(0)}%`);
   console.log(`평균 탐색 깊이: 현재 ${avg('current')} / 기준본 ${avg('baseline')}`);
 
   // 동족전이면 능력별로 갈라 보여준다. 어느 능력이 나빠졌는지가 바로 드러난다
   const abilityOf = new Map(jobs.map((job) => [job.id, job.abilities.w]));
   const perAbility: Record<string, { score: number; games: number }> = {};
   if (mirror) {
-    for (const outcome of outcomes) {
+    for (const outcome of played) {
       const id = abilityOf.get(outcome.id)!;
       perAbility[id] ??= { score: 0, games: 0 };
       perAbility[id].score += outcome.currentScore;
@@ -168,11 +184,12 @@ if (!isMainThread) {
   const jsonIndex = process.argv.indexOf('--json');
   if (jsonIndex >= 0 && process.argv[jsonIndex + 1]) {
     const summary = {
-      games: outcomes.length,
+      games: played.length,
+      failed: failures.length,
       wins,
       draws,
-      losses: outcomes.length - wins - draws,
-      scoreRate: score / outcomes.length,
+      losses: played.length - wins - draws,
+      scoreRate: score / played.length,
       mirror,
       depth: { current: Number(avg('current')), baseline: Number(avg('baseline')) },
       perAbility,
