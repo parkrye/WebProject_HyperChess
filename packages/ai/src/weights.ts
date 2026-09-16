@@ -2,7 +2,7 @@
  * 평가 가중치 (센티폰 단위, 폰 = 100 고정).
  * 부호가 있는 값이다: 음수는 감점 항목.
  * tools/tune.ts(Texel 튜닝)의 --apply가 이 파일을 다시 쓴다.
- * 마지막 튜닝: reports/tune-20260916-095328.md
+ * 마지막 튜닝: reports/tune-candidate.md
  */
 export const WEIGHTS: Readonly<Record<string, number>> = {
   'piece.p': 100,
@@ -29,7 +29,7 @@ export const WEIGHTS: Readonly<Record<string, number>> = {
   extraRoyal: 883,
   empressActive: 295,
   inCheck: -51,
-  cooldown: -35,
+  cooldown: -5,
   cooldownLeft: -5,
   resourceFull: 10,
   resourceUsable: -18,
