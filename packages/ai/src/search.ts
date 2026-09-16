@@ -341,9 +341,13 @@ export class Searcher {
       return { action, key, order, quiet: !tactical, score: 0 };
     });
 
+    // 합법 수가 없으면 능력이 유일한 행동이다. 이때는 가지치기 설정과 무관하게 반드시 넣는다.
+    // 빠뜨리면 루트에서는 둘 것이 없어 터지고, 깊은 곳에서는 아직 살아 있는 국면을
+    // 빈 후보 = -Infinity, 즉 외통과 같은 점수로 읽는다
     const limit = this.abilityLimit(state, ply, depth);
-    if (limit > 0) {
-      this.rankedAbilities(state, limit).forEach((candidate, rank) => {
+    const forced = candidates.length === 0 ? Math.max(limit, DEEP_ABILITY_LIMIT) : limit;
+    if (forced > 0) {
+      this.rankedAbilities(state, forced).forEach((candidate, rank) => {
         candidates.push({ ...candidate, order: candidate.key === ttBest ? 10_000_000 : 900_000 - rank });
       });
     }
