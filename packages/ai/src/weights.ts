@@ -90,8 +90,6 @@ export const WEIGHTS: Readonly<Record<string, number>> = {
   'brainwash.targets': 0,
   'telekinesis.target': 1,
   'teleport.swap': 10,
-  'empress.royalAttacked': -350,
-  'empress.royalDefended': 0,
 };
 
 /**
