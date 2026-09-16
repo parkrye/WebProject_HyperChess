@@ -1,6 +1,6 @@
-import { applyAction, createGame, isTrapped, isWall, legalAbilityOptions, legalMoves, neighbors, trappingSquares, type Action, type GameState } from '@hyperchess/engine';
+import { applyAction, createGame, isSquareAttacked, isTrapped, isWall, legalAbilityOptions, legalMoves, neighbors, opposite, trappingSquares, type Action, type Color, type GameState } from '@hyperchess/engine';
 import { describe, expect, it } from 'vitest';
-import { hasEmptyNeighbor, isSurrounded, touchesColor } from '../src/abilityFeatures';
+import { ABILITY_FEATURE_KEYS, addAbilityFeatures, hasEmptyNeighbor, isSurrounded, touchesColor } from '../src/abilityFeatures';
 
 function seeded(seed: number) {
   let value = seed;
@@ -62,6 +62,73 @@ describe('능력 고유 항목의 인접 칸 판정', () => {
       for (let sq = 0; sq < state.board.length; sq++) {
         const expected = neighbors(sq).some((n) => !state.board[n] && !isWall(state.walls, n));
         expect(hasEmptyNeighbor(state.board, state.walls, sq)).toBe(expected);
+      }
+    }
+  });
+});
+
+
+/** positions()와 같은 방식으로 여제 국면만 모은다 */
+function empressPositions(): GameState[] {
+  const random = seeded(29);
+  const out: GameState[] = [];
+  for (let g = 0; g < 24; g++) {
+    let state = createGame({ abilities: { w: 'empress', b: 'empress' } });
+    for (let p = 0; p < 70 && state.result.kind === 'ongoing'; p++) {
+      const options = legalAbilityOptions(state);
+      const moves = legalMoves(state);
+      const action: Action =
+        options.length > 0 && (moves.length === 0 || random() < 0.4)
+          ? { type: 'ability', params: options[Math.floor(random() * options.length)] }
+          : { type: 'move', move: moves[Math.floor(random() * moves.length)] };
+      state = applyAction(state, action, 0);
+      out.push(state);
+    }
+  }
+  return out;
+}
+
+/** 여제 항목 두 개만 떼어 돌려준다 */
+function empressFeatures(state: GameState, color: Color): { attacked: number; defended: number } {
+  const out = new Float64Array(ABILITY_FEATURE_KEYS.length);
+  addAbilityFeatures(out, 0, state, color, 1);
+  return {
+    attacked: out[ABILITY_FEATURE_KEYS.indexOf('empress.royalAttacked')],
+    defended: out[ABILITY_FEATURE_KEYS.indexOf('empress.royalDefended')],
+  };
+}
+
+describe('여제 항목', () => {
+  const states = empressPositions();
+  const royal = states.filter((s) => s.players.w.rules.queensRoyal || s.players.b.rules.queensRoyal);
+
+  // 여제를 한 번도 켜지 않았다면 아래 검사들이 전부 0 대 0으로 통과해 버린다
+  it('여제가 켜진 국면이 실제로 모인다', () => {
+    expect(royal.length).toBeGreaterThan(50);
+  });
+
+  it('여제가 꺼져 있으면 두 항목 모두 0이다', () => {
+    for (const state of states) {
+      for (const color of ['w', 'b'] as const) {
+        if (state.players[color].rules.queensRoyal) continue;
+        expect(empressFeatures(state, color)).toEqual({ attacked: 0, defended: 0 });
+      }
+    }
+  });
+
+  it('여제가 켜지면 공격받는/지켜지는 왕족 퀸의 수와 같다', () => {
+    for (const state of states) {
+      for (const color of ['w', 'b'] as const) {
+        if (!state.players[color].rules.queensRoyal) continue;
+        let attacked = 0;
+        let defended = 0;
+        for (let sq = 0; sq < state.board.length; sq++) {
+          const piece = state.board[sq];
+          if (piece?.color !== color || piece.type !== 'q') continue;
+          if (isSquareAttacked(state.board, sq, opposite(color), state.walls)) attacked++;
+          if (isSquareAttacked(state.board, sq, color, state.walls)) defended++;
+        }
+        expect(empressFeatures(state, color)).toEqual({ attacked, defended });
       }
     }
   });

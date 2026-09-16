@@ -1,5 +1,5 @@
 import {
-  BRAINWASH_NEIGHBORS, COSTS, KING_DELTAS, fileOf, isBackRank, isExposed, isRoyal, isWall, offset, opposite, rankOf,
+  BRAINWASH_NEIGHBORS, COSTS, KING_DELTAS, fileOf, isBackRank, isExposed, isRoyal, isSquareAttacked, isWall, offset, opposite, rankOf,
   type Board, type Color, type GameState, type PieceType, type Square, type Wall,
 } from '@hyperchess/engine';
 
@@ -15,6 +15,8 @@ export const ABILITY_FEATURE_KEYS = [
   'brainwash.targets',
   'telekinesis.target',
   'teleport.swap',
+  'empress.royalAttacked',
+  'empress.royalDefended',
 ] as const;
 
 /** ABILITY_FEATURE_KEYS 안에서의 순번 */
@@ -25,6 +27,8 @@ const F = {
   brainwashTargets: 3,
   telekinesisTarget: 4,
   teleportSwap: 5,
+  empressRoyalAttacked: 6,
+  empressRoyalDefended: 7,
 } as const;
 
 /**
@@ -161,6 +165,29 @@ function addTeleport(out: Float64Array, base: number, state: GameState, color: C
   out[base + F.teleportSwap] += sign * best;
 }
 
+/**
+ * 여제: 왕족이 된 퀸이 공격받는지, 아군이 지키는지.
+ *
+ * 여제를 발동하면 퀸만 왕족이 되고 체크 규칙이 사라진다(rules.ts usesCheckRule는
+ * queensRoyal이면 false를 돌려준다). 즉 왕족 퀸이 공격받아도 inCheck 항목이 켜지지 않아,
+ * 평가는 퀸이 잡히기 직전인 것을 전혀 모른다. 탐색이 지평선 안에서 잡는 수를 봐야만
+ * 알 수 있어 깊이 2~3에서는 늦다. 이 항목이 사라진 체크 신호를 대신한다.
+ * 발동 전에도 켜지므로 "지금 켜도 되는지"를 판단하는 근거가 되기도 한다.
+ */
+function addEmpress(out: Float64Array, base: number, state: GameState, color: Color, sign: number): void {
+  // 발동 전 퀸이 공격받는 것은 평범한 상황이고, 발동 후 왕족 퀸이 공격받는 것만 치명적이다.
+  // 둘을 섞으면 학습이 약한 값을 내므로 왕족일 때만 센다.
+  if (!state.players[color].rules.queensRoyal) return;
+  const { board } = state;
+  const enemy = opposite(color);
+  for (let sq = 0; sq < board.length; sq++) {
+    const piece = board[sq];
+    if (piece?.color !== color || piece.type !== 'q') continue;
+    if (isSquareAttacked(board, sq, enemy, state.walls)) out[base + F.empressRoyalAttacked] += sign;
+    if (isSquareAttacked(board, sq, color, state.walls)) out[base + F.empressRoyalDefended] += sign;
+  }
+}
+
 /** 진영의 능력 고유 항목값을 더한다. base는 ABILITY_FEATURE_KEYS 첫 항목의 번호 */
 export function addAbilityFeatures(out: Float64Array, base: number, state: GameState, color: Color, sign: number): void {
   const { abilityId, meter } = state.players[color];
@@ -173,6 +200,8 @@ export function addAbilityFeatures(out: Float64Array, base: number, state: GameS
       return addTelekinesis(out, base, state, color, sign);
     case 'teleport':
       return addTeleport(out, base, state, color, sign);
+    case 'empress':
+      return addEmpress(out, base, state, color, sign);
     default:
       return;
   }
