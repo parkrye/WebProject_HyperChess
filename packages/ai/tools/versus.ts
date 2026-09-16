@@ -1,7 +1,10 @@
 /**
  * AI 버전 비교: 현재 src 탐색기 vs tools/baseline(이전 버전) 을 같은 시간 제한으로 대국시킨다.
  *
- * 사용: npx tsx tools/versus.ts [--games 40] [--ms 500]
+ * 사용: npx tsx tools/versus.ts [--games 40] [--ms 500] [--abilities telekinesis,revive]
+ *
+ * --abilities 는 대진에 쓸 능력을 좁힌다. 일부 능력만 건드렸을 때 그 능력들로만 재면
+ * 신호가 희석되지 않아 같은 판 수로 훨씬 또렷하게 보인다 (기본: 전체 16종).
  * 준비: 비교할 이전 버전의 search.ts, evaluate.ts 를 tools/baseline/ 에 복사 (git 추적 안 함)
  */
 import { applyAction, createGame, listAbilities, type Color, type GameState } from '@hyperchess/engine';
@@ -76,7 +79,11 @@ if (!isMainThread) {
   };
   const games = arg('games', 40);
   const ms = arg('ms', 500);
-  const abilities = listAbilities().map((a) => a.id);
+  const all = listAbilities().map((a) => a.id);
+  const chosen = process.argv[process.argv.indexOf('--abilities') + 1] ?? '';
+  const abilities = process.argv.includes('--abilities') ? chosen.split(',').map((id) => id.trim()).filter(Boolean) : all;
+  const unknown = abilities.filter((id) => !all.includes(id));
+  if (abilities.length === 0 || unknown.length > 0) throw new Error('쓸 수 없는 --abilities 값: ' + chosen + ' (가능: ' + all.join(', ') + ')');
   const pick = seededRandom(99);
 
   const jobs: Job[] = [];
@@ -90,7 +97,7 @@ if (!isMainThread) {
   const queue = [...jobs];
   const outcomes: Outcome[] = [];
   const workerCount = Math.min(jobs.length, cpus().length - 2);
-  console.log(`대국 ${jobs.length}판 (수당 ${ms}ms), 워커 ${workerCount}개`);
+  console.log(`대국 ${jobs.length}판 (수당 ${ms}ms), 워커 ${workerCount}개, 능력 ${abilities.length}종`);
 
   await Promise.all(
     Array.from({ length: workerCount }, () => {

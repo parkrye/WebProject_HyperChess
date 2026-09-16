@@ -1,4 +1,5 @@
 import { COSTS, fileOf, isInCheck, isRoyal, listAbilities, rankOf, type Color, type GameState } from '@hyperchess/engine';
+import { ABILITY_FEATURE_KEYS, addAbilityFeatures } from './abilityFeatures';
 import { ABILITY_WEIGHTS, WEIGHTS } from './weights';
 
 /**
@@ -56,7 +57,7 @@ const RESOURCE_KEYS: readonly string[] = listAbilities().flatMap((ability) =>
   Array.from({ length: ability.balance.maxResource }, (_, k) => `resource.${ability.id}.${k + 1}`),
 );
 
-export const WEIGHT_KEYS: readonly string[] = [...BASE_KEYS, ...RESOURCE_KEYS];
+export const WEIGHT_KEYS: readonly string[] = [...BASE_KEYS, ...RESOURCE_KEYS, ...ABILITY_FEATURE_KEYS];
 
 /** 능력별 보정을 학습할 항목. 일반 체스 항목은 능력과 무관하므로 공통 가중치만 쓴다 */
 export const ABILITY_DELTA_KEYS: ReadonlySet<string> = new Set(['cooldownLeft', 'resourceFull', 'resourceUsable']);
@@ -78,6 +79,9 @@ const INDEX: Readonly<Record<string, number>> = Object.fromEntries(WEIGHT_KEYS.m
 
 /** 능력 → 첫 충전 칸(resource.<능력>.1)의 항목 번호. 칸 k는 여기서 k−1만큼 뒤에 있다 */
 const RESOURCE_START: ReadonlyMap<string, number> = new Map(listAbilities().map((a) => [a.id, INDEX[`resource.${a.id}.1`]]));
+
+/** 능력 고유 항목 블록의 첫 번호 */
+const ABILITY_FEATURE_BASE = INDEX[ABILITY_FEATURE_KEYS[0]];
 const idx = (key: (typeof BASE_KEYS)[number]) => INDEX[key];
 
 const I = {
@@ -260,7 +264,10 @@ function addSide(out: Float64Array, state: GameState, color: Color, files: Recor
   if (royals > 1) out[I.extraRoyal] += sign * (royals - 1);
   // 여제: 킹이 왕족에서 풀려 자유롭게 싸울 수 있고 체크가 없다
   if (rules.queensRoyal) out[I.empressActive] += sign;
-  if (abilityId) addAbilityMeter(out, abilityId, meter, sign);
+  if (abilityId) {
+    addAbilityMeter(out, abilityId, meter, sign);
+    addAbilityFeatures(out, ABILITY_FEATURE_BASE, state, color, sign);
+  }
   if (isInCheck(state, color)) out[I.inCheck] += sign;
 }
 
