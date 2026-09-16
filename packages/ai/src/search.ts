@@ -17,6 +17,8 @@ const DELTA_MARGIN = 200;
 const TT_MAX_ENTRIES = 300_000;
 /** 루트·상대 응수 이후 자기 차례에서 고려할 능력 후보 수 (여러 턴에 걸친 능력 계획용) */
 const DEEP_ABILITY_LIMIT = 2;
+/** 루트 밖에서 값을 매겨 볼 능력 후보의 상한 (전부 보면 탐색 깊이가 깎인다) */
+const RANK_POOL = 4;
 /** Late Move Reduction 적용 조건 */
 const LMR_MIN_DEPTH = 3;
 const LMR_MIN_INDEX = 4;
@@ -137,6 +139,15 @@ function terminalScore(state: GameState, ply: number): number {
 /** 자식 점수를 부모(state.turn) 관점으로 변환. 가속·시간 역행처럼 같은 쪽이 계속 두면 부호를 유지한다 */
 const fromChild = (parent: GameState, child: GameState, childScore: number) =>
   child.turn === parent.turn ? childScore : -childScore;
+
+/** 목록을 고르게 솎아 최대 count 개로 줄인다. 앞쪽으로 쏠리지 않도록 일정 간격으로 고른다 */
+function thinOut<T>(items: readonly T[], count: number): T[] {
+  if (items.length <= count) return items as T[];
+  const step = items.length / count;
+  const out: T[] = [];
+  for (let i = 0; i < count; i++) out.push(items[Math.floor(i * step)]);
+  return out;
+}
 
 /* ---------- 탐색기 ---------- */
 
@@ -347,7 +358,7 @@ export class Searcher {
     const limit = this.abilityLimit(state, ply, depth);
     const forced = candidates.length === 0 ? Math.max(limit, DEEP_ABILITY_LIMIT) : limit;
     if (forced > 0) {
-      this.rankedAbilities(state, forced).forEach((candidate, rank) => {
+      this.rankedAbilities(state, forced, ply).forEach((candidate, rank) => {
         candidates.push({ ...candidate, order: candidate.key === ttBest ? 10_000_000 : 900_000 - rank });
       });
     }
@@ -363,9 +374,13 @@ export class Searcher {
     return ownTurn && depth >= 2 && state.players[state.turn].abilityId ? DEEP_ABILITY_LIMIT : 0;
   }
 
-  private rankedAbilities(state: GameState, limit: number): Candidate[] {
+  private rankedAbilities(state: GameState, limit: number, ply: number): Candidate[] {
     const color = state.turn;
-    return legalAbilityOptions(state)
+    // 후보마다 applyAction + evaluate 가 들어간다. 염동력처럼 후보가 100개를 넘는 능력은
+    // 노드마다 그 값을 전부 치르고 두어 개만 쓴다. 루트는 한 번뿐이라 전부 보지만, 그 아래는
+    // 노드 수가 곧바로 불어나므로 고르게 솎아 본다.
+    const options = legalAbilityOptions(state);
+    return (ply === 0 ? options : thinOut(options, RANK_POOL))
       .map((params) => {
         const action: Action = { type: 'ability', params };
         const child = applyAction(state, action);
