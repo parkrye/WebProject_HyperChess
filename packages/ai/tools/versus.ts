@@ -10,12 +10,16 @@
  * --mirror 는 대진마다 능력 하나를 뽑아 양쪽에 같은 능력을 준다. 양쪽 능력이 다르면 능력 상성이
  * 결과를 지배해 AI 실력 차이가 묻히므로, 실력을 재려면 동족전이어야 한다.
  *
+ * --opening 은 대국 앞머리에 둘 무작위 수의 개수다(기본 8). 탐색은 noise 0 에서 완전히 결정적이라
+ * 이것이 없으면 seed 를 바꿔도 같은 대국만 되풀이되고, 판 수를 늘려도 표본이 늘지 않는다.
+ * 같은 i 에서 만든 두 job 은 같은 여는 수를 쓰므로 선후만 바뀐 한 쌍이 된다.
+ *
  * --abilities 는 대진에 쓸 능력을 좁힌다. 일부 능력만 건드렸을 때 그 능력들로만 재면
  * 신호가 희석되지 않아 같은 판 수로 훨씬 또렷하게 보인다 (기본: 전체 16종).
  * 준비: 비교할 이전 버전의 search.ts, evaluate.ts 를 tools/baseline/ 에 복사 (git 추적 안 함).
  * --seal-baseline 은 양쪽 모두 현재 코드를 쓰므로 baseline/ 준비가 필요 없다.
  */
-import { applyAction, createGame, listAbilities, type Color, type GameState } from '@hyperchess/engine';
+import { applyAction, createGame, legalMoves, listAbilities, type Color, type GameState } from '@hyperchess/engine';
 import { writeFileSync } from 'node:fs';
 import { cpus } from 'node:os';
 import { isMainThread, parentPort, Worker } from 'node:worker_threads';
@@ -30,6 +34,7 @@ interface Job {
   readonly seed: number;
   readonly ms: number;
   readonly sealBaseline: boolean;
+  readonly openingPlies: number;
 }
 
 interface Outcome {
@@ -64,6 +69,13 @@ async function playVersus(job: Job): Promise<Outcome> {
   const moves = { current: 0, baseline: 0 };
 
   let state: GameState = createGame({ abilities: job.abilities });
+  // 무작위 여는 수로 국면을 흩어 놓는다. 능력은 쓰지 않아 어느 쪽에도 유불리가 없다
+  for (let p = 0; p < job.openingPlies && state.result.kind === 'ongoing'; p++) {
+    const moves = legalMoves(state);
+    if (moves.length === 0) break;
+    state = applyAction(state, { type: 'move', move: moves[Math.floor(random() * moves.length)] });
+  }
+
   let plies = 0;
   while (state.result.kind === 'ongoing' && plies < MAX_PLIES) {
     const side = state.turn === job.currentColor ? 'current' : 'baseline';
@@ -108,6 +120,7 @@ if (!isMainThread) {
   };
   const games = arg('games', 40);
   const ms = arg('ms', 500);
+  const openingPlies = arg('opening', 8);
   const all = listAbilities().map((a) => a.id);
   const chosen = process.argv[process.argv.indexOf('--abilities') + 1] ?? '';
   const abilities = process.argv.includes('--abilities') ? chosen.split(',').map((id) => id.trim()).filter(Boolean) : all;
@@ -124,14 +137,14 @@ if (!isMainThread) {
     const one = mirror ? abilities[(i / 2) % abilities.length] : abilities[Math.floor(pick() * abilities.length)];
     const pair = mirror ? { w: one, b: one } : { w: one, b: abilities[Math.floor(pick() * abilities.length)] };
     for (const currentColor of ['w', 'b'] as const) {
-      jobs.push({ id: jobs.length, currentColor, abilities: pair, seed: 500 + i, ms, sealBaseline });
+      jobs.push({ id: jobs.length, currentColor, abilities: pair, seed: 500 + i, ms, sealBaseline, openingPlies });
     }
   }
 
   const queue = [...jobs];
   const outcomes: Outcome[] = [];
   const workerCount = Math.min(jobs.length, cpus().length - 2);
-  console.log(`대국 ${jobs.length}판 (수당 ${ms}ms), 워커 ${workerCount}개, 능력 ${abilities.length}종${mirror ? ' · 동족전' : ''}${sealBaseline ? ' · 기준본 능력 봉인' : ''}`);
+  console.log(`대국 ${jobs.length}판 (수당 ${ms}ms, 여는 수 ${openingPlies}), 워커 ${workerCount}개, 능력 ${abilities.length}종${mirror ? ' · 동족전' : ''}${sealBaseline ? ' · 기준본 능력 봉인' : ''}`);
 
   await Promise.all(
     Array.from({ length: workerCount }, () => {
