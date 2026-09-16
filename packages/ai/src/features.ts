@@ -1,4 +1,4 @@
-import { fileOf, isInCheck, isRoyal, listAbilities, rankOf, type Color, type GameState } from '@hyperchess/engine';
+import { COSTS, fileOf, isInCheck, isRoyal, listAbilities, rankOf, type Color, type GameState } from '@hyperchess/engine';
 import { ABILITY_WEIGHTS, WEIGHTS } from './weights';
 
 /**
@@ -32,9 +32,34 @@ const BASE_KEYS = [
   'empressActive',
   'inCheck',
   'cooldown',
+  'cooldownLeft',
+  'resourceFull',
+  'resourceUsable',
 ] as const;
 
-export const WEIGHT_KEYS: readonly string[] = [...BASE_KEYS, ...listAbilities().map((a) => `resource.${a.id}`)];
+/** 능력별 밸런스 수치 (자원 상한·쿨다운·최소 소모) */
+const ABILITY_BALANCE: ReadonlyMap<string, { readonly max: number; readonly cooldownTurns: number; readonly minCost: number }> = new Map(
+  listAbilities().map((ability) => {
+    const raw = (COSTS as Record<string, unknown>)[ability.id] ?? (COSTS as Record<string, unknown>)[`${ability.id}PerStep`];
+    // 기물별 비용표는 가장 싼 쪽이 사용 가능선이 된다 (k: 99 = 사용 불가 표시라 제외)
+    const costs = typeof raw === 'number' ? [raw] : Object.values((raw ?? {}) as Record<string, number>).filter((value) => value < 90);
+    return [ability.id, { max: ability.balance.maxResource, cooldownTurns: ability.balance.cooldownTurns, minCost: costs.length > 0 ? Math.min(...costs) : 1 }];
+  }),
+);
+
+/**
+ * 자원 항목은 충전 칸마다 따로 둔다: resource.<능력>.<k> 는 자원이 k번째 칸을 채운 정도(0~1).
+ * 칸값의 합이 곧 자원량이라 모든 칸에 같은 가중치를 주면 예전의 '자원 × 상수'와 완전히 같고,
+ * 칸마다 다른 값을 배우면 충전 한 칸의 한계 가치 — 즉 지금 한 발 써도 되는지를 표현할 수 있다.
+ */
+const RESOURCE_KEYS: readonly string[] = listAbilities().flatMap((ability) =>
+  Array.from({ length: ability.balance.maxResource }, (_, k) => `resource.${ability.id}.${k + 1}`),
+);
+
+export const WEIGHT_KEYS: readonly string[] = [...BASE_KEYS, ...RESOURCE_KEYS];
+
+/** 능력별 보정을 학습할 항목. 일반 체스 항목은 능력과 무관하므로 공통 가중치만 쓴다 */
+export const ABILITY_DELTA_KEYS: ReadonlySet<string> = new Set(['cooldownLeft', 'resourceFull', 'resourceUsable']);
 
 /** 능력별 보정 블록 순서 (가중치 벡터에서 공통 블록 뒤에 이 순서로 붙는다) */
 export const ABILITY_IDS: readonly string[] = listAbilities().map((a) => a.id);
@@ -50,6 +75,9 @@ export const FIXED_KEYS: ReadonlySet<string> = new Set(['piece.p']);
 const DEFAULT_RESOURCE_WEIGHT = 35;
 
 const INDEX: Readonly<Record<string, number>> = Object.fromEntries(WEIGHT_KEYS.map((key, i) => [key, i]));
+
+/** 능력 → 첫 충전 칸(resource.<능력>.1)의 항목 번호. 칸 k는 여기서 k−1만큼 뒤에 있다 */
+const RESOURCE_START: ReadonlyMap<string, number> = new Map(listAbilities().map((a) => [a.id, INDEX[`resource.${a.id}.1`]]));
 const idx = (key: (typeof BASE_KEYS)[number]) => INDEX[key];
 
 const I = {
@@ -71,7 +99,32 @@ const I = {
   empressActive: idx('empressActive'),
   inCheck: idx('inCheck'),
   cooldown: idx('cooldown'),
+  cooldownLeft: idx('cooldownLeft'),
+  resourceFull: idx('resourceFull'),
+  resourceUsable: idx('resourceUsable'),
 };
+
+/**
+ * 능력 게이지 항목값. 충전 칸별 값에 더해 쿨다운·포화·사용 가능 여부를 따로 낸다.
+ * 게이지만 보고도 "지금 쓸 수 있는가 / 아껴야 하는가"를 가중치가 표현할 수 있게 하는 항목들이다.
+ */
+function addAbilityMeter(out: Float64Array, abilityId: string, meter: { readonly resource: number; readonly cooldown: number }, sign: number): void {
+  out[I.cooldown] += sign * meter.cooldown;
+
+  const balance = ABILITY_BALANCE.get(abilityId);
+  const start = RESOURCE_START.get(abilityId);
+  if (!balance || start === undefined) return;
+
+  // 칸 k에는 자원이 그 칸을 채운 만큼 (자원 2.5, 상한 4 → 1, 1, 0.5, 0)
+  for (let k = 0; k < balance.max; k++) {
+    const fill = Math.min(1, meter.resource - k);
+    if (fill <= 0) break;
+    out[start + k] += sign * fill;
+  }
+  if (balance.cooldownTurns > 0) out[I.cooldownLeft] += sign * (meter.cooldown / balance.cooldownTurns);
+  if (meter.resource >= balance.max) out[I.resourceFull] += sign;
+  if (meter.cooldown === 0 && meter.resource >= balance.minCost) out[I.resourceUsable] += sign;
+}
 
 /** 가중치 객체 → 항목 순서의 벡터 */
 export function weightVector(weights: Readonly<Record<string, number>>): Float64Array {
@@ -99,13 +152,20 @@ export function modelVector(base: Readonly<Record<string, number>>, deltas: Abil
   return vector;
 }
 
-/** 모델 벡터 → 공통 가중치 객체 + 능력별 보정 객체 (보정은 0이 아닌 항목만) */
-export function modelObjects(vector: ArrayLike<number>, round: (value: number) => number = (v) => v) {
+/**
+ * 모델 벡터 → 공통 가중치 객체 + 능력별 보정 객체 (보정은 0이 아닌 항목만).
+ * 보정은 공통 가중치보다 훨씬 작아 정수로 반올림하면 신호가 통째로 사라지므로 따로 반올림한다.
+ */
+export function modelObjects(
+  vector: ArrayLike<number>,
+  round: (value: number) => number = (v) => v,
+  roundDelta: (value: number) => number = round,
+) {
   const dims = WEIGHT_KEYS.length;
   const base = Object.fromEntries(WEIGHT_KEYS.map((key, j) => [key, round(vector[j])]));
   const deltas: Record<string, Record<string, number>> = {};
   ABILITY_IDS.forEach((id, a) => {
-    const entries = WEIGHT_KEYS.map((key, j) => [key, round(vector[(1 + a) * dims + j])] as const).filter(([, value]) => value !== 0);
+    const entries = WEIGHT_KEYS.map((key, j) => [key, roundDelta(vector[(1 + a) * dims + j])] as const).filter(([, value]) => value !== 0);
     if (entries.length > 0) deltas[id] = Object.fromEntries(entries);
   });
   return { base, deltas };
@@ -200,10 +260,7 @@ function addSide(out: Float64Array, state: GameState, color: Color, files: Recor
   if (royals > 1) out[I.extraRoyal] += sign * (royals - 1);
   // 여제: 킹이 왕족에서 풀려 자유롭게 싸울 수 있고 체크가 없다
   if (rules.queensRoyal) out[I.empressActive] += sign;
-  if (abilityId) {
-    out[INDEX[`resource.${abilityId}`]] += sign * meter.resource;
-    out[I.cooldown] += sign * meter.cooldown;
-  }
+  if (abilityId) addAbilityMeter(out, abilityId, meter, sign);
   if (isInCheck(state, color)) out[I.inCheck] += sign;
 }
 

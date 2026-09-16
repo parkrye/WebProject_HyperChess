@@ -14,7 +14,7 @@
  *   --epochs N               최대 학습 반복 (기본 800)
  *   --lr X                   학습률 (기본 1)
  *   --l2 X                   공통 가중치가 기존 값에서 멀어지는 것에 대한 벌점 (기본 1e-7)
- *   --ability-l2 X           능력별 보정이 0에서 멀어지는 것에 대한 벌점 (기본 1e-5, 데이터가 적은 능력이 튀지 않게)
+ *   --ability-l2 X           능력별 보정이 0에서 멀어지는 것에 대한 벌점 (기본 1e-6, 데이터가 적은 능력이 튀지 않게)
  *   --abilities <id,id|all|none>  보정을 학습할 능력 (기본 all, none = 공통 가중치만)
  *   --freeze-base            공통 가중치는 고정하고 능력별 보정만 학습
  *   --valid X                검증용으로 떼어 둘 판 비율 (기본 0.1)
@@ -28,7 +28,7 @@ import { constants, setPriority } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
-import { abilityIndex, ABILITY_IDS, extractSideFeatures, FIXED_KEYS, modelObjects, modelVector, WEIGHT_KEYS } from '../src/features';
+import { abilityIndex, ABILITY_DELTA_KEYS, ABILITY_IDS, extractSideFeatures, FIXED_KEYS, modelObjects, modelVector, WEIGHT_KEYS } from '../src/features';
 import { ABILITY_WEIGHTS, WEIGHTS } from '../src/weights';
 import { fitK, meanSquaredError, modelSize, train, type Dataset } from './texel';
 
@@ -80,7 +80,7 @@ const settings: Settings = {
   epochs: numberArg('epochs', 800),
   learningRate: numberArg('lr', 1),
   l2: numberArg('l2', 1e-7),
-  abilityL2: numberArg('ability-l2', 1e-5),
+  abilityL2: numberArg('ability-l2', 1e-6),
   trainAbilities: abilitiesArg(),
   freezeBase: hasFlag('freeze-base'),
   validRatio: numberArg('valid', 0.1),
@@ -255,6 +255,8 @@ const stamp = () => {
 };
 
 const round = (value: number) => Math.round(value);
+/** 능력별 보정은 센티폰 1 미만이 의미를 갖는다 */
+const roundDelta = (value: number) => Math.round(value * 100) / 100;
 const signed = (value: number) => `${value > 0 ? '+' : ''}${value}`;
 
 interface Outcome {
@@ -378,8 +380,12 @@ async function main() {
   const anchor = Float64Array.from({ length: size }, (_, i) => (i < dims ? initial[i] : 0));
   const l2 = Float64Array.from({ length: size }, (_, i) => (i < dims ? settings.l2 : settings.abilityL2));
   const fixed = Array.from({ length: size }, (_, i) => {
-    if (FIXED_KEYS.has(WEIGHT_KEYS[i % dims])) return true;
+    const key = WEIGHT_KEYS[i % dims];
+    if (FIXED_KEYS.has(key)) return true;
     if (i < dims) return settings.freezeBase;
+    // 일반 체스 항목은 능력과 무관하다. 보정을 능력 역학 항목에만 두어야 파라미터가
+    // 데이터에 비해 너무 많아지지 않고, 학습된 값이 "이 능력에게 이 상태가 얼마짜리인가"로 읽힌다
+    if (!ABILITY_DELTA_KEYS.has(key)) return true;
     return !settings.trainAbilities.has(ABILITY_IDS[Math.floor(i / dims) - 1]);
   });
 
@@ -405,7 +411,7 @@ async function main() {
     before,
     after: { train: trained.trainError, valid: trained.validError },
     bestEpoch: trained.bestEpoch,
-    tuned: modelObjects(trained.weights, round),
+    tuned: modelObjects(trained.weights, round, roundDelta),
   };
   const reportPath = writeReport(result, outcome, performance.now() - startedAt);
   console.log(`\n검증 오차 ${before.valid.toFixed(5)} → ${trained.validError.toFixed(5)} · 보고서: ${relative(REPO_ROOT, reportPath)}`);

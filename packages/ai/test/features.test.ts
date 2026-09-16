@@ -1,8 +1,8 @@
 import { applyAction, createGame, legalAbilityOptions, legalMoves, listAbilities, type Action, type GameState } from '@hyperchess/engine';
 import { describe, expect, it } from 'vitest';
 import { evaluate } from '../src/evaluate';
-import { ABILITY_IDS, dot, extractFeatures, extractSideFeatures, modelObjects, modelVector, sideWeights, weightObject, weightVector, WEIGHT_KEYS } from '../src/features';
-import { WEIGHTS } from '../src/weights';
+import { abilityIndex, ABILITY_IDS, dot, extractFeatures, extractSideFeatures, modelObjects, modelVector, sideWeights, weightObject, weightVector, WEIGHT_KEYS } from '../src/features';
+import { ABILITY_WEIGHTS, WEIGHTS } from '../src/weights';
 import { LEGACY_WEIGHTS } from './legacyWeights';
 import { evaluate as legacyEvaluate } from './legacyEvaluate';
 
@@ -46,13 +46,23 @@ describe('평가 항목 (선형 평가)', () => {
     }
   });
 
-  it('평가 = 가중치 · 항목값, 가중치 객체와 벡터는 서로 변환된다', () => {
+  it('가중치 객체와 벡터는 서로 변환된다', () => {
     const weights = weightVector(WEIGHTS);
     expect(weightVector(weightObject(weights))).toEqual(weights);
     expect(Object.keys(weightObject(weights))).toEqual(WEIGHT_KEYS);
-    const state = positions[500];
-    expect(dot(weights, extractFeatures(state))).toBeCloseTo(evaluate(state, 'w'), 6);
-    expect(evaluate(state, 'b')).toBeCloseTo(-evaluate(state, 'w'), 6);
+  });
+
+  it('평가 = (공통 + 자기 능력 보정) · 진영 항목값의 차', () => {
+    // 능력별 보정이 있으면 진영마다 쓰는 가중치가 달라, 공통 가중치 하나로는 평가를 재현할 수 없다
+    const model = modelVector(WEIGHTS, ABILITY_WEIGHTS);
+    for (const state of positions.slice(0, 300)) {
+      const { white, black } = extractSideFeatures(state);
+      const score =
+        dot(sideWeights(model, abilityIndex(state.players.w.abilityId)), white) -
+        dot(sideWeights(model, abilityIndex(state.players.b.abilityId)), black);
+      expect(score).toBeCloseTo(evaluate(state, 'w'), 6);
+      expect(evaluate(state, 'b')).toBeCloseTo(-evaluate(state, 'w'), 6);
+    }
   });
 
   it('진영별 항목값의 차이는 백 − 흑 항목값과 같다', () => {
