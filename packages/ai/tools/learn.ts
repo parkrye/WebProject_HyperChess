@@ -10,8 +10,10 @@
  *      리그전이라 모든 능력이 같은 판 수만큼 기록된다
  *   2. 보고서를 대국 기록(data/simulation.jsonl)으로 가져온다
  *   3. min-version 이상 기록으로 학습해 후보 가중치를 낸다 (아직 적용하지 않는다)
- *   4. 후보로 동족전을 두어 기준 점수율 이상일 때만 weights.ts에 적용한다
+ *   4. 후보로 동족전을 두어 적용 여부를 정한다. 전체 점수율이 기준 이상이고,
+ *      그중 가장 나쁜 능력을 다시 두어 하한 이상일 때만 적용한다
  *      검증 오차가 줄어도 기력은 떨어질 수 있어, 오차만으로는 적용 여부를 정하지 않는다
+ *      전체 평균은 능력 하나가 무너진 것을 덮으므로 능력별 하한을 함께 본다
  *      적용된 가중치는 다음 사이클의 대국에 바로 쓰인다
  *   5. reports/learn-log.md에 사이클 결과를 한 줄씩 남긴다
  *
@@ -26,7 +28,9 @@
  *   --ability-l2 X     능력별 보정 벌점 (tune 기본값 사용)
  *   --gate-games N     후보 판정에 쓸 동족전 판 수 (기본 200, 0이면 판정 없이 바로 적용)
  *   --gate-ms N        판정 대국의 수당 시간 (기본 200)
- *   --gate-min X       적용에 필요한 점수율 (기본 0.5 = 나빠지지만 않으면 통과)
+ *   --gate-min X       적용에 필요한 전체 점수율 (기본 0.5 = 나빠지지만 않으면 통과)
+ *   --gate-floor X     가장 나쁜 능력이 넘어야 할 점수율 (기본 0.35)
+ *   --gate-confirm N   그 능력을 다시 둘 판 수 (기본 100, 0이면 능력별 확인 생략)
  */
 import { BALANCE_VERSION } from '@hyperchess/protocol';
 import { spawnSync } from 'node:child_process';
@@ -67,6 +71,8 @@ const settings = {
   gateGames: numberArg('gate-games', 200),
   gateMs: numberArg('gate-ms', 200),
   gateMin: argValue('gate-min') ?? '0.5',
+  gateFloor: argValue('gate-floor') ?? '0.35',
+  gateConfirm: numberArg('gate-confirm', 100),
 };
 
 /** 같은 tsx 로더로 하위 도구를 실행한다 (진행 표시는 그대로 콘솔에 보인다) */
@@ -145,7 +151,10 @@ async function main() {
     console.log(`\n[4/4] 후보 판정 (동족전)`);
     if (tunePath && statSync(tunePath).mtimeMs >= startedAt) {
       // 판정에서 떨어지면 gate가 가중치를 되돌린다. 탈락은 오류가 아니라 정상적인 결과다
-      runToolStatus(TOOLS.gate, [tunePath, '--games', String(settings.gateGames), '--ms', String(settings.gateMs), '--min', settings.gateMin]);
+      runToolStatus(TOOLS.gate, [
+        tunePath, '--games', String(settings.gateGames), '--ms', String(settings.gateMs),
+        '--min', settings.gateMin, '--floor', settings.gateFloor, '--confirm', String(settings.gateConfirm),
+      ]);
     } else {
       console.log('  새 후보가 없어 건너뜁니다');
     }
