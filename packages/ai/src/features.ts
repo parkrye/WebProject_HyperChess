@@ -69,8 +69,17 @@ const ABILITY_INDEX: ReadonlyMap<string, number> = new Map(ABILITY_IDS.map((id, 
 /** 능력 id → 보정 블록 번호 (능력 없음이나 모르는 능력은 -1) */
 export const abilityIndex = (abilityId: string | null): number => (abilityId ? ABILITY_INDEX.get(abilityId) ?? -1 : -1);
 
-/** 튜닝하지 않는 기준 항목 (점수 단위를 폰 = 100으로 고정) */
-export const FIXED_KEYS: ReadonlySet<string> = new Set(['piece.p']);
+/**
+ * 튜닝하지 않는 항목.
+ *
+ * piece.p 는 점수 단위를 폰 = 100 으로 고정한다.
+ *
+ * extraRoyal 은 텍셀이 인과를 거꾸로 배우는 항목이다. 기록된 대국에서 왕족이 둘인 국면은
+ * "계승자를 쓰고도 살아남은 쪽"이라 승률이 높고, 그래서 +883 이 붙었다. 그 값을 주면 AI 는
+ * 그 상태 자체를 좇아 계승자를 즉시 쓰고 체크 규칙을 잃는다. 봉인 동족전 100판에서
+ * 883 → 0% · 200 → 15% · 0 → 68% 로 단조였다.
+ */
+export const FIXED_KEYS: ReadonlySet<string> = new Set(['piece.p', 'extraRoyal']);
 
 /** 새 능력이 추가돼 가중치 파일에 없을 때 쓰는 자원 가치 */
 const DEFAULT_RESOURCE_WEIGHT = 35;

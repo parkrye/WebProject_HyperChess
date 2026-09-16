@@ -26,7 +26,8 @@ export const WEIGHTS: Readonly<Record<string, number>> = {
   passedPawnAdvance: 39,
   doubledPawn: -45,
   bishopPair: 53,
-  extraRoyal: 883,
+  // 손으로 고정한다 (FIXED_KEYS). 학습에 맡기면 883 이 붙고 계승자가 0% 가 된다
+  extraRoyal: 0,
   empressActive: 295,
   inCheck: -51,
   cooldown: -5,
