@@ -28,7 +28,8 @@ export const WEIGHTS: Readonly<Record<string, number>> = {
   bishopPair: 53,
   // 손으로 고정한다 (FIXED_KEYS). 학습에 맡기면 883 이 붙고 계승자가 0% 가 된다
   extraRoyal: 0,
-  empressActive: 295,
+  // 손으로 고정한다 (FIXED_KEYS). 학습에 맡기면 295 가 붙고 여제가 29% 가 된다
+  empressActive: 0,
   inCheck: -51,
   cooldown: -5,
   cooldownLeft: -5,

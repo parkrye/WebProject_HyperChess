@@ -78,8 +78,11 @@ export const abilityIndex = (abilityId: string | null): number => (abilityId ? A
  * "계승자를 쓰고도 살아남은 쪽"이라 승률이 높고, 그래서 +883 이 붙었다. 그 값을 주면 AI 는
  * 그 상태 자체를 좇아 계승자를 즉시 쓰고 체크 규칙을 잃는다. 봉인 동족전 100판에서
  * 883 → 0% · 200 → 15% · 0 → 68% 로 단조였다.
+ *
+ * empressActive 도 같다. 여제를 켠 국면은 켜고도 살아남은 쪽이라 승률이 높아 295 가 붙었고,
+ * 그 값을 주면 AI 는 켜는 것 자체를 좇는다. 295 → 29% · 100 → 53% · 0 → 57% 였다.
  */
-export const FIXED_KEYS: ReadonlySet<string> = new Set(['piece.p', 'extraRoyal']);
+export const FIXED_KEYS: ReadonlySet<string> = new Set(['piece.p', 'extraRoyal', 'empressActive']);
 
 /** 새 능력이 추가돼 가중치 파일에 없을 때 쓰는 자원 가치 */
 const DEFAULT_RESOURCE_WEIGHT = 35;
