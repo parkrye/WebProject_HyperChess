@@ -81,8 +81,20 @@ export const abilityIndex = (abilityId: string | null): number => (abilityId ? A
  *
  * empressActive 도 같다. 여제를 켠 국면은 켜고도 살아남은 쪽이라 승률이 높아 295 가 붙었고,
  * 그 값을 주면 AI 는 켜는 것 자체를 좇는다. 295 → 29% · 100 → 53% · 0 → 57% 였다.
+ *
+ * enhanced.* 도 같은 계열이다. 네 능력에서 가중치가 클수록 점수율이 낮아 순위가 그대로 뒤집혀
+ * 있었다: r 91 → 전차 67% · b 220 → 팔라딘 52% · p 321 → 중보병 55% · n 494 → 창기병 41%.
+ * 다만 강화된 기물은 실제로 더 강하므로 0 이 아니라 150 으로 맞췄다.
  */
-export const FIXED_KEYS: ReadonlySet<string> = new Set(['piece.p', 'extraRoyal', 'empressActive']);
+export const FIXED_KEYS: ReadonlySet<string> = new Set([
+  'piece.p',
+  'extraRoyal',
+  'empressActive',
+  'enhanced.p',
+  'enhanced.n',
+  'enhanced.b',
+  'enhanced.r',
+]);
 
 /** 새 능력이 추가돼 가중치 파일에 없을 때 쓰는 자원 가치 */
 const DEFAULT_RESOURCE_WEIGHT = 35;
