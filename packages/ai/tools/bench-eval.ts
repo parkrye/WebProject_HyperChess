@@ -1,5 +1,5 @@
 /** 평가 함수 처리량 측정: 능력별로 초당 몇 국면을 평가하는지 */
-import { applyAction, createGame, legalAbilityOptions, legalMoves, type Action, type GameState } from '@hyperchess/engine';
+import { applyAction, createGame, legalAbilityOptions, legalMoves, listAbilities, type Action, type GameState } from '@hyperchess/engine';
 import { evaluate } from '../src/evaluate';
 
 function seeded(seed: number) {
@@ -26,7 +26,8 @@ function positions(abilityId: string, games: number, plies: number): GameState[]
   return out;
 }
 
-for (const abilityId of ['revive', 'brainwash', 'telekinesis', 'teleport', 'haste', 'lancer']) {
+const only = process.argv.slice(2).filter((a) => !a.startsWith('--'));
+for (const abilityId of only.length > 0 ? only : listAbilities().map((a) => a.id)) {
   const states = positions(abilityId, 12, 70);
   for (const state of states.slice(0, 200)) evaluate(state, 'w'); // 워밍업
   const rounds = 30;
