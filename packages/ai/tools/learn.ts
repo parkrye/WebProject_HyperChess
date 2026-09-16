@@ -9,9 +9,11 @@
  *   1. 16종 리그전(대진 120개 × games판)을 새 시드로 둔다 → reports/balance-league-*.json
  *      리그전이라 모든 능력이 같은 판 수만큼 기록된다
  *   2. 보고서를 대국 기록(data/simulation.jsonl)으로 가져온다
- *   3. min-version 이상 기록으로 학습하고, 검증 오차가 줄었을 때만 weights.ts에 적용한다
+ *   3. min-version 이상 기록으로 학습해 후보 가중치를 낸다 (아직 적용하지 않는다)
+ *   4. 후보로 동족전을 두어 기준 점수율 이상일 때만 weights.ts에 적용한다
+ *      검증 오차가 줄어도 기력은 떨어질 수 있어, 오차만으로는 적용 여부를 정하지 않는다
  *      적용된 가중치는 다음 사이클의 대국에 바로 쓰인다
- *   4. reports/learn-log.md에 사이클 결과를 한 줄씩 남긴다
+ *   5. reports/learn-log.md에 사이클 결과를 한 줄씩 남긴다
  *
  * 옵션
  *   --games N          사이클마다 대진당 대국 수, 짝수 권장 (기본 2 → 240판)
@@ -22,6 +24,9 @@
  *   --epochs N         사이클마다 최대 학습 반복 (기본 300)
  *   --min-games N      학습에 쓸 기록이 이보다 적으면 그 사이클은 수집만 한다 (기본 1500, 적은 데이터로 능력별 보정이 과적합되지 않게)
  *   --ability-l2 X     능력별 보정 벌점 (tune 기본값 사용)
+ *   --gate-games N     후보 판정에 쓸 동족전 판 수 (기본 200, 0이면 판정 없이 바로 적용)
+ *   --gate-ms N        판정 대국의 수당 시간 (기본 200)
+ *   --gate-min X       적용에 필요한 점수율 (기본 0.5 = 나빠지지만 않으면 통과)
  */
 import { BALANCE_VERSION } from '@hyperchess/protocol';
 import { spawnSync } from 'node:child_process';
@@ -37,6 +42,7 @@ const TOOLS = {
   balance: join(REPO_ROOT, 'packages', 'ai', 'tools', 'balance.ts'),
   importReports: join(REPO_ROOT, 'packages', 'server', 'tools', 'import-reports.ts'),
   tune: join(REPO_ROOT, 'packages', 'ai', 'tools', 'tune.ts'),
+  gate: join(REPO_ROOT, 'packages', 'ai', 'tools', 'gate.ts'),
 };
 
 function argValue(name: string): string | undefined {
@@ -58,12 +64,21 @@ const settings = {
   epochs: numberArg('epochs', 300),
   minGames: numberArg('min-games', 1500),
   abilityL2: argValue('ability-l2'),
+  gateGames: numberArg('gate-games', 200),
+  gateMs: numberArg('gate-ms', 200),
+  gateMin: argValue('gate-min') ?? '0.5',
 };
 
 /** 같은 tsx 로더로 하위 도구를 실행한다 (진행 표시는 그대로 콘솔에 보인다) */
 function runTool(script: string, args: readonly string[]): void {
+  const status = runToolStatus(script, args);
+  if (status !== 0) throw new Error(`${relative(REPO_ROOT, script)} 실패 (종료 코드 ${status})`);
+}
+
+/** 종료 코드를 그대로 돌려준다. 판정 탈락(2)은 오류가 아니라 정상적인 결과다 */
+function runToolStatus(script: string, args: readonly string[]): number {
   const result = spawnSync(process.execPath, ['--import', 'tsx', script, ...args], { cwd: REPO_ROOT, stdio: 'inherit' });
-  if (result.status !== 0) throw new Error(`${relative(REPO_ROOT, script)} 실패 (종료 코드 ${result.status})`);
+  return result.status ?? 1;
 }
 
 function latestReport(prefix: string): string | null {
@@ -108,25 +123,33 @@ async function main() {
     const startedAt = Date.now();
     console.log(`\n===== 사이클 ${cycle} =====\n`);
 
-    console.log('[1/3] 대국 수집');
+    console.log('[1/4] 대국 수집');
     runTool(TOOLS.balance, [
       '--mode', 'league', '--abilities', 'all', '--games', String(settings.games),
       '--depth', String(settings.depth), '--cpu', String(settings.cpu),
       '--seed-round', String(seedBase + cycle * 1000), '--yes',
     ]);
 
-    console.log('\n[2/3] 기록 반영');
+    console.log('\n[2/4] 기록 반영');
     runTool(TOOLS.importReports, []);
 
-    console.log('\n[3/3] 학습');
+    console.log('\n[3/4] 학습');
     const weightsBefore = readFileSync(WEIGHTS_FILE, 'utf8');
+    // 바로 적용하지 않고 후보만 낸다 (--yes = 보고서만 쓰고 적용하지 않음)
     runTool(TOOLS.tune, [
-      '--apply', '--min-version', String(settings.minVersion), '--epochs', String(settings.epochs), '--min-games', String(settings.minGames),
+      '--yes', '--min-version', String(settings.minVersion), '--epochs', String(settings.epochs), '--min-games', String(settings.minGames),
       ...(settings.abilityL2 ? ['--ability-l2', settings.abilityL2] : []),
     ]);
-    const applied = readFileSync(WEIGHTS_FILE, 'utf8') !== weightsBefore;
-
     const tunePath = latestReport('tune-');
+
+    console.log(`\n[4/4] 후보 판정 (동족전)`);
+    if (tunePath && statSync(tunePath).mtimeMs >= startedAt) {
+      // 판정에서 떨어지면 gate가 가중치를 되돌린다. 탈락은 오류가 아니라 정상적인 결과다
+      runToolStatus(TOOLS.gate, [tunePath, '--games', String(settings.gateGames), '--ms', String(settings.gateMs), '--min', settings.gateMin]);
+    } else {
+      console.log('  새 후보가 없어 건너뜁니다');
+    }
+    const applied = readFileSync(WEIGHTS_FILE, 'utf8') !== weightsBefore;
     const tune = tunePath && statSync(tunePath).mtimeMs >= startedAt ? (JSON.parse(readFileSync(tunePath, 'utf8')) as TuneSummary) : null;
     const time = new Date().toLocaleString('ko-KR');
     const error = tune ? `${tune.before.valid.toFixed(5)} → ${tune.after.valid.toFixed(5)}` : `기록 ${settings.minGames}판 미만, 수집만`;

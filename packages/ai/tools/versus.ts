@@ -1,13 +1,17 @@
 /**
  * AI 버전 비교: 현재 src 탐색기 vs tools/baseline(이전 버전) 을 같은 시간 제한으로 대국시킨다.
  *
- * 사용: npx tsx tools/versus.ts [--games 40] [--ms 500] [--abilities telekinesis,revive]
+ * 사용: npx tsx tools/versus.ts [--games 40] [--ms 500] [--abilities telekinesis,revive] [--mirror] [--json out.json]
+ *
+ * --mirror 는 대진마다 능력 하나를 뽑아 양쪽에 같은 능력을 준다. 양쪽 능력이 다르면 능력 상성이
+ * 결과를 지배해 AI 실력 차이가 묻히므로, 실력을 재려면 동족전이어야 한다.
  *
  * --abilities 는 대진에 쓸 능력을 좁힌다. 일부 능력만 건드렸을 때 그 능력들로만 재면
  * 신호가 희석되지 않아 같은 판 수로 훨씬 또렷하게 보인다 (기본: 전체 16종).
  * 준비: 비교할 이전 버전의 search.ts, evaluate.ts 를 tools/baseline/ 에 복사 (git 추적 안 함)
  */
 import { applyAction, createGame, listAbilities, type Color, type GameState } from '@hyperchess/engine';
+import { writeFileSync } from 'node:fs';
 import { cpus } from 'node:os';
 import { isMainThread, parentPort, Worker } from 'node:worker_threads';
 import { Searcher as CurrentSearcher } from '../src/search';
@@ -86,9 +90,13 @@ if (!isMainThread) {
   if (abilities.length === 0 || unknown.length > 0) throw new Error('쓸 수 없는 --abilities 값: ' + chosen + ' (가능: ' + all.join(', ') + ')');
   const pick = seededRandom(99);
 
+  const mirror = process.argv.includes('--mirror');
   const jobs: Job[] = [];
   for (let i = 0; i < games; i += 2) {
-    const pair = { w: abilities[Math.floor(pick() * abilities.length)], b: abilities[Math.floor(pick() * abilities.length)] };
+    // 동족전은 능력을 돌아가며 배정한다. 무작위로 뽑으면 어떤 능력은 6판, 어떤 능력은 26판이 되어
+    // 전체 점수율의 분산이 커지고 능력별 수치도 서로 비교하기 어렵다
+    const one = mirror ? abilities[(i / 2) % abilities.length] : abilities[Math.floor(pick() * abilities.length)];
+    const pair = mirror ? { w: one, b: one } : { w: one, b: abilities[Math.floor(pick() * abilities.length)] };
     for (const currentColor of ['w', 'b'] as const) {
       jobs.push({ id: jobs.length, currentColor, abilities: pair, seed: 500 + i, ms });
     }
@@ -97,7 +105,7 @@ if (!isMainThread) {
   const queue = [...jobs];
   const outcomes: Outcome[] = [];
   const workerCount = Math.min(jobs.length, cpus().length - 2);
-  console.log(`대국 ${jobs.length}판 (수당 ${ms}ms), 워커 ${workerCount}개, 능력 ${abilities.length}종`);
+  console.log(`대국 ${jobs.length}판 (수당 ${ms}ms), 워커 ${workerCount}개, 능력 ${abilities.length}종${mirror ? ' · 동족전' : ''}`);
 
   await Promise.all(
     Array.from({ length: workerCount }, () => {
@@ -124,4 +132,36 @@ if (!isMainThread) {
   const avg = (key: 'current' | 'baseline') => (outcomes.reduce((s, o) => s + o.depth[key], 0) / outcomes.length).toFixed(2);
   console.log(`현재 vs 기준본: ${wins}승 ${draws}무 ${outcomes.length - wins - draws}패, 점수율 ${((score / outcomes.length) * 100).toFixed(0)}%`);
   console.log(`평균 탐색 깊이: 현재 ${avg('current')} / 기준본 ${avg('baseline')}`);
+
+  // 동족전이면 능력별로 갈라 보여준다. 어느 능력이 나빠졌는지가 바로 드러난다
+  const abilityOf = new Map(jobs.map((job) => [job.id, job.abilities.w]));
+  const perAbility: Record<string, { score: number; games: number }> = {};
+  if (mirror) {
+    for (const outcome of outcomes) {
+      const id = abilityOf.get(outcome.id)!;
+      perAbility[id] ??= { score: 0, games: 0 };
+      perAbility[id].score += outcome.currentScore;
+      perAbility[id].games++;
+    }
+    const rows = Object.entries(perAbility).sort((a, b) => a[1].score / a[1].games - b[1].score / b[1].games);
+    console.log('능력별 점수율 (낮은 순)');
+    for (const [id, stat] of rows) {
+      console.log(`  ${id.padEnd(14)} ${((stat.score / stat.games) * 100).toFixed(0).padStart(3)}%  (${stat.games}판)`);
+    }
+  }
+
+  const jsonIndex = process.argv.indexOf('--json');
+  if (jsonIndex >= 0 && process.argv[jsonIndex + 1]) {
+    const summary = {
+      games: outcomes.length,
+      wins,
+      draws,
+      losses: outcomes.length - wins - draws,
+      scoreRate: score / outcomes.length,
+      mirror,
+      depth: { current: Number(avg('current')), baseline: Number(avg('baseline')) },
+      perAbility,
+    };
+    writeFileSync(process.argv[jsonIndex + 1], JSON.stringify(summary, null, 2));
+  }
 }

@@ -29,6 +29,7 @@ import { dirname, join, relative } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import { abilityIndex, ABILITY_DELTA_KEYS, ABILITY_IDS, extractSideFeatures, FIXED_KEYS, modelObjects, modelVector, WEIGHT_KEYS } from '../src/features';
+import { renderWeights } from './weightsFile';
 import { ABILITY_WEIGHTS, WEIGHTS } from '../src/weights';
 import { fitK, meanSquaredError, modelSize, train, type Dataset } from './texel';
 
@@ -310,36 +311,9 @@ function writeReport(result: BuildResult, outcome: Outcome, elapsedMs: number): 
   return `${base}.md`;
 }
 
-const keyLiteral = (key: string) => (/^[a-zA-Z]+$/.test(key) ? key : `'${key}'`);
-
 function applyWeights(tuned: Outcome['tuned'], reportPath: string) {
-  const baseLines = WEIGHT_KEYS.map((key) => `  ${keyLiteral(key)}: ${tuned.base[key]},`);
-  const abilityLines = Object.entries(tuned.deltas).flatMap(([id, delta]) => [
-    `  ${keyLiteral(id)}: {`,
-    ...Object.entries(delta).map(([key, value]) => `    ${keyLiteral(key)}: ${value},`),
-    '  },',
-  ]);
-  const source = [
-    '/**',
-    ' * 평가 가중치 (센티폰 단위, 폰 = 100 고정).',
-    ' * 부호가 있는 값이다: 음수는 감점 항목.',
-    ' * tools/tune.ts(Texel 튜닝)의 --apply가 이 파일을 다시 쓴다.',
-    ` * 마지막 튜닝: ${relative(REPO_ROOT, reportPath).split('\\').join('/')}`,
-    ' */',
-    'export const WEIGHTS: Readonly<Record<string, number>> = {',
-    ...baseLines,
-    '};',
-    '',
-    '/**',
-    ' * 능력별 보정값 (공통 가중치에 더한다, 0인 항목은 생략).',
-    ' * 그 능력을 가진 진영의 평가에만 쓰인다. tools/tune.ts가 대국 기록으로 학습한다.',
-    ' */',
-    'export const ABILITY_WEIGHTS: Readonly<Record<string, Readonly<Record<string, number>>>> = {',
-    ...abilityLines,
-    '};',
-    '',
-  ].join('\n');
-  writeFileSync(WEIGHTS_FILE, source);
+  const source = relative(REPO_ROOT, reportPath).split('\\').join('/');
+  writeFileSync(WEIGHTS_FILE, renderWeights(tuned, source));
   console.log(`\n적용 완료: ${relative(REPO_ROOT, WEIGHTS_FILE)} (AI 강도·밸런스가 달라지므로 밸런스를 다시 측정하세요)`);
 }
 
