@@ -96,7 +96,9 @@ export const COSTS = {
 export const REWIND_MAX_STEPS = 3;
 
 /** 연금술: 이 가치 이하의 말로만 바꿀 수 있다 */
-export const ALCHEMY_VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9 } as const;
+// 연금술은 가치가 같거나 낮은 말로만 바꾼다. 룩을 3으로 두어 나이트·비숍에서 룩으로 가는
+// 상향 경로를 연다 (실질 +2). v19 이전에는 5 라 상향이 프로모션 조합 하나뿐이었다
+export const ALCHEMY_VALUE = { p: 1, n: 3, b: 3, r: 3, q: 9 } as const;
 
 /** 세뇌: 상대 말의 8방향 인접 칸 중 자신의 말이 이만큼 있어야 한다 */
 export const BRAINWASH_NEIGHBORS = 2;

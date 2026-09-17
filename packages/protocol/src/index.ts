@@ -13,7 +13,7 @@ export function resolveAbilityChoice(choice: string, random: () => number = Math
 }
 
 /** 현재 밸런스 버전 (.docs/balance.md). 대국 기록에 함께 저장한다 */
-export const BALANCE_VERSION = 18;
+export const BALANCE_VERSION = 19;
 
 /** 대국 기록 출처: 밸런스 시뮬레이션 · AI 내전 · AI 대전 · 로컬 2인 · 온라인 */
 export type ResultSource = 'simulation' | 'arena' | 'ai' | 'local' | 'online';
