@@ -29,6 +29,10 @@ export const WEIGHTS: Readonly<Record<string, number>> = {
   extraRoyal: 0,
   empressActive: 0,
   inCheck: -51,
+  // 체크 규칙이 꺼진 구간에서 inCheck 를 대신한다. promotedKing(+355)이 여제의 이득이라면
+  // 이쪽이 그 대가다. 위험 항목이라 텍셀로는 값이 서지 않아 손으로 정한다
+  lastRoyalAttacked: -1400,
+  royalAttacked: -30,
   cooldown: -26,
   cooldownLeft: -17,
   resourceFull: 4,

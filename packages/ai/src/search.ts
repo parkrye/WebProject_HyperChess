@@ -123,7 +123,10 @@ function captureOrder(state: GameState, move: GeneratedMove): number {
   let score = 0;
   const victim = state.board[move.to];
   const attacker = state.board[move.from];
-  if (victim) score += 10 * materialValue(victim) - (attacker ? materialValue(attacker) : 0);
+  if (victim) {
+    score += 10 * materialValue(victim, state.players[victim.color].rules);
+    if (attacker) score -= materialValue(attacker, state.players[attacker.color].rules);
+  }
   if (move.kind === 'enPassant') score += 900;
   if (move.promotion) score += promotionValue(move);
   return score;
@@ -317,7 +320,7 @@ export class Searcher {
     let best = standPat;
     for (const { move } of captures) {
       const victim = state.board[move.to];
-      const gain = (victim ? materialValue(victim) : PIECE_VALUE.p) + promotionValue(move);
+      const gain = (victim ? materialValue(victim, state.players[victim.color].rules) : PIECE_VALUE.p) + promotionValue(move);
       // 델타 가지치기: 잡아도 alpha에 못 미치는 잡기는 건너뛴다 (가속으로 연속 두는 경우는 예외)
       if (standPat + gain + DELTA_MARGIN < alpha && state.turnState.movesAllowed === 1) continue;
 

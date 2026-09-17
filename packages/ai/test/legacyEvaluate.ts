@@ -6,6 +6,7 @@ import {
   rankOf,
   type Color,
   type GameState,
+  type PlayerRules,
   type Piece,
   type PieceType,
 } from '@hyperchess/engine';
@@ -16,8 +17,8 @@ export const PIECE_VALUE: Readonly<Record<PieceType, number>> = { p: 100, n: 320
 const PROMOTED_KING_VALUE = 350;
 
 /** 말 하나의 기물 가치 (왕족 킹은 0, 승급 킹은 별도 값) */
-export const materialValue = (piece: Piece): number =>
-  piece.type === 'k' && !piece.royal ? PROMOTED_KING_VALUE : PIECE_VALUE[piece.type];
+export const materialValue = (piece: Piece, rules: PlayerRules): number =>
+  piece.type === 'k' && !isRoyal(piece, rules) ? PROMOTED_KING_VALUE : PIECE_VALUE[piece.type];
 
 /** 강화된 말의 추가 가치 (창기병은 룩 이동이 더해져 퀸급, 팔라딘은 상하좌우 한 칸 이동·공격이 더해짐) */
 const ENHANCED_BONUS: Readonly<Record<PieceType, number>> = { p: 140, n: 480, b: 220, r: 130, q: 0, k: 0 };
@@ -38,7 +39,7 @@ const centrality = (sq: number) => 3.5 - Math.max(Math.abs(fileOf(sq) - 3.5), Ma
 /** 시작 랭크에서 몇 칸 전진했는지 */
 const pawnAdvance = (color: Color, sq: number) => (color === 'w' ? rankOf(sq) - 1 : 6 - rankOf(sq));
 
-function positional(piece: Piece, sq: number): number {
+function positional(piece: Piece, sq: number, rules: PlayerRules): number {
   const center = centrality(sq);
   switch (piece.type) {
     case 'p':
@@ -50,7 +51,7 @@ function positional(piece: Piece, sq: number): number {
     case 'q':
       return center * 3;
     case 'k':
-      return piece.royal ? -center * 8 : 0;
+      return isRoyal(piece, rules) ? -center * 8 : 0;
     default:
       return 0;
   }
@@ -91,7 +92,7 @@ function sideScore(state: GameState, color: Color, map: PawnMap): number {
 
   state.board.forEach((piece, sq) => {
     if (!piece || piece.color !== color) return;
-    score += materialValue(piece) + positional(piece, sq);
+    score += materialValue(piece, rules) + positional(piece, sq, rules);
     if (piece.enhanced) score += ENHANCED_BONUS[piece.type];
     if (isRoyal(piece, rules)) royals++;
 

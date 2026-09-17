@@ -1,4 +1,4 @@
-import { COSTS, fileOf, isInCheck, isRoyal, listAbilities, rankOf, type Color, type GameState } from '@hyperchess/engine';
+import { COSTS, fileOf, isInCheck, isRoyal, isSquareAttacked, listAbilities, opposite, rankOf, royalSquares, usesCheckRule, type Color, type GameState } from '@hyperchess/engine';
 import { ABILITY_FEATURE_KEYS, addAbilityFeatures } from './abilityFeatures';
 import { ABILITY_WEIGHTS, WEIGHTS } from './weights';
 
@@ -32,6 +32,8 @@ const BASE_KEYS = [
   'extraRoyal',
   'empressActive',
   'inCheck',
+  'lastRoyalAttacked',
+  'royalAttacked',
   'cooldown',
   'cooldownLeft',
   'resourceFull',
@@ -126,6 +128,8 @@ const I = {
   extraRoyal: idx('extraRoyal'),
   empressActive: idx('empressActive'),
   inCheck: idx('inCheck'),
+  lastRoyalAttacked: idx('lastRoyalAttacked'),
+  royalAttacked: idx('royalAttacked'),
   cooldown: idx('cooldown'),
   cooldownLeft: idx('cooldownLeft'),
   resourceFull: idx('resourceFull'),
@@ -243,7 +247,9 @@ function addSide(out: Float64Array, state: GameState, color: Color, files: Recor
     const center = centrality(sq);
 
     if (piece.type === 'k') {
-      if (!piece.royal) out[I.promotedKing] += sign;
+      // 규칙을 아는 isRoyal 로 갈라야 한다. 여제를 켜면 킹은 왕족에서 풀리는데 원시 필드는
+      // 그대로 true 라, 전투 기물이 된 킹이 royalKingCenter(가중치 3)로 빠져 이득이 사라진다
+      if (!isRoyal(piece, rules)) out[I.promotedKing] += sign;
       else out[I.royalKingCenter] += sign * center;
     } else {
       out[I.piece[piece.type]] += sign;
@@ -293,6 +299,29 @@ function addSide(out: Float64Array, state: GameState, color: Color, files: Recor
     addAbilityFeatures(out, ABILITY_FEATURE_BASE, state, color, sign);
   }
   if (isInCheck(state, color)) out[I.inCheck] += sign;
+  addRoyalExposure(out, state, color, sign);
+}
+
+/**
+ * 체크 규칙이 꺼진 동안 공격받고 있는 왕족.
+ *
+ * 여제(queensRoyal)와 계승자(왕족 2개)는 usesCheckRule 을 false 로 만든다. 그러면 합법 수
+ * 필터도 inCheck 항목도 함께 죽어서, 평가는 왕족이 잡히기 직전인 것을 모른다.
+ *
+ * 이 항목은 이득 쪽과 짝이다. 여제를 켜면 킹이 왕족에서 풀려 promotedKing(+355)이 들어오는데,
+ * 그 대가인 "퀸이 유일한 왕족이 된다"를 세는 항목이 없으면 AI 는 이득만 보고 무작정 켠다.
+ * 벌점만 있고 이득이 없을 때도 마찬가지로 안 켜기만 한다. 둘이 같이 있어야 저울이 선다.
+ *
+ * 하나 남은 왕족과 여럿 중 하나를 갈라 센다. 하나뿐이면 잡히는 순간 패배지만, 계승자처럼
+ * 둘이면 하나를 잃어도 지지 않는다.
+ */
+function addRoyalExposure(out: Float64Array, state: GameState, color: Color, sign: number): void {
+  if (usesCheckRule(state, color)) return;
+  const enemy = opposite(color);
+  const royals = royalSquares(state, color);
+  const attacked = royals.filter((square) => isSquareAttacked(state.board, square, enemy, state.walls)).length;
+  if (royals.length === 1) out[I.lastRoyalAttacked] += sign * attacked;
+  else out[I.royalAttacked] += sign * attacked;
 }
 
 /** 국면의 항목값 (백 − 흑). 모든 진영이 같은 가중치를 쓸 때의 평가용. out을 넘기면 재사용한다 */
