@@ -256,33 +256,28 @@ describe('여제', () => {
     expect(state.result).toEqual({ kind: 'win', winner: 'b', reason: 'royalsCaptured' });
   });
 
-  it('퀸이 잡히면 여제가 풀리고, 킹이 둘이면 체크 없이 하나 남을 때부터 체크가 적용된다', () => {
+  // 여제는 되돌릴 수 없다. 킹이 몇이든 왕족은 그 퀸 하나뿐이라 잡히는 순간 왕족 전멸이다
+  it('퀸이 잡히면 킹이 둘 남아 있어도 곧바로 패배한다', () => {
     let state = createGame({ fen: '4k3/P7/8/8/8/8/3r4/3QK3 w - - 0 1', abilities: { w: 'empress' }, resources: { w: 1 } });
     state = useAbility(state);
     state = move(state, 'e8', 'f8');
-    state = move(state, 'a7', 'a8', 'k'); // 승급 킹
+    state = move(state, 'a7', 'a8', 'k'); // 승급 킹 — 백은 킹이 둘이 된다
+    expect(royalSquares(state, 'w')).toEqual([sq('d1')]); // 그래도 왕족은 퀸 하나뿐
+
     state = move(state, 'd2', 'd1'); // 여제의 퀸 포획
-
-    expect(state.result.kind).toBe('ongoing');
-    expect(state.players.w.rules).toEqual({ queensRoyal: false, noQueenPromotion: false });
-    expect(royalSquares(state, 'w').sort((a, b) => a - b)).toEqual([sq('e1'), sq('a8')].sort((a, b) => a - b));
-    expect(usesCheckRule(state, 'w')).toBe(false); // 킹 둘: 룩이 e1을 공격해도 체크 아님
-    expect(isInCheck(state, 'w')).toBe(false);
-
-    state = move(state, 'a8', 'b8');
-    state = move(state, 'd1', 'e1'); // 킹 하나 포획 → 남은 킹에 체크 규칙
-    expect(state.result.kind).toBe('ongoing');
-    expect(royalSquares(state, 'w')).toEqual([sq('b8')]);
-    expect(usesCheckRule(state, 'w')).toBe(true);
+    expect(state.result).toEqual({ kind: 'win', winner: 'b', reason: 'royalsCaptured' });
   });
 
-  it('여제가 풀린 뒤에는 퀸으로 다시 승급할 수 있다', () => {
+  it('여제 규칙은 판이 끝날 때까지 풀리지 않는다', () => {
     let state = createGame({ fen: '3rk3/1P6/8/8/8/8/7K/3Q4 w - - 0 1', abilities: { w: 'empress' }, resources: { w: 1 } });
     state = useAbility(state);
-    state = move(state, 'd8', 'd1'); // 퀸 포획 → 여제 해제 (킹 h2는 공격받지 않음)
+    state = move(state, 'd8', 'd2'); // 퀸을 잡지 않고 접근만
+    expect(state.players.w.rules).toEqual({ queensRoyal: true, noQueenPromotion: true });
+
+    // 퀸 프로모션 금지도 계속 유지된다
     const promotions = legalMoves(state).filter((m) => m.from === sq('b7')).map((m) => m.promotion);
-    expect(promotions).toContain('q');
-    expect(promotions).not.toContain('k');
+    expect(promotions).not.toContain('q');
+    expect(promotions).toContain('k');
   });
 
   it('퀸이 정확히 하나일 때만 사용할 수 있다', () => {
