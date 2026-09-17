@@ -62,7 +62,7 @@ export const lancer = createEnhancement({
 export const chariot = createEnhancement({
   id: 'chariot',
   name: '전차',
-  description: '수를 놓는 대신, 자신의 룩 하나를 강화한다. 강화 룩은 자신의 말을 뛰어넘어 움직일 수 있다.',
+  description: '수를 놓는 대신, 자신의 룩 하나를 강화한다. 강화 룩은 자신의 말을 뛰어넘어 움직이거나, 대각선으로 한 칸 움직일 수 있다(잡기 가능).',
   pieceType: 'r',
   balance: BALANCE.chariot,
   cost: COSTS.chariot,

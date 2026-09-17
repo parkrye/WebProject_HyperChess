@@ -207,6 +207,23 @@ describe('강화', () => {
     expect(targets(state, 'a1')).not.toContain(sq('d1'));
   });
 
+  it('전차: 대각선으로 한 칸 이동·잡기할 수 있고, 이어서 직선으로 움직이지는 못한다', () => {
+    let state = charged('7k/8/8/8/8/8/1p6/R3K3 w - - 0 1', { w: 'chariot' });
+    state = useAbility(state, { square: sq('a1') });
+    state = move(state, 'h8', 'g8');
+    const moves = targets(state, 'a1');
+    expect(moves).toContain(sq('b2')); // 대각 한 칸의 상대 말 잡기
+    expect(moves).not.toContain(sq('c3')); // 대각 두 칸 불가
+    expect(moves).toContain(sq('a8')); // 기존 직선
+  });
+
+  it('전차: 대각 인접 칸의 킹에 체크를 건다', () => {
+    let state = charged('8/8/8/8/8/8/1k6/R3K3 w - - 0 1', { w: 'chariot' });
+    expect(isInCheck(state, 'b')).toBe(false); // 일반 룩은 대각을 공격하지 않음
+    state = useAbility(state, { square: sq('a1') });
+    expect(isInCheck(state, 'b')).toBe(true);
+  });
+
   it('팔라딘: 강화 비숍의 공격은 자신의 말을 통과한다', () => {
     let state = charged('7k/8/8/8/8/2P5/8/B3K3 w - - 0 1', { w: 'paladin' });
     state = useAbility(state, { square: sq('a1') });

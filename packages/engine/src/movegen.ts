@@ -171,8 +171,12 @@ export function pseudoMovesFrom(
       if (piece.enhanced) targets.push(...stepTargets(ctx, from, piece, ORTHOGONAL_DELTAS));
       return toMoves(targets);
     }
-    case 'r':
-      return toMoves(slideTargets(ctx, from, piece, ORTHOGONAL_DELTAS, jumpsOwnPieces(piece)));
+    case 'r': {
+      const targets = slideTargets(ctx, from, piece, ORTHOGONAL_DELTAS, jumpsOwnPieces(piece));
+      // 전차: 대각선 한 칸 이동(잡기 가능)이 추가된다 (팔라딘의 상하좌우 한 칸과 대칭)
+      if (piece.enhanced) targets.push(...stepTargets(ctx, from, piece, DIAGONAL_DELTAS));
+      return toMoves(targets);
+    }
     case 'q':
       return toMoves(slideTargets(ctx, from, piece, [...ORTHOGONAL_DELTAS, ...DIAGONAL_DELTAS], false));
     case 'k':
@@ -214,7 +218,7 @@ export function attacks(board: Board, from: Square, target: Square, walls: reado
     case 'b':
       return rayHits(board, walls, from, target, piece, DIAGONAL_DELTAS, jumpsOwnPieces(piece)) || (piece.enhanced && stepHits(from, target, ORTHOGONAL_DELTAS));
     case 'r':
-      return rayHits(board, walls, from, target, piece, ORTHOGONAL_DELTAS, jumpsOwnPieces(piece));
+      return rayHits(board, walls, from, target, piece, ORTHOGONAL_DELTAS, jumpsOwnPieces(piece)) || (piece.enhanced && stepHits(from, target, DIAGONAL_DELTAS));
     case 'q':
       return rayHits(board, walls, from, target, piece, [...ORTHOGONAL_DELTAS, ...DIAGONAL_DELTAS], false);
     case 'k':
@@ -265,10 +269,14 @@ export function isSquareAttacked(board: Board, target: Square, by: Color, walls:
     return false;
   };
 
-  // 팔라딘은 상하좌우 인접 칸도 공격한다
+  // 팔라딘은 상하좌우 인접 칸도, 전차는 대각 인접 칸도 공격한다
   for (const [df, dr] of ORTHOGONAL_DELTAS) {
     const piece = enemyAt(offset(target, df, dr));
     if (piece?.type === 'b' && piece.enhanced) return true;
+  }
+  for (const [df, dr] of DIAGONAL_DELTAS) {
+    const piece = enemyAt(offset(target, df, dr));
+    if (piece?.type === 'r' && piece.enhanced) return true;
   }
 
   return rayAttacked(ORTHOGONAL_DELTAS, 'r', true) || rayAttacked(DIAGONAL_DELTAS, 'b', false);
