@@ -1,6 +1,7 @@
 import type { Action, Color } from '@hyperchess/engine';
 import type {
   Ack,
+  ChatMessage,
   ClientToServerEvents,
   CreateRoomRequest,
   JoinResult,
@@ -16,6 +17,8 @@ type GameSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 const SESSION_KEY = 'hyperchess:online-session';
 const ACK_TIMEOUT_MS = 8000;
+/** 화면에 남겨 두는 채팅 줄 수 (서버는 보관하지 않는다) */
+const CHAT_KEEP = 100;
 
 interface StoredSession {
   readonly code: string;
@@ -60,6 +63,7 @@ export function useOnlineRoom() {
   const [resuming, setResuming] = useState(() => loadSession() !== null);
   /** 빠른 매칭 대기 중 */
   const [matching, setMatching] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
 
   useEffect(() => {
     const socket: GameSocket = io({ transports: ['websocket', 'polling'] });
@@ -90,6 +94,7 @@ export function useOnlineRoom() {
       setSnapshot(next);
       setYou(color);
     });
+    socket.on('chat:message', (message) => setMessages((list) => [...list, message].slice(-CHAT_KEEP)));
 
     return () => {
       socket.removeAllListeners();
@@ -116,6 +121,8 @@ export function useOnlineRoom() {
     if (!result) return;
     saveSession({ code: result.code, token: result.token });
     setYou(result.color);
+    // 다른 방으로 들어가면 지난 대화는 남기지 않는다
+    setMessages([]);
   }, []);
 
   useEffect(() => {
@@ -150,6 +157,8 @@ export function useOnlineRoom() {
       socketRef.current?.emit('match:cancel');
       setMatching(false);
     },
+    messages,
+    sendChat: (text: string) => run((s) => s.emitWithAck('chat:send', text)),
     setAbility: (abilityId: string) => run((s) => s.emitWithAck('room:ability', abilityId)),
     setReady: (ready: boolean) => run((s) => s.emitWithAck('room:ready', ready)),
     setColor: (color: Color) => run((s) => s.emitWithAck('room:color', color)),
@@ -162,6 +171,7 @@ export function useOnlineRoom() {
       saveSession(null);
       setSnapshot(null);
       setYou(null);
+      setMessages([]);
     },
   };
 }

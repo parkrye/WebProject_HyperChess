@@ -56,12 +56,14 @@ export function registerHandlers(io: GameServer, socket: GameSocket, { rooms, us
     return { userId: user.id, nickname: user.nickname };
   };
 
-  const respond = <T>(ack: unknown, run: () => { code: string | null; data: T }) => {
+  /** after 를 주면 방 상태 브로드캐스트 대신 그것을 실행한다 (방 상태가 바뀌지 않는 요청) */
+  const respond = <T>(ack: unknown, run: () => { code: string | null; data: T; after?: () => void }) => {
     const reply = typeof ack === 'function' ? (ack as (result: Ack<T>) => void) : () => {};
     try {
-      const { code, data } = run();
+      const { code, data, after } = run();
       reply({ ok: true, data });
-      broadcastRoom(io, rooms, code);
+      if (after) after();
+      else broadcastRoom(io, rooms, code);
     } catch (error) {
       if (error instanceof RoomError || error instanceof IllegalActionError) {
         reply({ ok: false, error: error.message });
@@ -115,6 +117,19 @@ export function registerHandlers(io: GameServer, socket: GameSocket, { rooms, us
   socket.on('room:ready', (ready, ack) => respond(ack, () => ({ code: rooms.setReady(socket.id, ready === true), data: null })));
   socket.on('room:color', (color, ack) => respond(ack, () => ({ code: rooms.setColor(socket.id, color), data: null })));
   socket.on('room:start', (ack) => respond(ack, () => ({ code: rooms.start(socket.id), data: null })));
+
+  socket.on('chat:send', (text, ack) =>
+    respond(ack, () => {
+      const { code, message } = rooms.chat(socket.id, text);
+      return {
+        code,
+        data: null,
+        after: () => {
+          for (const { socketId } of rooms.connectedSeats(code)) io.to(socketId).emit('chat:message', message);
+        },
+      };
+    }),
+  );
 
   socket.on('game:action', (action, ack) =>
     respond(ack, () => {

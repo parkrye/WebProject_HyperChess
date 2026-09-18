@@ -183,6 +183,23 @@ export interface JoinResult {
 
 export type Ack<T> = { readonly ok: true; readonly data: T } | { readonly ok: false; readonly error: string };
 
+/* ---------- 방 채팅 ---------- */
+
+export const CHAT_MAX_LENGTH = 200;
+/** 같은 사람이 이 간격 안에 연달아 보내면 거부한다 */
+export const CHAT_MIN_INTERVAL_MS = 700;
+
+/** 방 안에서만 오가는 메시지. 서버에 보관하지 않아 접속이 끊기면 사라진다 */
+export interface ChatMessage {
+  /** 방 안에서만 쓰는 일련번호 */
+  readonly id: number;
+  readonly color: Color;
+  readonly name: string;
+  readonly text: string;
+  /** 보낸 서버 시각 (epoch ms) */
+  readonly at: number;
+}
+
 /** 색과 능력은 방 안에서 정한다 (방장이 색, 각자 능력) */
 export interface CreateRoomRequest {
   readonly name: string;
@@ -220,6 +237,8 @@ export interface ClientToServerEvents {
   'room:color': (color: Color, ack: (result: Ack<null>) => void) => void;
   /** 방장이 대국을 시작한다 */
   'room:start': (ack: (result: Ack<null>) => void) => void;
+  /** 방 채팅 (대기실·대국 중) */
+  'chat:send': (text: string, ack: (result: Ack<null>) => void) => void;
   /** matched: 바로 짝이 지어졌는지 (false면 대기열에서 기다림) */
   'match:find': (request: MatchRequest, ack: (result: Ack<{ matched: boolean }>) => void) => void;
   'match:cancel': () => void;
@@ -234,4 +253,5 @@ export interface ServerToClientEvents {
   'room:closed': (reason: string) => void;
   /** 빠른 매칭 성사: 참가한 방 정보 */
   'match:found': (result: JoinResult) => void;
+  'chat:message': (message: ChatMessage) => void;
 }

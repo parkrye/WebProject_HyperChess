@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { abilityName, COLOR_NAME } from '../abilityUi/text';
 import { AbilityPicker } from '../components/AbilityPicker';
 import { AbilityReveal } from '../components/AbilityReveal';
+import { ChatPanel } from '../components/ChatPanel';
 import { GameView } from '../components/GameView';
 import { Page } from '../components/Page';
 import { useBgm } from '../audio/bgm';
@@ -333,6 +334,8 @@ function WaitingRoom({ room, snapshot, you, onLeave }: WaitingRoomProps) {
         disabled={ready}
         onSelect={(abilityId) => void room.setAbility(abilityId)}
       />
+
+      <ChatPanel messages={room.messages} you={you} onSend={(text) => void room.sendChat(text)} />
     </Page>
   );
 }
@@ -411,16 +414,19 @@ function OnlineGame({ room, snapshot, game, you, onLeave }: OnlineGameProps) {
         onMenu={onLeave}
         notice={notice}
         sidebar={
-          <div className="room-info">
-            <span>
-              방 코드 <strong>{snapshot.code}</strong>
-            </span>
-            {snapshot.status === 'playing' && (
-              <button type="button" className="btn btn-ghost" onClick={confirmResign}>
-                기권
-              </button>
-            )}
-          </div>
+          <>
+            <div className="room-info">
+              <span>
+                방 코드 <strong>{snapshot.code}</strong>
+              </span>
+              {snapshot.status === 'playing' && (
+                <button type="button" className="btn btn-ghost" onClick={confirmResign}>
+                  기권
+                </button>
+              )}
+            </div>
+            <ChatPanel messages={room.messages} you={you} onSend={(text) => void room.sendChat(text)} />
+          </>
         }
         resultActions={
           <>

@@ -11,8 +11,11 @@ import {
   type GameState,
 } from '@hyperchess/engine';
 import {
+  CHAT_MAX_LENGTH,
+  CHAT_MIN_INTERVAL_MS,
   NAME_MAX_LENGTH,
   ROOM_CODE_LENGTH,
+  type ChatMessage,
   type CreateRoomRequest,
   type JoinResult,
   type JoinRoomRequest,
@@ -36,6 +39,8 @@ interface Seat {
   abilityId: string;
   /** 대기실 준비 완료 (준비하면 능력을 바꿀 수 없다) */
   ready: boolean;
+  /** 마지막으로 채팅을 보낸 시각 (도배 차단) */
+  lastChatAt: number;
   readonly token: string;
   socketId: string | null;
   /** 로그인 유저 id, 게스트는 null */
@@ -57,6 +62,8 @@ interface Room {
   /** 이번 게임에서 둔 행동 순서 (기록용) */
   actions: Action[];
   rematchVotes: Set<Color>;
+  /** 채팅 일련번호 (보관하지 않고 번호만 이어 붙인다) */
+  chatSeq: number;
   /** 모든 좌석의 연결이 끊긴 시각 */
   abandonedAt: number | null;
 }
@@ -104,6 +111,7 @@ export class RoomManager {
       game: null,
       actions: [],
       rematchVotes: new Set(),
+      chatSeq: 0,
       abandonedAt: null,
     };
     this.rooms.set(code, room);
@@ -221,6 +229,21 @@ export class RoomManager {
     if (!opponent.ready) throw new RoomError('상대가 아직 준비하지 않았습니다');
     this.startGame(room);
     return room.code;
+  }
+
+  /** 방 채팅 한 줄. 보관하지 않고 만들어서 돌려주기만 한다 */
+  chat(socketId: string, rawText: string): { code: string; message: ChatMessage } {
+    const { room, color } = this.requireSeat(socketId);
+    const seat = room.seats[color];
+    if (!seat) throw new RoomError('참가 중인 방이 없습니다');
+
+    const text = String(rawText ?? '').replace(/\s+/g, ' ').trim().slice(0, CHAT_MAX_LENGTH);
+    if (!text) throw new RoomError('보낼 내용이 없습니다');
+
+    const at = this.now();
+    if (at - seat.lastChatAt < CHAT_MIN_INTERVAL_MS) throw new RoomError('조금 천천히 보내 주세요');
+    seat.lastChatAt = at;
+    return { code: room.code, message: { id: room.chatSeq++, color, name: seat.name, text, at } };
   }
 
   act(socketId: string, action: Action): string {
@@ -372,7 +395,7 @@ export class RoomManager {
     // 로그인 유저는 닉네임을 그대로 쓴다
     const name = identity?.nickname ?? (String(rawName ?? '').trim().slice(0, NAME_MAX_LENGTH) || '게스트');
     const choice = RANDOM_ABILITY;
-    return { name, choice, abilityId: choice, ready: false, token: randomUUID(), socketId, userId: identity?.userId ?? null };
+    return { name, choice, abilityId: choice, ready: false, lastChatAt: 0, token: randomUUID(), socketId, userId: identity?.userId ?? null };
   }
 
   private generateCode(): string {
