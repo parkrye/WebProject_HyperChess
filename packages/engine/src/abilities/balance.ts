@@ -48,7 +48,7 @@ export const BALANCE = {
     // v20: v14 상향(최대 1→2, 회복 6→4)을 되돌린다. 그 상향은 AI 가 여제를 못 쓰던 시절의
     // 신호를 보고 한 것이고, AI 를 고치자 리그전 86% 가 나왔다
     maxResource: 1, startResource: 0, cooldownTurns: 0,
-    recovery: [{ trigger: 'ownTurns', every: 14, amount: 1 }],
+    recovery: [{ trigger: 'ownTurns', every: 18, amount: 1 }],
   },
   heir: {
     maxResource: 8, startResource: 0, cooldownTurns: 0,
@@ -68,7 +68,7 @@ export const BALANCE = {
   },
   march: {
     maxResource: 1, startResource: 0, cooldownTurns: 0,
-    recovery: [{ trigger: 'ownTurns', every: 7, amount: 1 }],
+    recovery: [{ trigger: 'ownTurns', every: 11, amount: 1 }],
   },
   snipe: {
     maxResource: 2, startResource: 0, cooldownTurns: 0,
@@ -83,7 +83,7 @@ export const COSTS = {
   revive: { p: 4, n: 5, b: 5, r: 6, q: 7, k: 99 } satisfies Record<PieceType, number>,
   rewindPerStep: 1,
   heavyInfantry: 1,
-  lancer: 2,
+  lancer: 1,
   chariot: 1,
   paladin: 1,
   empress: 1,
