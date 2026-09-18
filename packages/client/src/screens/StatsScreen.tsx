@@ -1,5 +1,5 @@
 import { listAbilities } from '@hyperchess/engine';
-import type { CategorySummary, StatsCategory } from '@hyperchess/protocol';
+import type { AbilityStat, CategorySummary, StatsCategory } from '@hyperchess/protocol';
 import { useEffect, useState } from 'react';
 import { abilityUi } from '../abilityUi/specs';
 import { useBgm } from '../audio/bgm';
@@ -77,41 +77,82 @@ export function StatsScreen({ onBack }: { onBack: () => void }) {
   );
 }
 
-/** 능력별 전적. 기록이 없어도 모든 능력을 같은 순서로 보여 줘 분류를 바꿔도 표가 흔들리지 않는다 */
+/** 능력별 표에서 고를 수 있는 정렬 기준 */
+type SortKey = 'name' | 'games' | 'wins' | 'draws' | 'losses' | 'rate';
+type SortDir = 'asc' | 'desc';
+
+const COLUMNS: readonly { readonly key: SortKey; readonly label: string; readonly defaultDir: SortDir }[] = [
+  { key: 'name', label: '능력', defaultDir: 'asc' },
+  { key: 'games', label: '판 수', defaultDir: 'desc' },
+  { key: 'wins', label: '승', defaultDir: 'desc' },
+  { key: 'draws', label: '무', defaultDir: 'desc' },
+  { key: 'losses', label: '패', defaultDir: 'desc' },
+  { key: 'rate', label: '승률', defaultDir: 'desc' },
+];
+
+interface AbilityRow {
+  readonly id: string;
+  readonly name: string;
+  readonly stat: AbilityStat | undefined;
+}
+
+/** 기록이 없는 능력은 정렬 기준과 무관하게 항상 뒤로 보낸다 */
+function compareRows(a: AbilityRow, b: AbilityRow, key: SortKey, dir: SortDir): number {
+  if (key === 'name') return dir === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
+  if (!a.stat || !b.stat) return a.stat ? -1 : b.stat ? 1 : 0;
+
+  const value = (stat: AbilityStat) => (key === 'rate' ? (stat.games === 0 ? -1 : stat.wins / stat.games) : stat[key]);
+  const diff = value(a.stat) - value(b.stat);
+  if (diff !== 0) return dir === 'asc' ? diff : -diff;
+  return a.name.localeCompare(b.name);
+}
+
+/** 능력별 전적. 정렬하지 않으면 기록이 없어도 모든 능력을 같은 순서로 보여 줘 분류를 바꿔도 표가 흔들리지 않는다 */
 function AbilityTable({ summary }: { summary: CategorySummary | undefined }) {
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir } | null>(null);
   const stats = new Map(summary?.abilities.map((a) => [a.abilityId, a]));
+  const rows: AbilityRow[] = listAbilities().map((ability) => ({ id: ability.id, name: ability.name, stat: stats.get(ability.id) }));
+  if (sort) rows.sort((a, b) => compareRows(a, b, sort.key, sort.dir));
+
+  const toggle = (key: SortKey, defaultDir: SortDir) =>
+    setSort((prev) => (prev?.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: defaultDir }));
+
   return (
     <div className="table-card">
       <table className="data-table">
         <thead>
           <tr>
-            <th scope="col">능력</th>
-            <th scope="col">판 수</th>
-            <th scope="col">승</th>
-            <th scope="col">무</th>
-            <th scope="col">패</th>
-            <th scope="col">승률</th>
+            {COLUMNS.map(({ key, label, defaultDir }) => {
+              const active = sort?.key === key ? sort.dir : null;
+              return (
+                <th key={key} scope="col" aria-sort={active === 'asc' ? 'ascending' : active === 'desc' ? 'descending' : 'none'}>
+                  <button type="button" className={`sort-button ${active ? 'active' : ''}`} onClick={() => toggle(key, defaultDir)}>
+                    {label}
+                    <span className="sort-arrow" aria-hidden>
+                      {active === 'asc' ? '▲' : active === 'desc' ? '▼' : '↕'}
+                    </span>
+                  </button>
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>
-          {listAbilities().map((ability) => {
-            const stat = stats.get(ability.id);
-            return (
-              <tr key={ability.id}>
-                <th scope="row">
-                  <span className="stats-ability">
-                    <AbilityIconView icon={abilityUi(ability.id).icon} size={20} />
-                    {ability.name}
-                  </span>
-                </th>
-                <td>{stat ? stat.games.toLocaleString() : '-'}</td>
-                <td>{stat ? stat.wins : '-'}</td>
-                <td>{stat ? stat.draws : '-'}</td>
-                <td>{stat ? stat.losses : '-'}</td>
-                <td>{stat ? percent(stat.wins, stat.games) : '-'}</td>
-              </tr>
-            );
-          })}
+          {rows.map(({ id, name, stat }) => (
+            <tr key={id}>
+              <th scope="row">
+                <span className="stats-ability">
+                  <AbilityIconView icon={abilityUi(id).icon} size={20} />
+                  {name}
+                </span>
+              </th>
+              <td>{stat ? stat.games.toLocaleString() : '-'}</td>
+              <td>{stat ? stat.wins : '-'}</td>
+              <td>{stat ? stat.draws : '-'}</td>
+              <td>{stat ? stat.losses : '-'}</td>
+              <td>{stat ? percent(stat.wins, stat.games) : '-'}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>

@@ -166,7 +166,7 @@ function Lobby({ room, onBack, onSingle }: { room: OnlineRoom } & OnlineScreenPr
 
 /* ---------- 빠른 매칭 ---------- */
 
-/** 이 시간마다 상대를 못 찾으면 싱글 플레이를 권한다 */
+/** 이만큼 상대를 못 찾으면 싱글 플레이를 한 번 권한다 (대기 한 번에 한 번만) */
 const MATCH_SUGGEST_MS = 30_000;
 
 const formatElapsed = (ms: number) => {
@@ -191,13 +191,13 @@ function QuickMatch({ room, disabled, onFind, onSingle }: QuickMatchProps) {
     setSuggest(false);
     if (!matching) return;
     const startedAt = Date.now();
-    let nextSuggestAt = MATCH_SUGGEST_MS;
+    let suggested = false;
     const timer = window.setInterval(() => {
       const elapsed = Date.now() - startedAt;
       setElapsedMs(elapsed);
-      if (elapsed < nextSuggestAt) return;
+      if (suggested || elapsed < MATCH_SUGGEST_MS) return;
+      suggested = true;
       setSuggest(true);
-      nextSuggestAt += MATCH_SUGGEST_MS;
     }, 250);
     return () => window.clearInterval(timer);
   }, [matching]);
