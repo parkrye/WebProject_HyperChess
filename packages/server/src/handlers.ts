@@ -103,8 +103,8 @@ export function registerHandlers(io: GameServer, socket: GameSocket, { rooms, us
       const partner = matchmaker.enqueue({ socketId: socket.id, request, identity });
       if (!partner) return { code: null, data: { matched: false } };
 
-      // 먼저 기다린 쪽이 방을 만들고 새로 온 쪽이 참가한다. 방장이 없어 양쪽이 준비하면 시작한다
-      const first = rooms.create(partner.socketId, partner.request, partner.identity, false);
+      // 먼저 기다린 쪽이 방을 만들고 새로 온 쪽이 참가한다. 색·능력은 대기실에서 고른다
+      const first = rooms.create(partner.socketId, partner.request, partner.identity);
       const second = rooms.join(socket.id, { ...request, code: first.code }, identity);
       io.to(partner.socketId).emit('match:found', first);
       socket.emit('match:found', second);
@@ -114,9 +114,8 @@ export function registerHandlers(io: GameServer, socket: GameSocket, { rooms, us
   socket.on('match:cancel', () => matchmaker.cancel(socket.id));
 
   socket.on('room:ability', (abilityId, ack) => respond(ack, () => ({ code: rooms.setAbility(socket.id, String(abilityId)), data: null })));
-  socket.on('room:ready', (ready, ack) => respond(ack, () => ({ code: rooms.setReady(socket.id, ready === true), data: null })));
   socket.on('room:color', (color, ack) => respond(ack, () => ({ code: rooms.setColor(socket.id, color), data: null })));
-  socket.on('room:start', (ack) => respond(ack, () => ({ code: rooms.start(socket.id), data: null })));
+  socket.on('room:ready', (ready, ack) => respond(ack, () => ({ code: rooms.setReady(socket.id, ready === true), data: null })));
 
   socket.on('chat:send', (text, ack) =>
     respond(ack, () => {

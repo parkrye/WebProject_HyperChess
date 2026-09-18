@@ -4,33 +4,32 @@ import { RoomError, RoomManager } from '../src/rooms';
 
 const move = (from: string, to: string) => ({ type: 'move' as const, move: { from: sq(from), to: sq(to) } });
 
-/** 방을 만들고 손님을 들인 뒤, 능력을 고르고 방장이 시작한다 */
+/** 방을 만들고 손님을 들인 뒤, 색·능력을 고르고 둘 다 준비해 시작한다 */
 function setupRoom(manager = new RoomManager()) {
   const host = manager.create('s1', { name: '호스트' });
   const guest = manager.join('s2', { code: host.code.toLowerCase(), name: '게스트' });
+  manager.setColor('s1', 'w');
   manager.setAbility('s1', 'haste');
   manager.setAbility('s2', 'rewind');
+  manager.setReady('s1', true);
   manager.setReady('s2', true);
-  manager.start('s1');
   return { manager, host, guest };
 }
 
 describe('RoomManager', () => {
-  it('두 명이 모여도 방장이 시작해야 각자의 능력으로 게임이 시작된다', () => {
+  it('둘 다 준비해야 각자의 능력으로 게임이 시작된다', () => {
     const manager = new RoomManager();
     const host = manager.create('s1', { name: '호스트' });
     manager.join('s2', { code: host.code, name: '게스트' });
     expect(manager.snapshot(host.code).status).toBe('waiting');
-    expect(manager.snapshot(host.code).hostColor).toBe('w');
 
-    expect(() => manager.start('s1')).toThrow('준비하지 않았습니다');
-    expect(() => manager.start('s2')).toThrow('방장만');
-
+    manager.setColor('s1', 'w');
     manager.setAbility('s1', 'haste');
     manager.setAbility('s2', 'rewind');
-    manager.setReady('s2', true);
-    manager.start('s1');
+    manager.setReady('s1', true);
+    expect(manager.snapshot(host.code).status).toBe('waiting');
 
+    manager.setReady('s2', true);
     const snapshot = manager.snapshot(host.code);
     expect(snapshot.status).toBe('playing');
     expect(snapshot.game?.players.w.abilityId).toBe('haste');
@@ -39,38 +38,56 @@ describe('RoomManager', () => {
     expect(snapshot.seats.b?.ready).toBe(false);
   });
 
-  it('준비한 뒤에는 능력을 바꿀 수 없고, 방장이 색을 바꾸면 준비가 풀린다', () => {
+  it('준비한 뒤에는 색과 능력을 바꿀 수 없다', () => {
     const manager = new RoomManager();
     const host = manager.create('s1', { name: '호스트' });
     manager.join('s2', { code: host.code, name: '게스트' });
 
     manager.setReady('s2', true);
     expect(() => manager.setAbility('s2', 'haste')).toThrow('준비를 취소한 뒤');
+    expect(() => manager.setColor('s2', 'b')).toThrow('준비를 취소한 뒤');
     manager.setReady('s2', false);
     manager.setAbility('s2', 'haste');
+    expect(manager.snapshot(host.code).seats.b).toMatchObject({ abilityId: 'haste', colorChoice: 'random' });
+  });
+
+  it('한쪽만 색을 고르면 그대로 주고, 고른 능력이 자리를 따라간다', () => {
+    const manager = new RoomManager();
+    const host = manager.create('s1', { name: '호스트' });
+    manager.join('s2', { code: host.code, name: '게스트' });
+    manager.setAbility('s1', 'haste');
+    manager.setColor('s1', 'b');
+    manager.setReady('s1', true);
     manager.setReady('s2', true);
 
-    manager.setColor('s1', 'b');
     const snapshot = manager.snapshot(host.code);
     expect(snapshot.seats.b?.name).toBe('호스트');
     expect(snapshot.seats.w?.name).toBe('게스트');
-    expect(snapshot.hostColor).toBe('b');
-    expect(snapshot.seats.w?.ready).toBe(false);
-    // 색이 바뀌어도 고른 능력은 따라간다
-    expect(snapshot.seats.w?.abilityId).toBe('haste');
+    expect(snapshot.seats.b?.abilityId).toBe('haste');
+    expect(snapshot.game?.players.b.abilityId).toBe('haste');
   });
 
-  it('빠른 매칭 방은 방장이 없어 양쪽이 준비하면 저절로 시작한다', () => {
+  it('상대가 무작위를 고르면 남은 색을 가져간다', () => {
     const manager = new RoomManager();
-    const first = manager.create('s1', { name: 'a' }, null, false);
-    manager.join('s2', { code: first.code, name: 'b' });
-    expect(manager.snapshot(first.code).hostColor).toBeNull();
-    expect(() => manager.start('s1')).toThrow('방장만');
-
+    const host = manager.create('s1', { name: '호스트' });
+    manager.join('s2', { code: host.code, name: '게스트' });
+    manager.setColor('s2', 'w');
     manager.setReady('s1', true);
-    expect(manager.snapshot(first.code).status).toBe('waiting');
     manager.setReady('s2', true);
-    expect(manager.snapshot(first.code).status).toBe('playing');
+    expect(manager.snapshot(host.code).seats.w?.name).toBe('게스트');
+  });
+
+  it('둘이 같은 색을 고르면 무작위로 가른다', () => {
+    // random 은 능력 추첨에도 쓰이므로 색을 정하는 첫 호출만 본다
+    const manager = new RoomManager({ random: () => 0.9 });
+    const host = manager.create('s1', { name: '호스트' });
+    manager.join('s2', { code: host.code, name: '게스트' });
+    manager.setColor('s1', 'b');
+    manager.setColor('s2', 'b');
+    manager.setReady('s1', true);
+    manager.setReady('s2', true);
+    // 0.9 >= 0.5 이므로 뒤 자리(게스트)가 백이 된다
+    expect(manager.snapshot(host.code).seats.w?.name).toBe('게스트');
   });
 
   it('무작위 선택은 게임 시작 시 결정되고, 재대결마다 새로 뽑는다', () => {
@@ -80,9 +97,10 @@ describe('RoomManager', () => {
     expect(manager.snapshot(host.code).seats.w).toMatchObject({ abilityId: 'random', randomized: true });
 
     manager.join('s2', { code: host.code, name: 'b' });
+    manager.setColor('s1', 'w');
     manager.setAbility('s2', 'haste');
+    manager.setReady('s1', true);
     manager.setReady('s2', true);
-    manager.start('s1');
     const first = manager.snapshot(host.code);
     expect(first.seats.w?.randomized).toBe(true);
     expect(first.seats.w?.abilityId).not.toBe('random');
@@ -174,7 +192,7 @@ describe('RoomManager', () => {
     expect(manager.roomCount).toBe(0);
   });
 
-  it('대기 중 방장이 나가면 방이 사라진다', () => {
+  it('대기 중 혼자 남은 사람이 나가면 방이 사라진다', () => {
     const manager = new RoomManager();
     const host = manager.create('s1', { name: 'a' });
     manager.leave('s1');

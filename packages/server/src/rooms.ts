@@ -16,6 +16,7 @@ import {
   NAME_MAX_LENGTH,
   ROOM_CODE_LENGTH,
   type ChatMessage,
+  type ColorPreference,
   type CreateRoomRequest,
   type JoinResult,
   type JoinRoomRequest,
@@ -35,6 +36,8 @@ interface Seat {
   readonly name: string;
   /** 대기실에서 고른 값: 능력 id 또는 'random' */
   choice: string;
+  /** 대기실에서 고른 색: 백·흑 또는 무작위 */
+  colorChoice: ColorPreference;
   /** 이번 게임에서 사용하는 능력 (무작위면 게임 시작 시 결정) */
   abilityId: string;
   /** 대기실 준비 완료 (준비하면 능력을 바꿀 수 없다) */
@@ -55,8 +58,7 @@ export interface SeatIdentity {
 
 interface Room {
   readonly code: string;
-  /** 색 지정·시작 권한을 가진 자리. 빠른 매칭 방은 방장이 없어 null (둘 다 준비하면 시작) */
-  host: Color | null;
+  /** 자리는 그냥 두 칸이다. 실제 색은 둘 다 준비했을 때 선택값으로 정해진다 */
   seats: Record<Color, Seat | null>;
   game: GameState | null;
   /** 이번 게임에서 둔 행동 순서 (기록용) */
@@ -97,8 +99,8 @@ export class RoomManager {
     this.ratingOf = options.ratingOf ?? (() => null);
   }
 
-  /** 방을 만든다. 색과 능력은 대기실에서 정한다 (hosted: false면 방장 없는 빠른 매칭 방) */
-  create(socketId: string, request: CreateRoomRequest, identity: SeatIdentity | null = null, hosted = true): JoinResult {
+  /** 방을 만든다. 색과 능력은 각자 대기실에서 고른다 */
+  create(socketId: string, request: CreateRoomRequest, identity: SeatIdentity | null = null): JoinResult {
     this.detach(socketId);
     const code = this.generateCode();
     const color: Color = 'w';
@@ -106,7 +108,6 @@ export class RoomManager {
     const seat = this.createSeat(socketId, request.name, identity);
     const room: Room = {
       code,
-      host: hosted ? color : null,
       seats: { w: seat, b: null },
       game: null,
       actions: [],
@@ -173,12 +174,9 @@ export class RoomManager {
     if (!room.game) room.seats[binding.color] = null;
     room.rematchVotes.delete(binding.color);
 
+    // 상대가 떠나면 기다리던 사람의 준비는 풀린다
     const other = room.seats[opposite(binding.color)];
-    if (!room.seats[binding.color]) {
-      // 방장이 떠나면 남은 사람이 방장이 되고, 기다리던 사람의 준비는 풀린다
-      if (room.host === binding.color) room.host = other ? opposite(binding.color) : null;
-      if (other) other.ready = false;
-    }
+    if (!room.seats[binding.color] && other) other.ready = false;
 
     if (COLORS.every((c) => !room.seats[c]?.socketId)) {
       this.rooms.delete(room.code);
@@ -197,7 +195,7 @@ export class RoomManager {
     return room.code;
   }
 
-  /** 대기실 준비 토글. 방장이 없는 방은 양쪽이 준비하면 바로 시작한다 */
+  /** 대기실 준비 토글. 양쪽이 준비하면 색을 가른 뒤 바로 시작한다 */
   setReady(socketId: string, ready: boolean): string {
     const { room, seat } = this.requireWaitingSeat(socketId);
     seat.ready = ready;
@@ -205,29 +203,12 @@ export class RoomManager {
     return room.code;
   }
 
-  /** 방장이 자기 색을 고른다. 색이 바뀌면 준비를 다시 받는다 */
-  setColor(socketId: string, color: Color): string {
-    const { room, color: mine } = this.requireWaitingSeat(socketId);
-    if (room.host !== mine) throw new RoomError('방장만 색을 정할 수 있습니다');
-    if (!COLORS.includes(color)) throw new RoomError('잘못된 색 선택입니다');
-    if (color === mine) return room.code;
-
-    this.swapSeats(room);
-    for (const c of COLORS) {
-      const seat = room.seats[c];
-      if (seat) seat.ready = false;
-    }
-    return room.code;
-  }
-
-  /** 방장이 대국을 시작한다 */
-  start(socketId: string): string {
-    const { room, color } = this.requireWaitingSeat(socketId);
-    if (room.host !== color) throw new RoomError('방장만 시작할 수 있습니다');
-    const opponent = room.seats[opposite(color)];
-    if (!opponent) throw new RoomError('상대가 아직 들어오지 않았습니다');
-    if (!opponent.ready) throw new RoomError('상대가 아직 준비하지 않았습니다');
-    this.startGame(room);
+  /** 대기실에서 내 색을 고른다 (준비 전에만). 둘이 같은 색을 골라도 막지 않고 시작할 때 무작위로 가른다 */
+  setColor(socketId: string, color: ColorPreference): string {
+    const { room, seat } = this.requireWaitingSeat(socketId);
+    if (seat.ready) throw new RoomError('준비를 취소한 뒤에 바꿀 수 있습니다');
+    if (color !== 'random' && !COLORS.includes(color)) throw new RoomError('잘못된 색 선택입니다');
+    seat.colorChoice = color;
     return room.code;
   }
 
@@ -287,6 +268,7 @@ export class RoomManager {
         ? {
             name: seat.name,
             abilityId: seat.abilityId,
+            colorChoice: seat.colorChoice,
             randomized: seat.choice === RANDOM_ABILITY,
             connected: seat.socketId !== null,
             rating: seat.userId ? this.ratingOf(seat.userId) : null,
@@ -302,7 +284,6 @@ export class RoomManager {
       game: room.game,
       rematchVotes: [...room.rematchVotes],
       serverTime: this.now(),
-      hostColor: room.host,
     };
   }
 
@@ -358,11 +339,31 @@ export class RoomManager {
     }
   }
 
-  /** 방장이 없는 방(빠른 매칭)은 양쪽이 준비하면 저절로 시작한다 */
+  /** 양쪽이 준비하면 색을 가른 뒤 시작한다 */
   private startIfAllReady(room: Room) {
     const { w, b } = room.seats;
-    if (room.host !== null || !w || !b || !w.ready || !b.ready) return;
+    if (!w || !b || !w.ready || !b.ready) return;
+    this.assignColors(room);
     this.startGame(room);
+  }
+
+  /**
+   * 색 선택을 실제 자리로 푼다. 한쪽만 특정 색을 원하면 그대로 주고,
+   * 둘이 같은 색을 원하거나 둘 다 무작위면 무작위로 가른다.
+   */
+  private assignColors(room: Room) {
+    const { w: first, b: second } = room.seats;
+    if (!first || !second) return;
+
+    const wantWhite = [first, second].filter((seat) => seat.colorChoice === 'w');
+    const wantBlack = [first, second].filter((seat) => seat.colorChoice === 'b');
+
+    let white: Seat;
+    if (wantWhite.length === 1 && wantBlack.length <= 1) white = wantWhite[0];
+    else if (wantWhite.length === 0 && wantBlack.length === 1) white = wantBlack[0] === first ? second : first;
+    else white = this.random() < 0.5 ? first : second;
+
+    if (white !== first) this.swapSeats(room);
   }
 
   private startGame(room: Room) {
@@ -377,10 +378,9 @@ export class RoomManager {
     room.game = createGame({ abilities: { w: w.abilityId, b: b.abilityId }, timeControl: STANDARD_TIME_CONTROL, now: this.now() });
   }
 
-  /** 좌석을 맞바꾸고 방장·소켓 연결을 따라 옮긴다 */
+  /** 좌석을 맞바꾸고 소켓 연결을 따라 옮긴다 */
   private swapSeats(room: Room) {
     room.seats = { w: room.seats.b, b: room.seats.w };
-    if (room.host) room.host = opposite(room.host);
     for (const c of COLORS) {
       const socket = room.seats[c]?.socketId;
       if (socket) this.socketSeats.set(socket, { code: room.code, color: c });
@@ -395,7 +395,7 @@ export class RoomManager {
     // 로그인 유저는 닉네임을 그대로 쓴다
     const name = identity?.nickname ?? (String(rawName ?? '').trim().slice(0, NAME_MAX_LENGTH) || '게스트');
     const choice = RANDOM_ABILITY;
-    return { name, choice, abilityId: choice, ready: false, lastChatAt: 0, token: randomUUID(), socketId, userId: identity?.userId ?? null };
+    return { name, choice, colorChoice: 'random', abilityId: choice, ready: false, lastChatAt: 0, token: randomUUID(), socketId, userId: identity?.userId ?? null };
   }
 
   private generateCode(): string {

@@ -1,5 +1,5 @@
 import { type Action, type Color, type GameState } from '@hyperchess/engine';
-import { NAME_MAX_LENGTH, RANDOM_ABILITY, ROOM_CODE_LENGTH, type RoomSnapshot } from '@hyperchess/protocol';
+import { NAME_MAX_LENGTH, RANDOM_ABILITY, ROOM_CODE_LENGTH, type ColorPreference, type RoomSnapshot } from '@hyperchess/protocol';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { abilityName, COLOR_NAME } from '../abilityUi/text';
 import { AbilityPicker } from '../components/AbilityPicker';
@@ -243,10 +243,10 @@ interface WaitingRoomProps {
   readonly onLeave: () => void;
 }
 
-/**
- * 대기실: 색(방장)과 능력(각자)을 정하고 준비한다.
- * 방장이 있는 방은 방장이 시작을 누르고, 빠른 매칭 방(방장 없음)은 양쪽이 준비하면 저절로 시작한다.
- */
+const COLOR_CHOICES: readonly ColorPreference[] = ['random', 'w', 'b'];
+const colorChoiceName = (choice: ColorPreference) => (choice === 'random' ? '무작위' : COLOR_NAME[choice]);
+
+/** 대기실: 각자 색과 능력을 고르고 준비한다. 둘 다 준비하면 대국이 시작된다 */
 function WaitingRoom({ room, snapshot, you, onLeave }: WaitingRoomProps) {
   const [copied, setCopied] = useState(false);
   useBgm('lobby');
@@ -254,8 +254,10 @@ function WaitingRoom({ room, snapshot, you, onLeave }: WaitingRoomProps) {
 
   const mySeat = snapshot.seats[you];
   const opponent = snapshot.seats[you === 'w' ? 'b' : 'w'];
-  const isHost = snapshot.hostColor === you;
   const ready = mySeat?.ready ?? false;
+  const myColor = mySeat?.colorChoice ?? 'random';
+  // 둘이 같은 색을 골랐으면 시작할 때 무작위로 갈린다
+  const clash = !!opponent && myColor !== 'random' && opponent.colorChoice === myColor;
 
   const copy = async () => {
     try {
@@ -278,56 +280,55 @@ function WaitingRoom({ room, snapshot, you, onLeave }: WaitingRoomProps) {
           {copied ? '링크 복사됨' : '초대 링크 복사'}
         </button>
         <ul className="seat-list">
-          {(['w', 'b'] as const).map((color) => {
-            const seat = snapshot.seats[color];
+          {(['w', 'b'] as const).map((slot) => {
+            const seat = snapshot.seats[slot];
             return (
-              <li key={color}>
-                <span className={`player-dot dot-${color}`} />
+              <li key={slot}>
                 {seat ? (
                   <>
+                    <span className={`player-dot dot-${seat.colorChoice}`} />
                     <strong>{seat.name}</strong>
-                    {color === you && <span className="seat-tag">나</span>}
-                    {color === snapshot.hostColor && <span className="seat-tag">방장</span>}
+                    {slot === you && <span className="seat-tag">나</span>}
+                    <span className="seat-tag">{colorChoiceName(seat.colorChoice)}</span>
                     <span className="seat-ability">{abilityName(seat.abilityId)}</span>
-                    {/* 방장은 준비 대신 시작을 누르므로 준비 표시가 없다 */}
-                    {color !== snapshot.hostColor && (
-                      <span className={`seat-ready ${seat.ready ? 'is-ready' : ''}`}>{seat.ready ? '준비 완료' : '준비 전'}</span>
-                    )}
+                    <span className={`seat-ready ${seat.ready ? 'is-ready' : ''}`}>{seat.ready ? '준비 완료' : '준비 전'}</span>
                   </>
                 ) : (
-                  <span className="seat-empty">대기 중</span>
+                  <>
+                    <span className="player-dot dot-random" />
+                    <span className="seat-empty">대기 중</span>
+                  </>
                 )}
               </li>
             );
           })}
         </ul>
 
-        {isHost && (
-          <div className="segmented" role="radiogroup" aria-label="내 색">
-            {(['w', 'b'] as const).map((value) => (
-              <button
-                key={value}
-                type="button"
-                role="radio"
-                aria-checked={you === value}
-                className={you === value ? 'active' : ''}
-                onClick={() => void room.setColor(value)}
-              >
-                {COLOR_NAME[value]}
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="segmented" role="radiogroup" aria-label="내 색 선택">
+          {COLOR_CHOICES.map((choice) => (
+            <button
+              key={choice}
+              type="button"
+              role="radio"
+              aria-checked={myColor === choice}
+              className={myColor === choice ? 'active' : ''}
+              disabled={ready}
+              onClick={() => void room.setColor(choice)}
+            >
+              {colorChoiceName(choice)}
+            </button>
+          ))}
+        </div>
+        <p className="online-card-hint">{clash ? '둘 다 같은 색을 골랐어요. 시작할 때 무작위로 갈립니다' : '색과 능력은 준비하면 잠깁니다'}</p>
 
-        {isHost ? (
-          <button type="button" className="btn btn-primary" disabled={!opponent?.ready} onClick={() => void room.start()}>
-            {!opponent ? '상대를 기다리는 중' : opponent.ready ? '게임 시작' : '상대 준비 대기 중'}
-          </button>
-        ) : (
-          <button type="button" className={`btn ${ready ? 'btn-ghost' : 'btn-primary'}`} onClick={() => void room.setReady(!ready)}>
-            {ready ? '준비 취소' : '준비'}
-          </button>
-        )}
+        <button
+          type="button"
+          className={`btn ${ready ? 'btn-ghost' : 'btn-primary'}`}
+          disabled={!opponent && !ready}
+          onClick={() => void room.setReady(!ready)}
+        >
+          {ready ? '준비 취소' : opponent ? '준비' : '상대를 기다리는 중'}
+        </button>
       </section>
 
       <AbilityPicker

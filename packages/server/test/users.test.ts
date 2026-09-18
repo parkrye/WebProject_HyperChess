@@ -72,8 +72,9 @@ describe('RoomManager 유저 좌석', () => {
     expect(seats.w).toMatchObject({ name: 'alpha', rating: 1234 });
     expect(seats.b).toMatchObject({ name: '손님', rating: null });
 
+    manager.setColor('s1', 'w');
+    manager.setReady('s1', true);
     manager.setReady('s2', true);
-    manager.start('s1');
     manager.resign('s2');
     expect(ended).toEqual([{ w: 'u1', b: null }]);
   });

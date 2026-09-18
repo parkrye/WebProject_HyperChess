@@ -89,6 +89,10 @@ button {
 .dot-b {
   background: #2a2433;
 }
+/* 아직 색이 정해지지 않은 자리 */
+.dot-random {
+  background: linear-gradient(135deg, #f5efe3 50%, #2a2433 50%);
+}
 
 /* ---------- 페이지 공통 ---------- */
 
@@ -835,6 +839,12 @@ button {
   background: transparent;
   padding: 0.5rem;
   cursor: pointer;
+  /* 칸이 좁아도 글자를 세로로 쪼개지 않는다 */
+  white-space: nowrap;
+}
+.segmented button:disabled {
+  cursor: default;
+  opacity: 0.55;
 }
 .segmented button.active {
   background: color-mix(in srgb, var(--accent) 30%, var(--bg-elev-2));
@@ -899,6 +909,13 @@ button {
   margin: 0;
   font-size: 0.8rem;
   color: var(--text-dim);
+}
+.waiting-card .online-card-hint {
+  text-align: center;
+}
+/* 대기실은 가운데 정렬이라 색 선택이 내용 폭으로 줄어든다 */
+.waiting-card .segmented {
+  width: 100%;
 }
 
 /* ---------- 방 채팅 ---------- */
