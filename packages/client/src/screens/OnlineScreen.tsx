@@ -289,7 +289,10 @@ function WaitingRoom({ room, snapshot, you, onLeave }: WaitingRoomProps) {
                     {color === you && <span className="seat-tag">나</span>}
                     {color === snapshot.hostColor && <span className="seat-tag">방장</span>}
                     <span className="seat-ability">{abilityName(seat.abilityId)}</span>
-                    <span className={`seat-ready ${seat.ready ? 'is-ready' : ''}`}>{seat.ready ? '준비 완료' : '준비 전'}</span>
+                    {/* 방장은 준비 대신 시작을 누르므로 준비 표시가 없다 */}
+                    {color !== snapshot.hostColor && (
+                      <span className={`seat-ready ${seat.ready ? 'is-ready' : ''}`}>{seat.ready ? '준비 완료' : '준비 전'}</span>
+                    )}
                   </>
                 ) : (
                   <span className="seat-empty">대기 중</span>
