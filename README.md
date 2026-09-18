@@ -13,7 +13,7 @@
 | `packages/ai` | 알파-베타 탐색 AI (능력 사용 포함, 난이도 3단계). 클라이언트 Web Worker에서 실행 |
 | `packages/protocol` | 클라이언트↔서버 Socket.IO 이벤트 타입 |
 | `packages/server` | 방 관리와 수 검증을 하는 권위 서버. 빌드된 클라이언트도 함께 제공 |
-| `packages/client` | React + Vite 클라이언트 (타이틀 → 메인 → 싱글·멀티·랭킹·통계) |
+| `packages/client` | React + Vite 클라이언트 (타이틀 → 메인 → 싱글·멀티·능력 설명·랭킹·통계) |
 
 ## 실행
 
@@ -194,4 +194,5 @@ npm run import-assets -w @hyperchess/client -- --src "C:/Users/me/Downloads"
 1. `packages/engine/src/abilities/`에 `AbilityDefinition` 구현
 2. `abilities/balance.ts`에 수치 추가, `abilities/registry.ts`에 등록
 3. 클라이언트 `abilityUi/specs.ts`에 대상 선택 단계·색·아이콘, `effects/abilityEffects.ts`에 연출 추가
-4. 강화처럼 말 가치가 바뀌는 능력이면 `packages/ai/src/evaluate.ts` 평가값 조정
+4. `abilityUi/demos.ts`에 능력 설명 페이지용 예시 국면 추가 (`demos.test.ts`가 16종 전부 실제로 재생되는지 확인한다)
+5. 강화처럼 말 가치가 바뀌는 능력이면 `packages/ai/src/evaluate.ts` 평가값 조정

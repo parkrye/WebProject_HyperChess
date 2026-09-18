@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useSession } from './auth/session';
+import { AbilityGuideScreen } from './screens/AbilityGuideScreen';
 import { AppNavContext, type AppNav } from './components/AppNav';
 import { ArenaScreen, type ArenaConfig } from './screens/ArenaScreen';
 import { LocalGameScreen } from './screens/GameScreen';
@@ -12,7 +13,7 @@ import { StatsScreen } from './screens/StatsScreen';
 import { TitleScreen } from './screens/TitleScreen';
 import { WelcomeScreen } from './screens/WelcomeScreen';
 
-/** 페이지: 타이틀 → (로그인) → 메인 → 싱글/멀티/랭킹/통계 → 설정 → 대국 */
+/** 페이지: 타이틀 → (로그인) → 메인 → 싱글/멀티/능력 설명/랭킹/통계 → 설정 → 대국 */
 type Screen =
   | { kind: 'title' }
   | { kind: 'login' }
@@ -20,6 +21,7 @@ type Screen =
   | { kind: 'single' }
   | { kind: 'setup'; mode: SetupMode }
   | { kind: 'online' }
+  | { kind: 'guide' }
   | { kind: 'stats' }
   | { kind: 'ranking' }
   | {
@@ -88,6 +90,8 @@ export function App() {
         );
       case 'online':
         return <OnlineScreen onBack={() => go({ kind: 'main' })} onSingle={() => go({ kind: 'single' })} />;
+      case 'guide':
+        return <AbilityGuideScreen onBack={() => go({ kind: 'main' })} />;
       case 'stats':
         return <StatsScreen onBack={() => go({ kind: 'main' })} />;
       case 'ranking':

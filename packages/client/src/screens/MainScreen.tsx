@@ -3,7 +3,7 @@ import { uiSprite } from '../assets/sprites';
 import { MenuCard } from '../components/MenuCard';
 import { Page } from '../components/Page';
 
-export type MenuTarget = 'single' | 'online';
+export type MenuTarget = 'single' | 'online' | 'guide';
 
 interface MainScreenProps {
   readonly onSelect: (target: MenuTarget) => void;
@@ -28,6 +28,7 @@ export function MainScreen({ onSelect, onBack }: MainScreenProps) {
           ]}
           onClick={() => onSelect('online')}
         />
+        <MenuCard label="능력 설명" art={[{ type: 'b', color: 'w' }]} onClick={() => onSelect('guide')} />
       </nav>
     </Page>
   );

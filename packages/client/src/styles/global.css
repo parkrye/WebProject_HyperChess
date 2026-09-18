@@ -275,6 +275,50 @@ button {
   line-height: 1.45;
   color: var(--text-dim);
 }
+
+/* ---------- 능력 설명 페이지 ---------- */
+
+.ability-guide-grid {
+  margin-bottom: 1rem;
+}
+.ability-guide-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: stretch;
+}
+.ability-demo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+.demo-board {
+  /* 대국 화면 밖이라 보드 크기를 여기서 정한다 */
+  --board-size: min(360px, calc(100vw - 2.5rem));
+  transition: filter 0.3s;
+}
+.ability-demo-caption {
+  margin: 0;
+  max-width: 34rem;
+  text-align: center;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+/* 넓은 화면에서는 설명과 예시를 나란히 */
+@media (min-width: 900px) {
+  .ability-guide-body {
+    flex-direction: row;
+    justify-content: center;
+  }
+  .ability-guide-body > .ability-detail-body {
+    flex: 1;
+    max-width: 24rem;
+    align-self: flex-start;
+  }
+}
 .ability-icon {
   display: grid;
   place-items: center;
@@ -315,7 +359,8 @@ button {
   padding: 0.5rem 12px calc(0.5rem + env(safe-area-inset-bottom));
   transition: filter 0.35s ease;
 }
-.game.screen-rewind {
+.game.screen-rewind,
+.demo-board.screen-rewind {
   filter: invert(1) hue-rotate(180deg);
 }
 
