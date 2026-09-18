@@ -177,7 +177,8 @@ function ArenaRound(props: ArenaRoundProps) {
 function ArenaBoard({ match, difficulty, speed, speedRef, paused, autoNext, onFinish, onMenu, controls, resultActions }: ArenaRoundProps) {
   // 관전·기록용이라 시간 제한 없이 둔다 (일시정지 가능)
   const setup = useMemo(() => ({ abilities: match.abilities }), [match.abilities]);
-  const { state, busy, stageView, dispatch, actions } = useLocalGame(setup, speedRef);
+  // 지켜보는 대국이라 무승부 제안이 뜨면 물을 상대가 없다: 그대로 합의 무승부로 끝낸다
+  const { state, busy, stageView, dispatch, actions } = useLocalGame(setup, speedRef, { autoDraw: true });
   const minThinkMs = speed === 0 ? 0 : AI_THINK_MS / speed;
   const { thinking } = useAiPlayers(state, difficulty, busy, dispatch, { paused, minThinkMs });
 

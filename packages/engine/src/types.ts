@@ -75,8 +75,29 @@ export interface TurnState {
   readonly abilityUsed: boolean;
 }
 
-export type WinReason = 'checkmate' | 'royalsCaptured' | 'resign' | 'timeout';
-export type DrawReason = 'stalemate' | 'fiftyMove' | 'threefold' | 'insufficientMaterial' | 'noActions';
+export type WinReason = 'checkmate' | 'royalsCaptured' | 'resign' | 'timeout' | 'materialJudge';
+export type DrawReason = 'stalemate' | 'fiftyMove' | 'threefold' | 'insufficientMaterial' | 'noActions' | 'agreement' | 'materialJudge';
+
+/** 무승부 제안에 대한 답: 승낙(무승부) · 거절(계속) · 가치 판정(남은 말 가치로 승패) */
+export type DrawVote = 'accept' | 'decline' | 'judge';
+
+/** 답을 기다리고 있는 무승부 제안. 양쪽이 같은 답을 내야(만장일치) 결정된다 */
+export interface DrawOffer {
+  readonly votes: Readonly<Partial<Record<Color, DrawVote>>>;
+  /** 제안이 뜰 때까지 이번 차례가 쓴 시간. 답을 기다리는 동안 시계를 멈춰 두기 위해 남긴다 */
+  readonly elapsedMs: number;
+}
+
+/** 무승부 제안 추적 */
+export interface DrawState {
+  /** 양쪽 말 구성이 그대로인 채 지난 수 */
+  readonly quietPlies: number;
+  /** 말 구성 지문. 바뀌면 quietPlies를 0으로 되돌린다 */
+  readonly materialKey: string;
+  /** 다음 제안을 띄울 quietPlies (부결되면 뒤로 밀린다) */
+  readonly offerAt: number;
+  readonly offer: DrawOffer | null;
+}
 
 export type GameResult =
   | { readonly kind: 'ongoing' }
@@ -133,6 +154,7 @@ export interface GameState {
   /** 턴 시작 시점 스냅샷 (시간 역행용, 스냅샷 자체의 history는 비어있음) */
   readonly history: readonly GameState[];
   readonly log: readonly GameEvent[];
+  readonly draw: DrawState;
   readonly result: GameResult;
   /** 시간 제한이 없으면 null */
   readonly clock: ClockState | null;

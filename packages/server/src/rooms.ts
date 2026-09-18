@@ -3,11 +3,15 @@ import {
   applyAction,
   checkTimeout,
   createGame,
+  drawOfferDue,
+  openDrawOffer,
   opposite,
   resign,
   STANDARD_TIME_CONTROL,
+  voteDraw,
   type Action,
   type Color,
+  type DrawVote,
   type GameState,
 } from '@hyperchess/engine';
 import {
@@ -233,7 +237,17 @@ export class RoomManager {
     if (room.game.turn !== color) throw new RoomError('상대 차례입니다');
     const next = applyAction(room.game, action, this.now());
     room.actions.push(action);
-    this.updateGame(room, next);
+    // 말 변동 없이 오래 끌었으면 이 수를 끝으로 무승부 제안을 띄운다
+    this.updateGame(room, drawOfferDue(next) ? openDrawOffer(next, this.now()) : next);
+    return room.code;
+  }
+
+  /** 무승부 제안에 답한다. 양쪽 답이 같으면 그대로 결정된다 */
+  voteDraw(socketId: string, vote: DrawVote): string {
+    const { room, color } = this.requireSeat(socketId);
+    if (!room.game?.draw.offer) throw new RoomError('무승부 제안이 없습니다');
+    if (room.game.draw.offer.votes[color]) throw new RoomError('이미 답했습니다');
+    this.updateGame(room, voteDraw(room.game, color, vote, this.now()));
     return room.code;
   }
 
@@ -291,7 +305,8 @@ export class RoomManager {
   clockDeadline(code: string): number | null {
     const game = this.rooms.get(code)?.game;
     const clock = game?.clock;
-    if (!game || !clock || game.result.kind !== 'ongoing') return null;
+    // 무승부 제안에 답하는 동안에는 시계가 멈춘다
+    if (!game || !clock || game.result.kind !== 'ongoing' || game.draw.offer) return null;
     return clock.turnStartedAt + Math.min(clock.control.turnLimitMs, clock.remainingMs[game.turn]);
   }
 

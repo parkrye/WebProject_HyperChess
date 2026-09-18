@@ -1,7 +1,7 @@
 import { IllegalActionError } from '@hyperchess/engine';
 import type { Ack, ClientToServerEvents, ServerToClientEvents } from '@hyperchess/protocol';
 import type { Server, Socket } from 'socket.io';
-import { isAction } from './actions';
+import { isAction, isDrawVote } from './actions';
 import { RoomError, type RoomManager, type SeatIdentity } from './rooms';
 import type { Matchmaker } from './matchmaking';
 import type { UserStore } from './users';
@@ -138,6 +138,13 @@ export function registerHandlers(io: GameServer, socket: GameSocket, { rooms, us
   );
 
   socket.on('game:resign', (ack) => respond(ack, () => ({ code: rooms.resign(socket.id), data: null })));
+
+  socket.on('game:draw', (vote, ack) =>
+    respond(ack, () => {
+      if (!isDrawVote(vote)) throw new RoomError('잘못된 요청입니다');
+      return { code: rooms.voteDraw(socket.id, vote), data: null };
+    }),
+  );
   socket.on('game:rematch', (ack) => respond(ack, () => ({ code: rooms.voteRematch(socket.id), data: null })));
 
   socket.on('room:leave', () => broadcastRoom(io, rooms, rooms.leave(socket.id)));

@@ -4,6 +4,7 @@ import {
   type AbilityDefinition,
   type Color,
   type DrawReason,
+  type DrawVote,
   type GameResult,
   type GameState,
   type RecoveryRule,
@@ -85,6 +86,7 @@ const WIN_REASON: Record<WinReason, string> = {
   royalsCaptured: '왕족 전멸',
   resign: '기권',
   timeout: '시간 초과',
+  materialJudge: '가치 판정',
 };
 
 const DRAW_REASON: Record<DrawReason, string> = {
@@ -93,7 +95,19 @@ const DRAW_REASON: Record<DrawReason, string> = {
   threefold: '3회 반복',
   insufficientMaterial: '기물 부족',
   noActions: '둘 수 있는 수 없음',
+  agreement: '무승부 합의',
+  materialJudge: '가치 판정 · 남은 말 가치가 같음',
 };
+
+/** 무승부 제안에 대한 답: 이름과 고르면 어떻게 되는지 */
+export const DRAW_VOTE_TEXT: Readonly<Record<DrawVote, { label: string; hint: string }>> = {
+  accept: { label: '승낙', hint: '양쪽이 승낙하면 무승부' },
+  judge: { label: '가치 판정', hint: '양쪽이 고르면 남은 말 가치로 승패' },
+  decline: { label: '거절', hint: '대국을 계속 둔다' },
+};
+
+/** 가치 판정 점수 표기 (3.5처럼 반값이 나올 수 있다) */
+export const judgeScoreText = (score: number) => (Number.isInteger(score) ? String(score) : score.toFixed(1));
 
 export function resultText(result: GameResult): { title: string; detail: string } {
   if (result.kind === 'win') return { title: `${COLOR_NAME[result.winner]} 승리`, detail: WIN_REASON[result.reason] };

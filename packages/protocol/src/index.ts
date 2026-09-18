@@ -1,4 +1,4 @@
-import { listAbilities, type Action, type Color, type GameState } from '@hyperchess/engine';
+import { listAbilities, type Action, type Color, type DrawVote, type GameState } from '@hyperchess/engine';
 
 /** 능력 선택값: 능력 id 또는 무작위 (게임 시작 시 결정) */
 export const RANDOM_ABILITY = 'random';
@@ -245,6 +245,8 @@ export interface ClientToServerEvents {
   'match:cancel': () => void;
   'game:action': (action: Action, ack: (result: Ack<null>) => void) => void;
   'game:resign': (ack: (result: Ack<null>) => void) => void;
+  /** 무승부 제안에 답한다 (승낙·거절·가치 판정). 양쪽 답이 같아야 결정된다 */
+  'game:draw': (vote: DrawVote, ack: (result: Ack<null>) => void) => void;
   'game:rematch': (ack: (result: Ack<null>) => void) => void;
 }
 

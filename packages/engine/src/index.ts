@@ -4,14 +4,23 @@ export { START_FEN, parseFen, toFen } from './fen';
 export { attacks, isSquareAttacked, isWall } from './movegen';
 export { anyRoyalAttacked, diffBoards, isInCheck, isRoyal, legalMoves, royalSquares, usesCheckRule } from './rules';
 export {
+  DRAW_OFFER_QUIET_PLIES,
+  DRAW_OFFER_RETRY_PLIES,
   IllegalActionError,
+  JUDGE_VALUE,
   STANDARD_TIME_CONTROL,
   applyAction,
   checkTimeout,
   clockView,
   createGame,
+  drawByAgreement,
+  drawOfferDue,
   legalAbilityOptions,
+  materialJudgeResult,
+  materialScores,
+  openDrawOffer,
   resign,
+  voteDraw,
   type ClockView,
   type GameSetup,
 } from './game';

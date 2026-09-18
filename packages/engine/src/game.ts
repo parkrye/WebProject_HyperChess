@@ -1,7 +1,7 @@
 import { getAbility } from './abilities/registry';
 import type { AbilityDefinition, RecoveryTrigger } from './abilities/types';
 import { parseFen, START_FEN } from './fen';
-import { anyRoyalAttacked, diffBoards, executeMove, findLegalMove, hasLegalMove, isInCheck, royalSquares, usesCheckRule } from './rules';
+import { anyRoyalAttacked, diffBoards, executeMove, findLegalMove, hasLegalMove, isInCheck, isRoyal, royalSquares, usesCheckRule } from './rules';
 import {
   opposite,
   type TimeControl,
@@ -9,6 +9,8 @@ import {
   type AbilityParams,
   type Action,
   type Color,
+  type DrawState,
+  type DrawVote,
   type GameEvent,
   type GameResult,
   type GameState,
@@ -58,6 +60,7 @@ export function createGame(setup: GameSetup = {}): GameState {
     positionKeys: [],
     history: [],
     log: [],
+    draw: INITIAL_DRAW,
     result: { kind: 'ongoing' },
     clock: setup.timeControl
       ? {
@@ -84,7 +87,8 @@ export function clockView(state: GameState, now: number): ClockView | null {
   const { clock } = state;
   if (!clock) return null;
   const running = state.result.kind === 'ongoing';
-  const elapsed = running ? Math.max(0, now - clock.turnStartedAt) : 0;
+  // 무승부 제안에 답하는 동안에는 시계가 멈춘 것으로 보여 준다
+  const elapsed = !running ? 0 : state.draw.offer ? state.draw.offer.elapsedMs : Math.max(0, now - clock.turnStartedAt);
   const total = { ...clock.remainingMs, [state.turn]: Math.max(0, clock.remainingMs[state.turn] - elapsed) };
   const turnRemainingMs = Math.max(0, Math.min(clock.control.turnLimitMs - elapsed, total[state.turn]));
   return { turn: state.turn, turnRemainingMs, totalRemainingMs: total };
@@ -93,7 +97,7 @@ export function clockView(state: GameState, now: number): ClockView | null {
 /** 현재 차례가 시간 제한(차례 2분 또는 전체 시간)을 넘겼으면 그 플레이어의 패배로 끝낸다 */
 export function checkTimeout(state: GameState, now: number): GameState {
   const { clock } = state;
-  if (!clock || state.result.kind !== 'ongoing') return state;
+  if (!clock || state.result.kind !== 'ongoing' || state.draw.offer) return state;
   const elapsed = now - clock.turnStartedAt;
   const remaining = clock.remainingMs[state.turn];
   if (elapsed < clock.control.turnLimitMs && elapsed < remaining) return state;
@@ -121,6 +125,7 @@ function settleClock(before: GameState, after: GameState, now: number): GameStat
 /** now: 행동 시각 (시간 제한이 있는 게임에서만 의미가 있다) */
 export function applyAction(state: GameState, action: Action, now: number = Date.now()): GameState {
   if (state.result.kind !== 'ongoing') throw new IllegalActionError('Game is over');
+  if (state.draw.offer) throw new IllegalActionError('Draw offer is pending');
   const timed = checkTimeout(state, now);
   if (timed !== state) return timed;
   const after = action.type === 'move' ? applyMove(state, action.move) : applyAbility(state, action.params);
@@ -290,7 +295,9 @@ function beginTurn(state: GameState): GameState {
   };
   const recovered: GameState = { ...counted, walls: expireWalls(counted.walls, color), players: withRecovery(counted.players, color, 'ownTurns') };
 
-  const withKey: GameState = { ...recovered, positionKeys: [...recovered.positionKeys, positionKey(recovered)] };
+  const quiet = trackQuiet(recovered);
+
+  const withKey: GameState = { ...quiet, positionKeys: [...quiet.positionKeys, positionKey(quiet)] };
   const snapshot: GameState = { ...withKey, history: [], result: { kind: 'ongoing' } };
   const withHistory: GameState = { ...withKey, history: [...withKey.history, snapshot].slice(-HISTORY_LIMIT) };
 
@@ -319,6 +326,100 @@ function withRecovery(players: GameState['players'], color: Color, trigger: Reco
   resource = Math.min(balance.maxResource, resource);
   if (resource === player.meter.resource) return players;
   return { ...players, [color]: { ...player, meter: { ...player.meter, resource } } };
+}
+
+/* ---------- 무승부 제안 ---------- */
+
+/** 양쪽 말 구성이 이만큼(수) 그대로면 무승부 제안을 띄운다 */
+export const DRAW_OFFER_QUIET_PLIES = 30;
+/** 제안이 부결되면 이만큼(수) 더 지난 뒤에 다시 띄운다 */
+export const DRAW_OFFER_RETRY_PLIES = 10;
+
+/** 가치 판정용 기물 가치. 왕족은 세지 않는다 (탐색용 PIECE_VALUE와 별개의 판정 기준) */
+export const JUDGE_VALUE: Readonly<Record<PieceType, number>> = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+/** 여제 규칙으로 왕족에서 풀린 킹은 전투 기물이므로 값을 매긴다 */
+const JUDGE_FREE_KING = 3.5;
+
+const INITIAL_DRAW: DrawState = { quietPlies: 0, materialKey: '', offerAt: DRAW_OFFER_QUIET_PLIES, offer: null };
+
+/** 말 구성 지문: 색·종류·강화·왕족만 본다 (자리를 옮기는 것은 변동이 아니다) */
+function materialKey(state: GameState): string {
+  const signatures: string[] = [];
+  for (const piece of state.board) {
+    if (!piece) continue;
+    signatures.push(`${piece.color}${piece.type}${piece.enhanced ? '+' : ''}${piece.royal ? '!' : ''}`);
+  }
+  return signatures.sort().join(',');
+}
+
+/** 턴이 시작될 때 말 구성을 견줘 '변동 없이 지난 수'를 센다 */
+function trackQuiet(state: GameState): GameState {
+  const key = materialKey(state);
+  if (key !== state.draw.materialKey) {
+    return { ...state, draw: { ...state.draw, quietPlies: 0, materialKey: key, offerAt: DRAW_OFFER_QUIET_PLIES } };
+  }
+  return { ...state, draw: { ...state.draw, quietPlies: state.draw.quietPlies + 1 } };
+}
+
+/** 무승부 제안을 띄울 때가 되었는지 */
+export const drawOfferDue = (state: GameState): boolean =>
+  state.result.kind === 'ongoing' && !state.draw.offer && state.draw.quietPlies >= state.draw.offerAt;
+
+/** 색별 남은 말 가치 (가치 판정의 근거) */
+export function materialScores(state: GameState): Record<Color, number> {
+  const scores: Record<Color, number> = { w: 0, b: 0 };
+  for (const piece of state.board) {
+    if (!piece) continue;
+    const { rules } = state.players[piece.color];
+    scores[piece.color] += piece.type === 'k' && !isRoyal(piece, rules) ? JUDGE_FREE_KING : JUDGE_VALUE[piece.type];
+  }
+  return scores;
+}
+
+/** 가치 판정: 남은 말 가치가 높은 쪽이 이기고, 같으면 무승부 */
+export function materialJudgeResult(state: GameState): GameResult {
+  const scores = materialScores(state);
+  if (scores.w === scores.b) return { kind: 'draw', reason: 'materialJudge' };
+  return { kind: 'win', winner: scores.w > scores.b ? 'w' : 'b', reason: 'materialJudge' };
+}
+
+/** 제안을 띄운다. 답을 기다리는 동안에는 수를 둘 수 없고 시계도 멈춘다 */
+export function openDrawOffer(state: GameState, now: number = Date.now()): GameState {
+  if (!drawOfferDue(state)) throw new IllegalActionError('Draw offer is not due');
+  const elapsedMs = state.clock ? Math.max(0, now - state.clock.turnStartedAt) : 0;
+  return { ...state, draw: { ...state.draw, offer: { votes: {}, elapsedMs } } };
+}
+
+/**
+ * 제안에 답한다. 양쪽 답이 같아야(만장일치) 결정된다.
+ * 승낙 → 무승부 · 가치 판정 → 남은 말 가치로 승패 · 거절이나 엇갈린 답 → 대국 계속
+ */
+export function voteDraw(state: GameState, color: Color, vote: DrawVote, now: number = Date.now()): GameState {
+  const { offer } = state.draw;
+  if (!offer) throw new IllegalActionError('No draw offer');
+  if (offer.votes[color]) throw new IllegalActionError('Already voted');
+
+  const votes = { ...offer.votes, [color]: vote };
+  if (!votes.w || !votes.b) return { ...state, draw: { ...state.draw, offer: { ...offer, votes } } };
+  return closeOffer(state, votes.w === votes.b ? votes.w : 'decline', now);
+}
+
+/** 제안을 띄우자마자 양쪽이 승낙한 것으로 끝낸다 (AI 내전) */
+export function drawByAgreement(state: GameState, now: number = Date.now()): GameState {
+  const opened = openDrawOffer(state, now);
+  return voteDraw(voteDraw(opened, 'w', 'accept', now), 'b', 'accept', now);
+}
+
+/** 제안을 닫는다. 계속 두게 되면 멈춰 둔 시계를 이어서 돌린다 */
+function closeOffer(state: GameState, outcome: DrawVote, now: number): GameState {
+  const { offer } = state.draw;
+  const clock = state.clock && offer ? { ...state.clock, turnStartedAt: now - offer.elapsedMs } : state.clock;
+  const draw: DrawState = { ...state.draw, offer: null, offerAt: state.draw.quietPlies + DRAW_OFFER_RETRY_PLIES };
+  const next: GameState = { ...state, clock, draw };
+
+  if (outcome === 'accept') return { ...next, result: { kind: 'draw', reason: 'agreement' } };
+  if (outcome === 'judge') return { ...next, result: materialJudgeResult(next) };
+  return next;
 }
 
 /* ---------- 결과 판정 ---------- */

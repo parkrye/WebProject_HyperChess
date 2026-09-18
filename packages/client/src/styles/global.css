@@ -748,6 +748,54 @@ button {
   height: 100%;
 }
 
+/* 헤더에 함께 놓는 작은 버튼 (기권 등) */
+.btn-small {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+/* 무승부 제안: 선택지는 위아래로 쌓고, 글은 언제나 가로로 읽는다 */
+.draw-dialog {
+  max-width: 340px;
+  text-align: left;
+}
+.draw-dialog h2 {
+  text-align: center;
+}
+.draw-dialog p {
+  margin: 0 0 0.4rem;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+.draw-dialog .draw-scores {
+  color: var(--text);
+  font-weight: 700;
+}
+.draw-dialog .draw-asking {
+  margin: 0.7rem 0 0.5rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+.draw-votes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.draw-vote {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+}
+.draw-vote strong {
+  font-size: 0.98rem;
+}
+.draw-vote small {
+  color: var(--text-dim);
+  font-size: 0.78rem;
+}
+
 @keyframes dialog-in {
   from {
     opacity: 0;

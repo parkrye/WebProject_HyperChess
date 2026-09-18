@@ -1,4 +1,4 @@
-import type { Action, Color } from '@hyperchess/engine';
+import type { Action, Color, DrawVote } from '@hyperchess/engine';
 import type {
   Ack,
   ChatMessage,
@@ -165,6 +165,7 @@ export function useOnlineRoom() {
     setColor: (color: ColorPreference) => run((s) => s.emitWithAck('room:color', color)),
     act: (action: Action) => run((s) => s.emitWithAck('game:action', action)),
     resign: () => run((s) => s.emitWithAck('game:resign')),
+    voteDraw: (vote: DrawVote) => run((s) => s.emitWithAck('game:draw', vote)),
     rematch: () => run((s) => s.emitWithAck('game:rematch')),
     leave: () => {
       socketRef.current?.emit('room:leave');

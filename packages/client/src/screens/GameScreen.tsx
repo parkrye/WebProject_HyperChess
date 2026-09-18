@@ -1,11 +1,11 @@
-import { opposite, STANDARD_TIME_CONTROL } from '@hyperchess/engine';
+import { opposite, STANDARD_TIME_CONTROL, type Color, type DrawVote } from '@hyperchess/engine';
 import { toGameRecord } from '@hyperchess/protocol';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAiPlayers } from '../ai/useAiOpponent';
 import { AbilityReveal } from '../components/AbilityReveal';
 import { GameView } from '../components/GameView';
 import { useLocalGame } from '../game/useGame';
-import { DIFFICULTY_LABEL } from '../abilityUi/text';
+import { COLOR_NAME, DIFFICULTY_LABEL } from '../abilityUi/text';
 import { reportResult } from '../stats/reportResult';
 import type { LocalGameConfig } from './SetupScreen';
 
@@ -38,10 +38,11 @@ export function LocalGameScreen(props: LocalGameScreenProps) {
 /** 한 기기에서 진행하는 대국: 핫시트 또는 AI 대전 */
 function LocalGameBoard({ config, onRestart, onMenu }: LocalGameScreenProps) {
   const setup = useMemo(() => ({ abilities: config.abilities, timeControl: STANDARD_TIME_CONTROL }), [config.abilities]);
-  const { state, busy, stageView, dispatch, actions } = useLocalGame(setup);
+  const { state, busy, stageView, dispatch, actions, vote, giveUp } = useLocalGame(setup);
   const { ai } = config;
   const aiPlayers = useMemo(() => (ai ? { [ai.color]: ai.difficulty } : {}), [ai]);
-  const { thinking } = useAiPlayers(state, aiPlayers, busy, dispatch);
+  // 무승부 제안에 답하는 동안에는 AI도 수를 고르지 않는다
+  const { thinking } = useAiPlayers(state, aiPlayers, busy, dispatch, { paused: !!state.draw.offer });
 
   // 끝난 대국을 한 번만 기록한다
   const reported = useRef(false);
@@ -55,6 +56,14 @@ function LocalGameBoard({ config, onRestart, onMenu }: LocalGameScreenProps) {
   }, [state, ai, actions]);
 
   const myColor = ai ? opposite(ai.color) : null;
+
+  const confirmResign = () => {
+    // 핫시트에서는 지금 둘 차례인 쪽이 기권한다
+    const color = myColor ?? state.turn;
+    if (window.confirm(`${COLOR_NAME[color]}이 기권합니다. 정말 기권할까요?`)) giveUp(color);
+  };
+  // AI 대전에서는 AI가 사람의 선택을 그대로 따른다 (핫시트는 두 색이 차례로 답한다)
+  const voteDrawAs = (color: Color, choice: DrawVote) => vote(ai ? [color, ai.color] : [color], choice);
   const seats = ai
     ? {
         [myColor!]: { name: '나', connected: true, isMe: false },
@@ -72,6 +81,8 @@ function LocalGameBoard({ config, onRestart, onMenu }: LocalGameScreenProps) {
       seats={seats as Parameters<typeof GameView>[0]['seats']}
       randomized={config.randomized}
       onMenu={onMenu}
+      onResign={confirmResign}
+      onDrawVote={voteDrawAs}
       notice={thinking ? 'AI가 생각 중…' : null}
       resultActions={
         <>

@@ -416,6 +416,8 @@ function OnlineGame({ room, snapshot, game, you, onLeave }: OnlineGameProps) {
         clockOffsetMs={clockOffsetMs}
         randomized={randomized}
         onMenu={onLeave}
+        onResign={snapshot.status === 'playing' ? confirmResign : undefined}
+        onDrawVote={(_, choice) => void room.voteDraw(choice)}
         notice={notice}
         sidebar={
           <>
@@ -423,11 +425,6 @@ function OnlineGame({ room, snapshot, game, you, onLeave }: OnlineGameProps) {
               <span>
                 방 코드 <strong>{snapshot.code}</strong>
               </span>
-              {snapshot.status === 'playing' && (
-                <button type="button" className="btn btn-ghost" onClick={confirmResign}>
-                  기권
-                </button>
-              )}
             </div>
             <ChatPanel messages={room.messages} you={you} onSend={(text) => void room.sendChat(text)} />
           </>

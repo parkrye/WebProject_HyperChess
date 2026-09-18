@@ -116,6 +116,49 @@ describe('RoomManager', () => {
     expect(second.game?.players.b.abilityId).toBe(second.seats.b?.abilityId);
   });
 
+  it('말 변동 없이 오래 끌면 무승부 제안이 뜨고, 양쪽 답으로 결정된다', () => {
+    const { manager, host } = setupRoom();
+    // 폰만 한 칸씩 밀어 말 변동 없이 30수를 채운다 (같은 국면이 반복되지 않는다)
+    const pushes = [
+      ...[...'abcdefgh'].flatMap((file) => [move(`${file}2`, `${file}3`), move(`${file}7`, `${file}6`)]),
+      ...[...'abcdefgh'].flatMap((file) => [move(`${file}3`, `${file}4`), move(`${file}6`, `${file}5`)]),
+    ];
+    for (let ply = 0; ply < 30; ply++) manager.act(ply % 2 === 0 ? 's1' : 's2', pushes[ply]);
+
+    const offered = manager.snapshot(host.code).game;
+    expect(offered?.draw.quietPlies).toBe(30);
+    expect(offered?.draw.offer?.votes).toEqual({});
+    // 답하기 전에는 수를 둘 수 없고 시계도 멈춘다
+    expect(() => manager.act('s1', pushes[30])).toThrow(IllegalActionError);
+    expect(manager.clockDeadline(host.code)).toBeNull();
+
+    manager.voteDraw('s1', 'decline');
+    expect(() => manager.voteDraw('s1', 'accept')).toThrow(RoomError);
+    manager.voteDraw('s2', 'accept');
+    // 답이 엇갈리면 대국이 이어진다
+    expect(manager.snapshot(host.code).status).toBe('playing');
+    expect(manager.clockDeadline(host.code)).not.toBeNull();
+    manager.act('s1', pushes[30]);
+
+    expect(() => manager.voteDraw('s1', 'accept')).toThrow(RoomError);
+  });
+
+  it('양쪽이 가치 판정을 고르면 남은 말 가치로 끝난다', () => {
+    const { manager, host } = setupRoom();
+    const pushes = [
+      ...[...'abcdefgh'].flatMap((file) => [move(`${file}2`, `${file}3`), move(`${file}7`, `${file}6`)]),
+      ...[...'abcdefgh'].flatMap((file) => [move(`${file}3`, `${file}4`), move(`${file}6`, `${file}5`)]),
+    ];
+    for (let ply = 0; ply < 30; ply++) manager.act(ply % 2 === 0 ? 's1' : 's2', pushes[ply]);
+
+    manager.voteDraw('s1', 'judge');
+    manager.voteDraw('s2', 'judge');
+    const snapshot = manager.snapshot(host.code);
+    expect(snapshot.status).toBe('finished');
+    // 양쪽 말이 그대로이므로 동점 무승부
+    expect(snapshot.game?.result).toEqual({ kind: 'draw', reason: 'materialJudge' });
+  });
+
   it('세 번째 참가자와 존재하지 않는 능력은 거부된다', () => {
     const { manager, host } = setupRoom();
     expect(() => manager.join('s3', { code: host.code, name: 'x' })).toThrow(RoomError);
