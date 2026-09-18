@@ -36,7 +36,8 @@ export function PlayerBar({ state, color, interaction, seat, className = '', ran
     <section className={`player-bar ${className} ${active ? 'is-active' : ''}`} style={{ '--ability-color': spec.color } as CSSProperties}>
       <div className="player-id">
         <span className={`player-dot dot-${color}`} />
-        <strong>{seat ? seat.name : COLOR_NAME[color]}</strong>
+        {/* 띠가 좁으면 이름이 …로 잘리므로 전체 이름은 덧말로 남긴다 */}
+        <strong title={seat ? seat.name : COLOR_NAME[color]}>{seat ? seat.name : COLOR_NAME[color]}</strong>
         {seat?.isMe && <span className="seat-tag">나</span>}
         {seat && <span className={`seat-tag seat-offline ${seat.connected ? 'is-hidden' : ''}`}>연결 끊김</span>}
         {definition && (
