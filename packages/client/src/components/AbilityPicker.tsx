@@ -11,13 +11,16 @@ interface AbilityPickerProps {
   readonly selected: string;
   readonly onSelect: (abilityId: string) => void;
   readonly label: string;
+  /** 선택한 능력의 설명을 함께 보여 줄지 (기본 true). 멀티는 능력 설명 페이지가 따로 있어 끈다 */
+  readonly showDetail?: boolean;
+  readonly disabled?: boolean;
 }
 
 /** 선택한 능력의 설명(자리 고정) + 아이콘·이름만 있는 능력 목록 */
-export function AbilityPicker({ selected, onSelect, label }: AbilityPickerProps) {
+export function AbilityPicker({ selected, onSelect, label, showDetail = true, disabled = false }: AbilityPickerProps) {
   return (
     <section className="ability-picker" aria-label={label}>
-      <AbilityDetailStack selected={selected} />
+      {showDetail && <AbilityDetailStack selected={selected} />}
       <div className="ability-grid">
         {CHOICES.map((id) => {
           const spec = abilityUi(id);
@@ -29,6 +32,7 @@ export function AbilityPicker({ selected, onSelect, label }: AbilityPickerProps)
               className={`ability-tile ${isSelected ? 'selected' : ''}`}
               style={{ '--ability-color': spec.color } as CSSProperties}
               aria-pressed={isSelected}
+              disabled={disabled}
               onClick={() => onSelect(id)}
             >
               <AbilityIconView icon={spec.icon} size={32} />

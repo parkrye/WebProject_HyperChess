@@ -1,5 +1,5 @@
 import { IllegalActionError } from '@hyperchess/engine';
-import { isAbilityChoice, type Ack, type ClientToServerEvents, type ServerToClientEvents } from '@hyperchess/protocol';
+import type { Ack, ClientToServerEvents, ServerToClientEvents } from '@hyperchess/protocol';
 import type { Server, Socket } from 'socket.io';
 import { isAction } from './actions';
 import { RoomError, type RoomManager, type SeatIdentity } from './rooms';
@@ -97,20 +97,24 @@ export function registerHandlers(io: GameServer, socket: GameSocket, { rooms, us
 
   socket.on('match:find', (request, ack) =>
     respond(ack, () => {
-      if (!isAbilityChoice(String(request?.abilityId))) throw new RoomError('존재하지 않는 능력입니다');
-      const identity = identify(request.authToken);
+      const identity = identify(request?.authToken);
       const partner = matchmaker.enqueue({ socketId: socket.id, request, identity });
       if (!partner) return { code: null, data: { matched: false } };
 
-      // 먼저 기다린 쪽이 방을 만들고 새로 온 쪽이 참가한다 (색은 무작위)
-      const host = rooms.create(partner.socketId, { ...partner.request, color: 'random' }, partner.identity);
-      const guest = rooms.join(socket.id, { ...request, code: host.code }, identity);
-      io.to(partner.socketId).emit('match:found', host);
-      socket.emit('match:found', guest);
-      return { code: host.code, data: { matched: true } };
+      // 먼저 기다린 쪽이 방을 만들고 새로 온 쪽이 참가한다. 방장이 없어 양쪽이 준비하면 시작한다
+      const first = rooms.create(partner.socketId, partner.request, partner.identity, false);
+      const second = rooms.join(socket.id, { ...request, code: first.code }, identity);
+      io.to(partner.socketId).emit('match:found', first);
+      socket.emit('match:found', second);
+      return { code: first.code, data: { matched: true } };
     }),
   );
   socket.on('match:cancel', () => matchmaker.cancel(socket.id));
+
+  socket.on('room:ability', (abilityId, ack) => respond(ack, () => ({ code: rooms.setAbility(socket.id, String(abilityId)), data: null })));
+  socket.on('room:ready', (ready, ack) => respond(ack, () => ({ code: rooms.setReady(socket.id, ready === true), data: null })));
+  socket.on('room:color', (color, ack) => respond(ack, () => ({ code: rooms.setColor(socket.id, color), data: null })));
+  socket.on('room:start', (ack) => respond(ack, () => ({ code: rooms.start(socket.id), data: null })));
 
   socket.on('game:action', (action, ack) =>
     respond(ack, () => {

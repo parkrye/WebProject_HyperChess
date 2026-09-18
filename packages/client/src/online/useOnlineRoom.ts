@@ -150,6 +150,10 @@ export function useOnlineRoom() {
       socketRef.current?.emit('match:cancel');
       setMatching(false);
     },
+    setAbility: (abilityId: string) => run((s) => s.emitWithAck('room:ability', abilityId)),
+    setReady: (ready: boolean) => run((s) => s.emitWithAck('room:ready', ready)),
+    setColor: (color: Color) => run((s) => s.emitWithAck('room:color', color)),
+    start: () => run((s) => s.emitWithAck('room:start')),
     act: (action: Action) => run((s) => s.emitWithAck('game:action', action)),
     resign: () => run((s) => s.emitWithAck('game:resign')),
     rematch: () => run((s) => s.emitWithAck('game:rematch')),

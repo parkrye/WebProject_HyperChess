@@ -65,13 +65,15 @@ describe('RoomManager 유저 좌석', () => {
   it('로그인 유저는 닉네임과 레이팅으로 표시되고, 끝나면 좌석별 유저 id를 알린다', () => {
     const ended: Array<Record<string, string | null>> = [];
     const manager = new RoomManager({ ratingOf: () => 1234, onGameEnd: (_game, players) => ended.push(players) });
-    const host = manager.create('s1', { name: '무시됨', abilityId: 'haste', color: 'w' }, { userId: 'u1', nickname: 'alpha' });
-    manager.join('s2', { code: host.code, name: '손님', abilityId: 'rewind' });
+    const host = manager.create('s1', { name: '무시됨' }, { userId: 'u1', nickname: 'alpha' });
+    manager.join('s2', { code: host.code, name: '손님' });
 
     const { seats } = manager.snapshot(host.code);
     expect(seats.w).toMatchObject({ name: 'alpha', rating: 1234 });
     expect(seats.b).toMatchObject({ name: '손님', rating: null });
 
+    manager.setReady('s2', true);
+    manager.start('s1');
     manager.resign('s2');
     expect(ended).toEqual([{ w: 'u1', b: null }]);
   });
@@ -79,7 +81,7 @@ describe('RoomManager 유저 좌석', () => {
   it('같은 계정으로 양쪽 좌석에 앉을 수 없다', () => {
     const manager = new RoomManager();
     const identity = { userId: 'u1', nickname: 'alpha' };
-    const host = manager.create('s1', { name: '', abilityId: 'haste', color: 'w' }, identity);
-    expect(() => manager.join('s2', { code: host.code, name: '', abilityId: 'haste' }, identity)).toThrow('같은 계정');
+    const host = manager.create('s1', { name: '' }, identity);
+    expect(() => manager.join('s2', { code: host.code, name: '' }, identity)).toThrow('같은 계정');
   });
 });

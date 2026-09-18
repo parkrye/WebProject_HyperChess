@@ -841,6 +841,20 @@ button {
   color: var(--text-dim);
   font-size: 0.85rem;
 }
+/* 준비 표시는 능력 이름 오른쪽에 붙는다 (seat-ability가 남은 폭을 밀어낸다) */
+.seat-ready {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+.seat-ready.is-ready {
+  color: var(--accent);
+  font-weight: 700;
+}
+.online-card-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
 .seat-empty {
   color: var(--text-dim);
   animation: blink 1.4s ease-in-out infinite;

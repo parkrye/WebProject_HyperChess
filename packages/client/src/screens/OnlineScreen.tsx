@@ -1,5 +1,5 @@
 import { type Action, type Color, type GameState } from '@hyperchess/engine';
-import { NAME_MAX_LENGTH, ROOM_CODE_LENGTH, type ColorPreference, type RoomSnapshot } from '@hyperchess/protocol';
+import { NAME_MAX_LENGTH, RANDOM_ABILITY, ROOM_CODE_LENGTH, type RoomSnapshot } from '@hyperchess/protocol';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { abilityName, COLOR_NAME } from '../abilityUi/text';
 import { AbilityPicker } from '../components/AbilityPicker';
@@ -15,7 +15,6 @@ const PREFS_KEY = 'hyperchess:online-prefs';
 
 interface Prefs {
   name: string;
-  abilityId: string;
 }
 
 function loadPrefs(): Prefs {
@@ -25,7 +24,7 @@ function loadPrefs(): Prefs {
   } catch {
     // 기본값 사용
   }
-  return { name: '', abilityId: 'telekinesis' };
+  return { name: '' };
 }
 
 function savePrefs(prefs: Prefs) {
@@ -65,7 +64,7 @@ export function OnlineScreen({ onBack, onSingle }: OnlineScreenProps) {
   };
 
   if (snapshot && you) {
-    if (!snapshot.game) return <WaitingRoom snapshot={snapshot} you={you} onLeave={leave} />;
+    if (!snapshot.game) return <WaitingRoom room={room} snapshot={snapshot} you={you} onLeave={leave} />;
     return <OnlineGame key={`${snapshot.code}-${you}`} room={room} snapshot={snapshot} game={snapshot.game} you={you} onLeave={leave} />;
   }
 
@@ -76,7 +75,6 @@ export function OnlineScreen({ onBack, onSingle }: OnlineScreenProps) {
 
 function Lobby({ room, onBack, onSingle }: { room: OnlineRoom } & OnlineScreenProps) {
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
-  const [color, setColor] = useState<ColorPreference>('random');
   const [code, setCode] = useState(roomFromUrl);
   const [pending, setPending] = useState(false);
   const { session } = useSession();
@@ -89,13 +87,13 @@ function Lobby({ room, onBack, onSingle }: { room: OnlineRoom } & OnlineScreenPr
       return next;
     });
 
-  // 로그인 유저는 세션 토큰으로 참가해 닉네임·레이팅이 쓰인다
-  const base = { name: prefs.name, abilityId: prefs.abilityId, ...(account ? { authToken: account.token } : {}) };
+  // 로그인 유저는 세션 토큰으로 참가해 닉네임·레이팅이 쓰인다. 색·능력은 대기실에서 정한다
+  const base = { name: prefs.name, ...(account ? { authToken: account.token } : {}) };
 
   const submit = async (kind: 'create' | 'join') => {
     setPending(true);
     if (room.matching) room.cancelMatch();
-    if (kind === 'create') await room.create({ ...base, color });
+    if (kind === 'create') await room.create(base);
     else await room.join({ ...base, code });
     setPending(false);
   };
@@ -130,13 +128,7 @@ function Lobby({ room, onBack, onSingle }: { room: OnlineRoom } & OnlineScreenPr
         <div className="online-actions">
           <div className="online-card">
             <h3>방 만들기</h3>
-            <div className="segmented" role="radiogroup" aria-label="내 색">
-              {(['random', 'w', 'b'] as const).map((value) => (
-                <button key={value} type="button" role="radio" aria-checked={color === value} className={color === value ? 'active' : ''} onClick={() => setColor(value)}>
-                  {value === 'random' ? '무작위' : COLOR_NAME[value]}
-                </button>
-              ))}
-            </div>
+            <p className="online-card-hint">색과 능력은 방 안에서 정합니다</p>
             <button type="button" className="btn btn-primary" disabled={disabled} onClick={() => submit('create')}>
               방 만들기
             </button>
@@ -158,8 +150,6 @@ function Lobby({ room, onBack, onSingle }: { room: OnlineRoom } & OnlineScreenPr
           </div>
         </div>
       </section>
-
-      <AbilityPicker label="내 능력 선택" selected={prefs.abilityId} onSelect={(abilityId) => update({ abilityId })} />
     </Page>
   );
 }
@@ -245,10 +235,26 @@ function QuickMatch({ room, disabled, onFind, onSingle }: QuickMatchProps) {
 
 /* ---------- 대기실 ---------- */
 
-function WaitingRoom({ snapshot, you, onLeave }: { snapshot: RoomSnapshot; you: Color; onLeave: () => void }) {
+interface WaitingRoomProps {
+  readonly room: OnlineRoom;
+  readonly snapshot: RoomSnapshot;
+  readonly you: Color;
+  readonly onLeave: () => void;
+}
+
+/**
+ * 대기실: 색(방장)과 능력(각자)을 정하고 준비한다.
+ * 방장이 있는 방은 방장이 시작을 누르고, 빠른 매칭 방(방장 없음)은 양쪽이 준비하면 저절로 시작한다.
+ */
+function WaitingRoom({ room, snapshot, you, onLeave }: WaitingRoomProps) {
   const [copied, setCopied] = useState(false);
   useBgm('lobby');
   const link = `${window.location.origin}${window.location.pathname}?room=${snapshot.code}`;
+
+  const mySeat = snapshot.seats[you];
+  const opponent = snapshot.seats[you === 'w' ? 'b' : 'w'];
+  const isHost = snapshot.hostColor === you;
+  const ready = mySeat?.ready ?? false;
 
   const copy = async () => {
     try {
@@ -261,6 +267,10 @@ function WaitingRoom({ snapshot, you, onLeave }: { snapshot: RoomSnapshot; you: 
 
   return (
     <Page title="대기실" onBack={onLeave} backLabel="나가기">
+      <p className={`notice notice-slot ${room.error ? 'notice-error' : 'is-empty'}`} role="status">
+        {room.error ?? ' '}
+      </p>
+
       <section className="waiting-card">
         <div className="room-code">{snapshot.code}</div>
         <button type="button" className="btn" onClick={copy}>
@@ -276,7 +286,9 @@ function WaitingRoom({ snapshot, you, onLeave }: { snapshot: RoomSnapshot; you: 
                   <>
                     <strong>{seat.name}</strong>
                     {color === you && <span className="seat-tag">나</span>}
+                    {color === snapshot.hostColor && <span className="seat-tag">방장</span>}
                     <span className="seat-ability">{abilityName(seat.abilityId)}</span>
+                    <span className={`seat-ready ${seat.ready ? 'is-ready' : ''}`}>{seat.ready ? '준비 완료' : '준비 전'}</span>
                   </>
                 ) : (
                   <span className="seat-empty">대기 중</span>
@@ -285,7 +297,42 @@ function WaitingRoom({ snapshot, you, onLeave }: { snapshot: RoomSnapshot; you: 
             );
           })}
         </ul>
+
+        {isHost && (
+          <div className="segmented" role="radiogroup" aria-label="내 색">
+            {(['w', 'b'] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={you === value}
+                className={you === value ? 'active' : ''}
+                onClick={() => void room.setColor(value)}
+              >
+                {COLOR_NAME[value]}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {isHost ? (
+          <button type="button" className="btn btn-primary" disabled={!opponent?.ready} onClick={() => void room.start()}>
+            {!opponent ? '상대를 기다리는 중' : opponent.ready ? '게임 시작' : '상대 준비 대기 중'}
+          </button>
+        ) : (
+          <button type="button" className={`btn ${ready ? 'btn-ghost' : 'btn-primary'}`} onClick={() => void room.setReady(!ready)}>
+            {ready ? '준비 취소' : '준비'}
+          </button>
+        )}
       </section>
+
+      <AbilityPicker
+        label="내 능력 선택"
+        showDetail={false}
+        selected={mySeat?.abilityId ?? RANDOM_ABILITY}
+        disabled={ready}
+        onSelect={(abilityId) => void room.setAbility(abilityId)}
+      />
     </Page>
   );
 }

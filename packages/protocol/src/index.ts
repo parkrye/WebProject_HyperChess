@@ -146,8 +146,6 @@ export const MAX_RECORD_ACTIONS = 2000;
 export const ROOM_CODE_LENGTH = 5;
 export const NAME_MAX_LENGTH = 16;
 
-export type ColorPreference = Color | 'random';
-
 export interface SeatInfo {
   readonly name: string;
   /** 게임이 시작되면 결정된 능력, 시작 전 무작위 선택이면 'random' */
@@ -157,6 +155,8 @@ export interface SeatInfo {
   readonly connected: boolean;
   /** 로그인 유저의 레이팅, 게스트는 null */
   readonly rating: number | null;
+  /** 대기실에서 준비를 마쳤는지 (준비하면 능력을 바꿀 수 없다) */
+  readonly ready: boolean;
 }
 
 export type RoomStatus = 'waiting' | 'playing' | 'finished';
@@ -170,6 +170,8 @@ export interface RoomSnapshot {
   readonly rematchVotes: readonly Color[];
   /** 스냅샷을 만든 서버 시각 (클라이언트 시계 보정용, epoch ms) */
   readonly serverTime: number;
+  /** 방장 자리 (색 지정·시작 권한). 빠른 매칭으로 만들어진 방은 방장이 없어 null */
+  readonly hostColor: Color | null;
 }
 
 export interface JoinResult {
@@ -181,10 +183,9 @@ export interface JoinResult {
 
 export type Ack<T> = { readonly ok: true; readonly data: T } | { readonly ok: false; readonly error: string };
 
+/** 색과 능력은 방 안에서 정한다 (방장이 색, 각자 능력) */
 export interface CreateRoomRequest {
   readonly name: string;
-  readonly abilityId: string;
-  readonly color: ColorPreference;
   /** 로그인 세션 토큰 (없으면 게스트: 랭킹 미반영) */
   readonly authToken?: string;
 }
@@ -192,14 +193,12 @@ export interface CreateRoomRequest {
 export interface JoinRoomRequest {
   readonly code: string;
   readonly name: string;
-  readonly abilityId: string;
   readonly authToken?: string;
 }
 
-/** 빠른 매칭: 짝이 지어지면 서버가 방을 만들어 match:found로 알린다 */
+/** 빠른 매칭: 짝이 지어지면 서버가 방장 없는 방을 만들어 match:found로 알린다 */
 export interface MatchRequest {
   readonly name: string;
-  readonly abilityId: string;
   readonly authToken?: string;
 }
 
@@ -213,6 +212,14 @@ export interface ClientToServerEvents {
   'room:join': (request: JoinRoomRequest, ack: (result: Ack<JoinResult>) => void) => void;
   'room:resume': (request: ResumeRequest, ack: (result: Ack<JoinResult>) => void) => void;
   'room:leave': () => void;
+  /** 대기실에서 내 능력 선택 (준비 전에만) */
+  'room:ability': (abilityId: string, ack: (result: Ack<null>) => void) => void;
+  /** 대기실 준비 토글 */
+  'room:ready': (ready: boolean, ack: (result: Ack<null>) => void) => void;
+  /** 방장이 자기 색을 고른다 (상대와 자리를 맞바꾼다) */
+  'room:color': (color: Color, ack: (result: Ack<null>) => void) => void;
+  /** 방장이 대국을 시작한다 */
+  'room:start': (ack: (result: Ack<null>) => void) => void;
   /** matched: 바로 짝이 지어졌는지 (false면 대기열에서 기다림) */
   'match:find': (request: MatchRequest, ack: (result: Ack<{ matched: boolean }>) => void) => void;
   'match:cancel': () => void;

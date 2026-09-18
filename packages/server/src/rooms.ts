@@ -30,10 +30,12 @@ export class RoomError extends Error {}
 
 interface Seat {
   readonly name: string;
-  /** 선택값: 능력 id 또는 'random' */
-  readonly choice: string;
+  /** 대기실에서 고른 값: 능력 id 또는 'random' */
+  choice: string;
   /** 이번 게임에서 사용하는 능력 (무작위면 게임 시작 시 결정) */
   abilityId: string;
+  /** 대기실 준비 완료 (준비하면 능력을 바꿀 수 없다) */
+  ready: boolean;
   readonly token: string;
   socketId: string | null;
   /** 로그인 유저 id, 게스트는 null */
@@ -48,6 +50,8 @@ export interface SeatIdentity {
 
 interface Room {
   readonly code: string;
+  /** 색 지정·시작 권한을 가진 자리. 빠른 매칭 방은 방장이 없어 null (둘 다 준비하면 시작) */
+  host: Color | null;
   seats: Record<Color, Seat | null>;
   game: GameState | null;
   /** 이번 게임에서 둔 행동 순서 (기록용) */
@@ -86,16 +90,17 @@ export class RoomManager {
     this.ratingOf = options.ratingOf ?? (() => null);
   }
 
-  create(socketId: string, request: CreateRoomRequest, identity: SeatIdentity | null = null): JoinResult {
+  /** 방을 만든다. 색과 능력은 대기실에서 정한다 (hosted: false면 방장 없는 빠른 매칭 방) */
+  create(socketId: string, request: CreateRoomRequest, identity: SeatIdentity | null = null, hosted = true): JoinResult {
     this.detach(socketId);
     const code = this.generateCode();
-    const color = request.color === 'random' ? (this.random() < 0.5 ? 'w' : 'b') : request.color;
-    if (!COLORS.includes(color)) throw new RoomError('잘못된 색 선택입니다');
+    const color: Color = 'w';
 
-    const seat = this.createSeat(socketId, request.name, request.abilityId, identity);
+    const seat = this.createSeat(socketId, request.name, identity);
     const room: Room = {
       code,
-      seats: { w: null, b: null, [color]: seat } as Record<Color, Seat | null>,
+      host: hosted ? color : null,
+      seats: { w: seat, b: null },
       game: null,
       actions: [],
       rematchVotes: new Set(),
@@ -113,11 +118,10 @@ export class RoomManager {
     if (identity && COLORS.some((c) => room.seats[c]?.userId === identity.userId)) throw new RoomError('같은 계정으로 양쪽에 앉을 수 없습니다');
 
     this.detach(socketId);
-    const seat = this.createSeat(socketId, request.name, request.abilityId, identity);
+    const seat = this.createSeat(socketId, request.name, identity);
     room.seats[color] = seat;
     room.abandonedAt = null;
     this.socketSeats.set(socketId, { code: room.code, color });
-    this.startGameIfReady(room);
     return { code: room.code, color, token: seat.token };
   }
 
@@ -161,10 +165,61 @@ export class RoomManager {
     if (!room.game) room.seats[binding.color] = null;
     room.rematchVotes.delete(binding.color);
 
+    const other = room.seats[opposite(binding.color)];
+    if (!room.seats[binding.color]) {
+      // 방장이 떠나면 남은 사람이 방장이 되고, 기다리던 사람의 준비는 풀린다
+      if (room.host === binding.color) room.host = other ? opposite(binding.color) : null;
+      if (other) other.ready = false;
+    }
+
     if (COLORS.every((c) => !room.seats[c]?.socketId)) {
       this.rooms.delete(room.code);
       return null;
     }
+    return room.code;
+  }
+
+  /** 대기실에서 내 능력을 고른다 (준비 전에만) */
+  setAbility(socketId: string, abilityId: string): string {
+    const { room, seat } = this.requireWaitingSeat(socketId);
+    if (seat.ready) throw new RoomError('준비를 취소한 뒤에 바꿀 수 있습니다');
+    if (!isAbilityChoice(abilityId)) throw new RoomError('존재하지 않는 능력입니다');
+    seat.choice = abilityId;
+    seat.abilityId = abilityId;
+    return room.code;
+  }
+
+  /** 대기실 준비 토글. 방장이 없는 방은 양쪽이 준비하면 바로 시작한다 */
+  setReady(socketId: string, ready: boolean): string {
+    const { room, seat } = this.requireWaitingSeat(socketId);
+    seat.ready = ready;
+    this.startIfAllReady(room);
+    return room.code;
+  }
+
+  /** 방장이 자기 색을 고른다. 색이 바뀌면 준비를 다시 받는다 */
+  setColor(socketId: string, color: Color): string {
+    const { room, color: mine } = this.requireWaitingSeat(socketId);
+    if (room.host !== mine) throw new RoomError('방장만 색을 정할 수 있습니다');
+    if (!COLORS.includes(color)) throw new RoomError('잘못된 색 선택입니다');
+    if (color === mine) return room.code;
+
+    this.swapSeats(room);
+    for (const c of COLORS) {
+      const seat = room.seats[c];
+      if (seat) seat.ready = false;
+    }
+    return room.code;
+  }
+
+  /** 방장이 대국을 시작한다 */
+  start(socketId: string): string {
+    const { room, color } = this.requireWaitingSeat(socketId);
+    if (room.host !== color) throw new RoomError('방장만 시작할 수 있습니다');
+    const opponent = room.seats[opposite(color)];
+    if (!opponent) throw new RoomError('상대가 아직 들어오지 않았습니다');
+    if (!opponent.ready) throw new RoomError('상대가 아직 준비하지 않았습니다');
+    this.startGame(room);
     return room.code;
   }
 
@@ -194,14 +249,10 @@ export class RoomManager {
     const opponent = room.seats[opposite(color)];
     if (room.rematchVotes.size < 2 || !opponent) return room.code;
 
-    room.seats = { w: room.seats.b, b: room.seats.w };
-    for (const c of COLORS) {
-      const socket = room.seats[c]?.socketId;
-      if (socket) this.socketSeats.set(socket, { code: room.code, color: c });
-    }
+    this.swapSeats(room);
     room.rematchVotes.clear();
     room.game = null;
-    this.startGameIfReady(room);
+    this.startGame(room);
     return room.code;
   }
 
@@ -216,6 +267,7 @@ export class RoomManager {
             randomized: seat.choice === RANDOM_ABILITY,
             connected: seat.socketId !== null,
             rating: seat.userId ? this.ratingOf(seat.userId) : null,
+            ready: seat.ready,
           }
         : null;
     };
@@ -227,6 +279,7 @@ export class RoomManager {
       game: room.game,
       rematchVotes: [...room.rematchVotes],
       serverTime: this.now(),
+      hostColor: room.host,
     };
   }
 
@@ -282,24 +335,44 @@ export class RoomManager {
     }
   }
 
-  private startGameIfReady(room: Room) {
+  /** 방장이 없는 방(빠른 매칭)은 양쪽이 준비하면 저절로 시작한다 */
+  private startIfAllReady(room: Room) {
+    const { w, b } = room.seats;
+    if (room.host !== null || !w || !b || !w.ready || !b.ready) return;
+    this.startGame(room);
+  }
+
+  private startGame(room: Room) {
     const { w, b } = room.seats;
     if (!w || !b || room.game) return;
     // 무작위 선택은 게임마다 새로 뽑는다 (재대결 포함)
-    for (const seat of [w, b]) seat.abilityId = resolveAbilityChoice(seat.choice, this.random);
+    for (const seat of [w, b]) {
+      seat.abilityId = resolveAbilityChoice(seat.choice, this.random);
+      seat.ready = false;
+    }
     room.actions = [];
     room.game = createGame({ abilities: { w: w.abilityId, b: b.abilityId }, timeControl: STANDARD_TIME_CONTROL, now: this.now() });
+  }
+
+  /** 좌석을 맞바꾸고 방장·소켓 연결을 따라 옮긴다 */
+  private swapSeats(room: Room) {
+    room.seats = { w: room.seats.b, b: room.seats.w };
+    if (room.host) room.host = opposite(room.host);
+    for (const c of COLORS) {
+      const socket = room.seats[c]?.socketId;
+      if (socket) this.socketSeats.set(socket, { code: room.code, color: c });
+    }
   }
 
   private detach(socketId: string) {
     if (this.socketSeats.has(socketId)) this.leave(socketId);
   }
 
-  private createSeat(socketId: string, rawName: string, abilityId: string, identity: SeatIdentity | null): Seat {
-    if (!isAbilityChoice(abilityId)) throw new RoomError('존재하지 않는 능력입니다');
+  private createSeat(socketId: string, rawName: string, identity: SeatIdentity | null): Seat {
     // 로그인 유저는 닉네임을 그대로 쓴다
     const name = identity?.nickname ?? (String(rawName ?? '').trim().slice(0, NAME_MAX_LENGTH) || '게스트');
-    return { name, choice: abilityId, abilityId, token: randomUUID(), socketId, userId: identity?.userId ?? null };
+    const choice = RANDOM_ABILITY;
+    return { name, choice, abilityId: choice, ready: false, token: randomUUID(), socketId, userId: identity?.userId ?? null };
   }
 
   private generateCode(): string {
@@ -315,6 +388,15 @@ export class RoomManager {
     const room = this.rooms.get(code);
     if (!room) throw new RoomError('방을 찾을 수 없습니다');
     return room;
+  }
+
+  /** 아직 대국이 시작되지 않은 방의 내 자리 */
+  private requireWaitingSeat(socketId: string): { room: Room; color: Color; seat: Seat } {
+    const { room, color } = this.requireSeat(socketId);
+    if (room.game) throw new RoomError('대기 중에만 바꿀 수 있습니다');
+    const seat = room.seats[color];
+    if (!seat) throw new RoomError('참가 중인 방이 없습니다');
+    return { room, color, seat };
   }
 
   private requireSeat(socketId: string): { room: Room; color: Color } {

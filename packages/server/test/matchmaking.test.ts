@@ -3,7 +3,7 @@ import { Matchmaker, type MatchTicket } from '../src/matchmaking';
 
 const ticket = (socketId: string, userId?: string): MatchTicket => ({
   socketId,
-  request: { name: socketId, abilityId: 'haste' },
+  request: { name: socketId },
   identity: userId ? { userId, nickname: userId } : null,
 });
 
