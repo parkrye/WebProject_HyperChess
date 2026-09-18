@@ -29,15 +29,16 @@ interface DemoSpec {
   readonly choose?: (params: AbilityParams) => boolean;
   /** 능력 뒤에 이어서 보여 줄 수 (강화된 말의 움직임 등) */
   readonly after?: readonly Action[];
-  /** 무엇을 보여 주는지 한 줄 */
-  readonly caption: string;
+  /** 컷마다 한 줄. 첫 줄은 시작 국면이라 (행동 수 + 1)개여야 한다 */
+  readonly cuts: readonly string[];
 }
 
 export interface AbilityDemo {
   readonly start: GameState;
   /** 차례로 연출할 행동. 첫 번째가 능력 사용이다 */
   readonly actions: readonly Action[];
-  readonly caption: string;
+  /** 컷 설명. cuts[0]은 시작 국면, cuts[i]는 i번째 행동을 마친 뒤 */
+  readonly cuts: readonly string[];
 }
 
 const sq = fromAlgebraic;
@@ -51,87 +52,149 @@ const DEMOS: Readonly<Record<string, DemoSpec>> = {
   telekinesis: {
     fen: '4k3/7p/8/3n4/8/8/7P/4K3 w - - 0 1',
     choose: (p) => p.from === sq('d5') && p.to === sq('d4'),
-    caption: '사방이 트인 적 나이트를 손대지 않고 한 칸 밀어낸다.',
+    cuts: [
+      '적 나이트가 사방이 트인 곳에 홀로 서 있다.',
+      '손대지 않고 한 칸 밀어냈다.',
+    ],
   },
   haste: {
     fen: '4k3/7p/8/8/8/8/3PP2P/4K3 w - - 0 1',
     after: [move('e2', 'e4'), move('d2', 'd4')],
-    caption: '가속을 켜고 한 턴에 두 수를 둔다.',
+    cuts: [
+      '폰 두 개가 나설 준비를 한다.',
+      '가속을 켠다. 이번 턴에 수를 두 번 둘 수 있다.',
+      '첫 수로 e폰이 나선다.',
+      '같은 턴에 두 번째 수로 d폰이 나선다.',
+    ],
   },
   teleport: {
     fen: '4k3/7p/8/8/8/2N5/7P/R3K3 w - - 0 1',
     choose: (p) => p.a === sq('a1') && p.b === sq('c3'),
-    caption: '멀리 있는 내 룩과 나이트의 자리를 맞바꾼다.',
+    cuts: [
+      '룩은 구석에, 나이트는 한가운데에 있다.',
+      '둘의 자리를 통째로 맞바꿨다.',
+    ],
   },
   revive: {
     fen: 'q3k3/7p/8/R7/8/8/7P/4K3 b - - 0 1',
     setup: [move('a8', 'a5')],
     choose: at('to', 'd2'),
-    caption: '퀸에게 잡힌 룩을 되살려 그 체크를 막는다.',
+    cuts: [
+      '퀸이 내 룩을 잡고 그대로 내 킹을 겨눈다.',
+      '잡힌 룩을 되살려 그 길을 막았다.',
+    ],
   },
   rewind: {
     fen: START_FEN,
     setup: [move('b1', 'c3'), move('g8', 'f6')],
     choose: (p) => p.steps === 1,
-    caption: '내 직전 턴으로 시간을 되돌린다. 그동안의 수가 거꾸로 재생된다.',
+    cuts: [
+      '나이트를 내보냈고 상대도 나이트로 받았다.',
+      '시간을 되돌려 내가 나이트를 내보내기 전으로 돌아간다.',
+    ],
   },
   heavyInfantry: {
     fen: '4k3/7p/8/8/8/8/4P2P/4K3 w - - 0 1',
     choose: at('square', 'e2'),
     after: enhanceAfter('e2', 'd3'),
-    caption: '강화된 폰은 킹처럼 옆으로도 비스듬히도 걷는다.',
+    cuts: [
+      '폰 하나가 앞에 나와 있다.',
+      '그 폰을 중보병으로 강화했다.',
+      '상대가 한 수 둔다.',
+      '강화된 폰이 킹처럼 비스듬히 걷는다.',
+    ],
   },
   lancer: {
     fen: '4k3/7p/8/8/8/2N5/7P/4K3 w - - 0 1',
     choose: at('square', 'c3'),
     after: enhanceAfter('c3', 'c7'),
-    caption: '강화된 나이트는 룩처럼 줄을 타고 달린다.',
+    cuts: [
+      '나이트가 한 마리 있다.',
+      '그 나이트를 창기병으로 강화했다.',
+      '상대가 한 수 둔다.',
+      '강화된 나이트가 룩처럼 줄을 타고 달린다.',
+    ],
   },
   chariot: {
     fen: '4k3/7p/8/8/8/8/P6P/R3K3 w - - 0 1',
     choose: at('square', 'a1'),
     after: enhanceAfter('a1', 'a4'),
-    caption: '강화된 룩은 앞을 막은 아군을 뛰어넘는다.',
+    cuts: [
+      '룩 바로 앞을 아군 폰이 막고 있다.',
+      '그 룩을 전차로 강화했다.',
+      '상대가 한 수 둔다.',
+      '막은 아군을 뛰어넘어 나아간다.',
+    ],
   },
   paladin: {
     fen: '4k3/7p/8/8/8/2B5/7P/4K3 w - - 0 1',
     choose: at('square', 'c3'),
     after: enhanceAfter('c3', 'c4'),
-    caption: '강화된 비숍은 옆으로 한 칸 걸어 칸 색을 바꾼다.',
+    cuts: [
+      '비숍이 검은 칸에 서 있다.',
+      '그 비숍을 팔라딘으로 강화했다.',
+      '상대가 한 수 둔다.',
+      '옆으로 한 칸 걸어 흰 칸으로 건너갔다.',
+    ],
   },
   empress: {
     fen: '4k3/7p/8/8/3Q4/8/7P/4K3 w - - 0 1',
-    caption: '퀸이 왕족이 되고 킹은 싸울 수 있게 풀려난다.',
+    cuts: [
+      '퀸이 하나뿐이다.',
+      '퀸이 왕족이 되고 킹은 싸울 수 있게 풀려났다.',
+    ],
   },
   heir: {
     fen: '4k3/7p/8/8/8/8/4P2P/4K3 w - - 0 1',
     choose: at('square', 'e2'),
-    caption: '폰을 계승자로 세워 왕을 둘로 나눈다.',
+    cuts: [
+      '왕이 하나, 폰이 하나 있다.',
+      '폰을 계승자로 세웠다. 이제 둘 다 잡혀야 진다.',
+    ],
   },
   alchemy: {
-    fen: 'R7/7p/8/4k3/8/8/7P/4K3 w - - 0 1',
-    choose: (p) => p.square === sq('a8') && p.type === 'p' && p.promotion === 'q',
-    caption: '마지막 랭크의 룩을 폰으로 바꾸면 그 자리에서 퀸으로 승급한다.',
+    fen: '4k3/7p/8/8/8/8/P6P/RB2K3 w - - 0 1',
+    choose: (p) => p.square === sq('a1') && p.type === 'n',
+    after: enhanceAfter('a1', 'b3'),
+    cuts: [
+      '룩이 아군에 막혀 나가지 못한다.',
+      '그 룩을 나이트로 바꿨다.',
+      '상대가 한 수 둔다.',
+      '나이트가 되어 막힌 자리를 뛰어넘는다.',
+    ],
   },
   brainwash: {
     fen: '4k3/7p/8/8/3n4/2PPP3/7P/4K3 w - - 0 1',
     choose: at('square', 'd4'),
-    caption: '아군에 둘러싸인 적 나이트를 영구히 빼앗는다.',
+    cuts: [
+      '적 나이트가 내 폰 셋에 둘러싸였다.',
+      '세뇌해 영구히 내 말로 만들었다.',
+    ],
   },
   wall: {
     fen: '4k3/7p/8/8/8/8/7P/4K3 w - - 0 1',
     choose: at('square', 'e4'),
     after: [move('e1', 'e2')],
-    caption: '빈칸에 성벽을 세워 길을 끊고, 그 턴에 수를 둔다.',
+    cuts: [
+      '빈 판에 내 킹만 있다.',
+      '빈칸에 성벽을 세웠다.',
+      '성벽은 수 전에 세우므로 이 턴에 수도 둔다.',
+    ],
   },
   march: {
     fen: '4k3/7p/8/8/8/8/PPP2PPP/4K3 w - - 0 1',
-    caption: '앞이 트인 내 폰이 모두 한 칸씩 전진한다.',
+    cuts: [
+      '폰들이 한 줄로 서 있다.',
+      '앞이 트인 폰이 모두 한 칸씩 나아갔다.',
+    ],
   },
   snipe: {
     fen: '4k3/7p/8/3n4/8/8/3R3P/4K3 w - - 0 1',
     choose: (p) => p.from === sq('d2') && p.to === sq('d5'),
-    caption: '룩이 자리를 지킨 채 조준선 위의 나이트를 잡는다.',
+    cuts: [
+      '룩의 조준선 위에 적 나이트가 있다.',
+      '자리를 지킨 채 그 자리에서 잡았다.',
+    ],
   },
 };
 
@@ -156,7 +219,9 @@ export function buildDemo(abilityId: string): AbilityDemo {
   const params = spec.choose ? options.find(spec.choose) : options[0];
   if (!params) throw new DemoError(`${abilityId}: 보여 줄 선택지가 없다 (후보 ${options.length}개)`);
 
-  return { start, actions: [{ type: 'ability', params }, ...(spec.after ?? [])], caption: spec.caption };
+  const actions: Action[] = [{ type: 'ability', params }, ...(spec.after ?? [])];
+  if (spec.cuts.length !== actions.length + 1) throw new DemoError(`${abilityId}: 컷 설명 수가 맞지 않는다`);
+  return { start, actions, cuts: spec.cuts };
 }
 
 /** 데모가 있는 능력 (등록 순서) */

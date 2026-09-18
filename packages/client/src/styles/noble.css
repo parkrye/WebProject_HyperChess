@@ -311,7 +311,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
-  width: min(100%, 560px);
+  width: min(100%, 620px);
   margin: 0.5rem auto 0;
 }
 .menu-cards-3 {
@@ -349,6 +349,31 @@
 .menu-cards-3 .menu-card {
   min-height: 150px;
 }
+
+/* 한 줄을 혼자 쓰는 가로형 카드: 말이 왼쪽, 글이 오른쪽 */
+.menu-card-wide {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  /* 넓은 카드라 왼쪽에 몰아 두면 오른쪽이 비어 보인다 */
+  justify-content: center;
+  gap: 1.2rem;
+  min-height: 0;
+  padding: 0.9rem 1.5rem;
+}
+.menu-card-wide .menu-card-art {
+  height: 76px;
+}
+.menu-card-wide .menu-card-piece {
+  width: 68px;
+  height: 76px;
+}
+.menu-card-wide .menu-card-text {
+  align-items: flex-start;
+  text-align: left;
+}
+.menu-card-wide .menu-card-label {
+  font-size: 1.15rem;
+}
 .menu-card-art {
   display: flex;
   align-items: flex-end;
@@ -363,12 +388,25 @@
 .menu-card-piece .piece-img {
   filter: drop-shadow(0 4px 3px rgb(0 0 0 / 50%));
 }
+.menu-card-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
 .menu-card-label {
   font-size: 1.35rem;
   font-weight: 900;
   letter-spacing: 0.1em;
   color: var(--gold);
   text-shadow: 0 2px 0 #3b1d4e;
+}
+.menu-card-hint {
+  font-size: 0.78rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.4;
+  color: var(--text-dim);
 }
 
 /* ---------- 표 · 목록 ---------- */

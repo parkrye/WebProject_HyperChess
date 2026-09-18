@@ -13,6 +13,9 @@ export function useAnimatedGame(initial: GameState | (() => GameState), speed?: 
   const [state, setState] = useState(initial);
   const [busy, setBusy] = useState(false);
   const stage = useStage(speed);
+  // useStage 는 매 렌더 새 객체를 돌려주므로(view 가 바뀐다) 고정된 것만 꺼내 쓴다.
+  // present 가 렌더마다 새로 만들어지면 이것을 의존성으로 둔 이펙트가 계속 다시 돈다
+  const { api: stageApi, reset: resetStage } = stage;
   const latest = useRef(state);
   const queue = useRef<Promise<void>>(Promise.resolve());
 
@@ -31,16 +34,16 @@ export function useAnimatedGame(initial: GameState | (() => GameState), speed?: 
 
         setBusy(true);
         try {
-          await playEvent({ event, before, after: next, stage: stage.api });
+          await playEvent({ event, before, after: next, stage: stageApi });
         } finally {
           setState(next);
-          stage.reset();
+          resetStage();
           setBusy(false);
         }
       });
       return queue.current;
     },
-    [stage, speed],
+    [stageApi, resetStage, speed],
   );
 
   return { state, busy, stageView: stage.view, present, latest };

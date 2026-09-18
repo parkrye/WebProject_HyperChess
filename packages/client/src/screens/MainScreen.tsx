@@ -19,16 +19,23 @@ export function MainScreen({ onSelect, onBack }: MainScreenProps) {
         <img src={uiSprite.logo} alt="HyperChess" draggable={false} />
       </h1>
       <nav className="menu-cards" aria-label="메인 메뉴">
-        <MenuCard label="싱글" art={[{ type: 'k', color: 'w' }]} onClick={() => onSelect('single')} />
+        <MenuCard label="싱글" hint="AI와 겨루거나 한 기기에서 둘이" art={[{ type: 'k', color: 'w' }]} onClick={() => onSelect('single')} />
         <MenuCard
           label="멀티"
+          hint="방을 만들거나 빠른 매칭으로"
           art={[
             { type: 'k', color: 'w' },
             { type: 'k', color: 'b' },
           ]}
           onClick={() => onSelect('online')}
         />
-        <MenuCard label="능력 설명" art={[{ type: 'b', color: 'w' }]} onClick={() => onSelect('guide')} />
+        <MenuCard
+          label="능력 설명"
+          hint="16가지 능력의 효과를 예시로 본다"
+          wide
+          art={[{ type: 'q', color: 'w' }]}
+          onClick={() => onSelect('guide')}
+        />
       </nav>
     </Page>
   );

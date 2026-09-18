@@ -9,7 +9,9 @@ describe('능력 연출 데모', () => {
 
   it.each(listAbilities().map((ability) => [ability.id] as const))('%s 데모가 끝까지 재생된다', (abilityId) => {
     const demo = buildDemo(abilityId);
-    expect(demo.caption.length).toBeGreaterThan(0);
+    // 컷 설명은 시작 국면 + 행동마다 한 줄
+    expect(demo.cuts).toHaveLength(demo.actions.length + 1);
+    expect(demo.cuts.every((cut) => cut.length > 0)).toBe(true);
 
     let state = demo.start;
     for (const action of demo.actions) {

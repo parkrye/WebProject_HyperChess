@@ -304,11 +304,27 @@ button {
 }
 .ability-demo-caption {
   margin: 0;
-  max-width: 34rem;
+  /* 컷마다 길이가 달라도 보드가 위아래로 흔들리지 않도록 두 줄 자리를 잡아 둔다 */
+  min-height: 2.7rem;
+  max-width: 24rem;
   text-align: center;
   font-size: 0.9rem;
   line-height: 1.5;
   color: var(--text-dim);
+}
+.demo-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.demo-play {
+  min-width: 7.5rem;
+}
+.demo-progress {
+  margin-left: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
 }
 
 /* 넓은 화면에서는 설명과 예시를 나란히 */

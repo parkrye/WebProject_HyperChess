@@ -14,7 +14,7 @@ const isAlchemyType = (type: PieceType): type is AlchemyType => type in ALCHEMY_
 export const alchemy: AbilityDefinition = {
   id: 'alchemy',
   name: '연금술',
-  description: '수를 놓는 대신, 자신의 말 하나(킹 제외)를 가치가 같거나 낮은 다른 말로 바꾼다. 프로모션할 수 있는 칸에서 폰으로 바꾸면 바로 프로모션한다.',
+  description: '수를 놓는 대신, 자신의 말 하나(킹 제외)를 가치가 같거나 낮은 다른 말로 바꾼다.',
   timing: 'insteadOfMove',
   balance: BALANCE.alchemy,
   cost: () => COSTS.alchemy,
