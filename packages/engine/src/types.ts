@@ -75,7 +75,7 @@ export interface TurnState {
   readonly abilityUsed: boolean;
 }
 
-export type WinReason = 'checkmate' | 'royalsCaptured' | 'resign' | 'timeout' | 'materialJudge';
+export type WinReason = 'checkmate' | 'royalsCaptured' | 'resign' | 'timeout' | 'materialJudge' | 'throne';
 export type DrawReason = 'stalemate' | 'fiftyMove' | 'threefold' | 'insufficientMaterial' | 'noActions' | 'agreement' | 'materialJudge';
 
 /** 무승부 제안에 대한 답: 승낙(무승부) · 거절(계속) · 가치 판정(남은 말 가치로 승패) */
@@ -149,9 +149,26 @@ export interface GameMode {
    * 자기 킹을 공격받게 두는 수도 둘 수 있고, 두고 나서 킹이 공격받고 있으면 그 자리에서 진다.
    */
   readonly fog: boolean;
+  /** 비밀 능력: 상대 능력은 처음 쓸 때까지 가려진다 (규칙은 같고 보이는 정보만 다르다) */
+  readonly secret: boolean;
+  /** 왕좌 점령: 왕족이 중앙 4칸에 머문 채 자기 턴을 정해진 번 맞으면 이긴다 */
+  readonly throne: boolean;
 }
 
-export const STANDARD_MODE: GameMode = { deployment: 'standard', fog: false };
+export const STANDARD_MODE: GameMode = { deployment: 'standard', fog: false, secret: false, throne: false };
+
+const DEPLOYMENTS: readonly Deployment[] = ['standard', 'draft', 'chaos'];
+
+/** 외부에서 받은 모드 값. 빠진 규칙은 꺼진 것으로 본다 (이전 기록 호환). 잘못된 값이면 null */
+export function parseGameMode(value: unknown): GameMode | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const m = value as Record<string, unknown>;
+  if (!DEPLOYMENTS.includes(m.deployment as Deployment)) return null;
+  const flag = (key: string) => (m[key] === undefined ? false : m[key]);
+  const [fog, secret, throne] = ['fog', 'secret', 'throne'].map(flag);
+  if (typeof fog !== 'boolean' || typeof secret !== 'boolean' || typeof throne !== 'boolean') return null;
+  return { deployment: m.deployment as Deployment, fog, secret, throne };
+}
 
 /** 한 색의 시점으로 가린 상태에 붙는 표식 (서버가 보내는 안개전 상태) */
 export interface FogView {
@@ -181,6 +198,8 @@ export interface GameState {
   readonly history: readonly GameState[];
   readonly log: readonly GameEvent[];
   readonly draw: DrawState;
+  /** 왕좌 점령: 색별로 왕족이 중앙에 머문 채 맞은 자기 턴 수 */
+  readonly throne: Readonly<Record<Color, number>>;
   readonly result: GameResult;
   /** 시간 제한이 없으면 null */
   readonly clock: ClockState | null;

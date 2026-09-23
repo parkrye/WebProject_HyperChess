@@ -1,4 +1,4 @@
-import { getAbility, isInCheck, opposite, visibleSquares, type Action, type Color, type DrawVote, type GameState, type Square } from '@hyperchess/engine';
+import { abilityRevealed, getAbility, isInCheck, opposite, visibleSquares, type Action, type Color, type DrawVote, type GameState, type Square } from '@hyperchess/engine';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { COLOR_NAME, modeLabel } from '../abilityUi/text';
 import type { StageView } from '../game/useStage';
@@ -36,7 +36,15 @@ export interface GameViewProps {
   readonly onResign?: () => void;
   /** 무승부 제안에 답한다 (없으면 제안 창을 띄우지 않는다) */
   readonly onDrawVote?: (color: Color, vote: DrawVote) => void;
+  /** 리플레이 시점: 한 색의 시야, 또는 양쪽 시야를 겹쳐 보기 (안개전에서만 의미가 있다) */
+  readonly sight?: ReplaySight;
+  /** 이 시각에 멈춘 시계를 보인다 (리플레이) */
+  readonly clockNow?: number;
+  /** 능력 패널을 두지 않는다 (리플레이) */
+  readonly hideAbilityPanel?: boolean;
 }
+
+export type ReplaySight = { readonly kind: 'color'; readonly color: Color } | { readonly kind: 'both' };
 
 const COLORS: readonly Color[] = ['w', 'b'];
 /** board.css의 flip 애니메이션 길이와 맞춘다 */
@@ -49,16 +57,27 @@ export function GameView(props: GameViewProps) {
   const offer = state.draw.offer;
   const ongoing = state.result.kind === 'ongoing';
 
-  // 안개전 핫시트: 차례가 넘어가면 화면을 가리고, 다음 사람이 누르면 그 사람의 시야로 연다
-  const hotseatFog = myColor === null && !props.spectator && state.mode.fog;
+  // 안개전·비밀 능력 핫시트: 차례가 넘어가면 화면을 가리고, 다음 사람이 누르면 그 사람의 시점으로 연다
+  const hotseatFog = myColor === null && !props.spectator && (state.mode.fog || state.mode.secret);
   const [viewer, setViewer] = useState<Color>(state.turn);
   const handoff = hotseatFog && ongoing && !busy && viewer !== state.turn;
   const sightColor = myColor ?? (hotseatFog ? viewer : null);
+  const { sight } = props;
   const visible = useMemo<ReadonlySet<Square> | null>(() => {
+    if (!state.mode.fog) return null;
+    // 리플레이는 끝난 국면에서도 고른 시점의 시야를 보인다
+    if (sight) return sight.kind === 'color' ? visibleSquares(state, sight.color) : null;
     // 대국이 끝나면 모두 드러낸다
-    if (!state.mode.fog || !ongoing || sightColor === null) return null;
+    if (!ongoing || sightColor === null) return null;
     return handoff ? new Set() : visibleSquares(state, sightColor);
-  }, [state, ongoing, sightColor, handoff]);
+  }, [state, ongoing, sightColor, handoff, sight]);
+  const haze = useMemo(
+    () => (state.mode.fog && sight?.kind === 'both' ? { w: visibleSquares(state, 'w'), b: visibleSquares(state, 'b') } : null),
+    [state, sight],
+  );
+  // 비밀 능력: 보는 사람의 것이 아니고 아직 쓰지 않은 능력은 가린다 (차례 넘기기 중에는 둘 다)
+  const abilityHidden = (color: Color) =>
+    state.mode.secret && sightColor !== null && (handoff || color !== sightColor) && !abilityRevealed(state, color);
 
   // 무승부 제안에 답하기 전에는 보드도 능력도 건드릴 수 없다
   const canAct = !props.spectator && !offer && !handoff && (myColor === null || state.turn === myColor);
@@ -66,7 +85,7 @@ export function GameView(props: GameViewProps) {
   // AI 대전/온라인은 항상 내가 왼쪽. 로컬 2인은 백이 왼쪽이고 수동으로만 바꾼다 (안개전은 보는 사람이 왼쪽)
   const [localLeft, setLocalLeft] = useState<Color>('w');
   const [flipPhase, setFlipPhase] = useState<FlipPhase | null>(null);
-  const left: Color = myColor ?? (hotseatFog ? viewer : localLeft);
+  const left: Color = sight?.kind === 'color' ? sight.color : (myColor ?? (hotseatFog ? viewer : localLeft));
   const mode = modeLabel(state.mode);
 
   /** 보드를 세로축으로 돌려 반쯤(옆면) 됐을 때 좌우를 바꾸고, 반대쪽 옆면에서 다시 펼친다 */
@@ -123,7 +142,7 @@ export function GameView(props: GameViewProps) {
             </button>
           )}
           <SoundToggle />
-          {myColor !== null || hotseatFog ? null : (
+          {myColor !== null || hotseatFog || sight?.kind === 'color' ? null : (
             <button type="button" className="btn btn-ghost btn-icon" onClick={flipBoard} aria-label="보드 좌우 뒤집기">
               <img className="ui-icon" src={uiIconSprite('flip')} alt="" draggable={false} />
             </button>
@@ -131,20 +150,20 @@ export function GameView(props: GameViewProps) {
         </span>
       </header>
 
-      <ClockBar state={state} leftColor={left} seats={props.seats} offsetMs={props.clockOffsetMs} />
+      <ClockBar state={state} leftColor={left} seats={props.seats} offsetMs={props.clockOffsetMs} frozenNow={props.clockNow} />
 
       <div className="game-layout">
         <div className="board-row">
-          <PlayerBar className="side-left" state={state} color={left} interaction={interaction} seat={props.seats?.[left]} randomized={props.randomized?.[left]} />
-          <Board state={state} stage={stageView} interaction={interaction} leftColor={left} busy={busy} flipPhase={flipPhase} visible={visible} />
-          <PlayerBar className="side-right" state={state} color={right} interaction={interaction} seat={props.seats?.[right]} randomized={props.randomized?.[right]} />
+          <PlayerBar className="side-left" state={state} color={left} interaction={interaction} seat={props.seats?.[left]} randomized={props.randomized?.[left]} abilityHidden={abilityHidden(left)} />
+          <Board state={state} stage={stageView} interaction={interaction} leftColor={left} busy={busy} flipPhase={flipPhase} visible={visible} haze={haze} />
+          <PlayerBar className="side-right" state={state} color={right} interaction={interaction} seat={props.seats?.[right]} randomized={props.randomized?.[right]} abilityHidden={abilityHidden(right)} />
         </div>
         <aside className="under-board">
           {/* 알림 유무와 관계없이 한 줄 자리를 유지해 아래 패널이 밀리지 않게 한다 */}
           <p className={`notice notice-slot ${props.notice ? '' : 'is-empty'}`} title={props.notice ?? undefined}>
             {props.notice ?? '\u00a0'}
           </p>
-          <AbilityPanel state={state} color={myColor ?? state.turn} interaction={interaction} busy={busy} />
+          {!handoff && !props.hideAbilityPanel && <AbilityPanel state={state} color={myColor ?? state.turn} interaction={interaction} busy={busy} />}
           {props.sidebar}
         </aside>
       </div>

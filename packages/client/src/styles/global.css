@@ -1224,9 +1224,12 @@ button {
 .mode-row .segmented {
   min-width: min(100%, 240px);
 }
-.mode-row .mode-fog {
-  min-width: 120px;
-  flex: 0 0 auto;
+.mode-row .mode-rules {
+  min-width: min(100%, 300px);
+}
+.throne-tag {
+  color: #ffd76b;
+  border-color: color-mix(in srgb, #ffd76b 55%, transparent);
 }
 .mode-description {
   margin: 0;
@@ -1356,4 +1359,118 @@ button {
 }
 .draft-grid .square.dark {
   background: #5b4f78;
+}
+.draft-budget {
+  display: flex;
+  gap: 0.8rem;
+  align-items: baseline;
+}
+.draft-timer {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+.draft-timer.is-warning {
+  color: var(--danger);
+}
+
+/* ---------- 리플레이 ---------- */
+
+.replay-list {
+  list-style: none;
+  margin: 0 auto;
+  padding: 0;
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.replay-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+}
+.replay-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.replay-meta,
+.replay-result {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+.replay-meta .mode-chip {
+  margin-left: 0.4rem;
+}
+.replay-names {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.replay-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+}
+.replay-buttons {
+  display: flex;
+  gap: 0.3rem;
+  justify-content: center;
+}
+.replay-buttons .btn {
+  min-width: 2.6rem;
+}
+.replay-seek {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.replay-seek input {
+  flex: 1;
+  min-width: 0;
+}
+.replay-count {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-size: 0.85rem;
+}
+.replay-legend,
+.replay-final {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+.replay-final-detail {
+  margin-left: 0.3rem;
+}
+.legend-swatch {
+  position: relative;
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  vertical-align: -2px;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+  background-color: #7a6d98;
+}
+.legend-swatch.haze-w,
+.legend-swatch.haze-b {
+  background-color: #7a6d98;
 }

@@ -1,6 +1,7 @@
 import {
   COSTS,
   getAbility,
+  THRONE_HOLD_TURNS,
   type AbilityDefinition,
   type Color,
   type DrawReason,
@@ -26,10 +27,19 @@ export const DEPLOYMENT_DESCRIPTION: Readonly<Record<Deployment, string>> = {
 };
 
 export const FOG_DESCRIPTION = '내 말과 내 말이 갈 수 있는 칸만 보인다. 체크를 건 말은 드러나고, 체크를 못 피하면 진다.';
+export const SECRET_DESCRIPTION = '상대 능력은 처음 쓸 때까지 가려진다.';
+export const THRONE_DESCRIPTION = `왕족이 중앙 4칸에 머문 채 자기 턴을 ${THRONE_HOLD_TURNS}번 맞으면 이긴다.`;
+/** 비밀 능력 모드에서 가려진 능력 표시 */
+export const SECRET_ABILITY_NAME = '비밀';
 
 /** 모드 이름. 표준이면 null (따로 표시하지 않는다) */
 export function modeLabel(mode: GameMode): string | null {
-  const parts = [mode.deployment === 'standard' ? null : `${DEPLOYMENT_LABEL[mode.deployment]}전`, mode.fog ? '안개전' : null].filter(Boolean);
+  const parts = [
+    mode.deployment === 'standard' ? null : `${DEPLOYMENT_LABEL[mode.deployment]}전`,
+    mode.fog ? '안개전' : null,
+    mode.secret ? '비밀 능력' : null,
+    mode.throne ? '왕좌 점령' : null,
+  ].filter(Boolean);
   return parts.length ? parts.join(' · ') : null;
 }
 
@@ -105,6 +115,7 @@ const WIN_REASON: Record<WinReason, string> = {
   resign: '기권',
   timeout: '시간 초과',
   materialJudge: '가치 판정',
+  throne: '왕좌 점령',
 };
 
 const DRAW_REASON: Record<DrawReason, string> = {

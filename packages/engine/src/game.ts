@@ -2,6 +2,7 @@ import { getAbility } from './abilities/registry';
 import type { AbilityDefinition, RecoveryTrigger } from './abilities/types';
 import { parseFen, START_FEN } from './fen';
 import { paramsVisible, visibleSquares } from './fog';
+import { fromAlgebraic } from './square';
 import { anyRoyalAttacked, diffBoards, executeMove, findLegalMove, hasLegalMove, isInCheck, isRoyal, royalSquares, usesCheckRule } from './rules';
 import {
   opposite,
@@ -24,6 +25,11 @@ import {
 } from './types';
 
 const HISTORY_LIMIT = 8;
+
+/** 왕좌 점령의 중앙 4칸 */
+export const THRONE_SQUARES: readonly number[] = ['d4', 'e4', 'd5', 'e5'].map(fromAlgebraic);
+/** 왕좌에 머문 채 이만큼 자기 턴을 맞으면 이긴다 (들어간 뒤 상대 턴을 이만큼 버틴다) */
+export const THRONE_HOLD_TURNS = 3;
 const COLORS: readonly Color[] = ['w', 'b'];
 
 /** 기본 시간 제한: 차례당 2분, 게임 전체 60분 */
@@ -68,6 +74,7 @@ export function createGame(setup: GameSetup = {}): GameState {
     history: [],
     log: [],
     draw: INITIAL_DRAW,
+    throne: { w: 0, b: 0 },
     result: { kind: 'ongoing' },
     clock: setup.timeControl
       ? {
@@ -306,13 +313,28 @@ function beginTurn(state: GameState): GameState {
   };
   const recovered: GameState = { ...counted, walls: expireWalls(counted.walls, color), players: withRecovery(counted.players, color, 'ownTurns') };
 
-  const quiet = trackQuiet(recovered);
+  const quiet = trackThrone(trackQuiet(recovered));
 
   const withKey: GameState = { ...quiet, positionKeys: [...quiet.positionKeys, positionKey(quiet)] };
   const snapshot: GameState = { ...withKey, history: [], result: { kind: 'ongoing' } };
   const withHistory: GameState = { ...withKey, history: [...withKey.history, snapshot].slice(-HISTORY_LIMIT) };
 
-  return { ...withHistory, result: evaluateResult(withHistory) };
+  return { ...withHistory, result: throneResult(withHistory) ?? evaluateResult(withHistory) };
+}
+
+/** 턴을 맞은 색의 왕족이 왕좌에 있으면 센 수를 늘리고, 없으면 처음부터 다시 센다 */
+function trackThrone(state: GameState): GameState {
+  if (!state.mode.throne) return state;
+  const color = state.turn;
+  const onThrone = royalSquares(state, color).some((square) => THRONE_SQUARES.includes(square));
+  const count = onThrone ? state.throne[color] + 1 : 0;
+  if (count === state.throne[color]) return state;
+  return { ...state, throne: { ...state.throne, [color]: count } };
+}
+
+function throneResult(state: GameState): GameResult | null {
+  if (!state.mode.throne || state.throne[state.turn] < THRONE_HOLD_TURNS) return null;
+  return { kind: 'win', winner: state.turn, reason: 'throne' };
 }
 
 /** 설치자의 턴이 시작될 때마다 성벽의 남은 턴을 줄이고, 다 된 성벽을 없앤다 */
@@ -491,5 +513,6 @@ function positionKey(state: GameState): string {
   });
   const rules = COLORS.map((color) => (state.players[color].rules.queensRoyal ? 'E' : '-')).join('');
   const walls = state.walls.map((wall) => `${wall.square}${wall.owner}${wall.turnsLeft}`).join(',');
-  return [squares.join(','), state.turn, state.enPassant?.target ?? '-', rules, walls].join('|');
+  const throne = state.mode.throne ? `${state.throne.w}${state.throne.b}` : '';
+  return [squares.join(','), state.turn, state.enPassant?.target ?? '-', rules, walls, throne].join('|');
 }

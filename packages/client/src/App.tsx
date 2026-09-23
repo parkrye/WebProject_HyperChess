@@ -7,6 +7,8 @@ import { LocalGameScreen } from './screens/GameScreen';
 import { MainScreen } from './screens/MainScreen';
 import { OnlineScreen } from './screens/OnlineScreen';
 import { RankingScreen } from './screens/RankingScreen';
+import { ReplayListScreen, ReplayScreen } from './screens/ReplayScreen';
+import type { SavedReplay } from './replay/storage';
 import { DEFAULT_SETUP_PREFS, SetupScreen, type LocalGameConfig, type SetupMode, type SetupPrefs } from './screens/SetupScreen';
 import { SingleMenuScreen } from './screens/SingleMenuScreen';
 import { StatsScreen } from './screens/StatsScreen';
@@ -24,6 +26,8 @@ type Screen =
   | { kind: 'guide' }
   | { kind: 'stats' }
   | { kind: 'ranking' }
+  | { kind: 'replays' }
+  | { kind: 'replay'; replay: SavedReplay }
   | {
       kind: 'game';
       config: LocalGameConfig;
@@ -96,6 +100,10 @@ export function App() {
         return <StatsScreen onBack={() => go({ kind: 'main' })} />;
       case 'ranking':
         return <RankingScreen onBack={() => go({ kind: 'main' })} />;
+      case 'replays':
+        return <ReplayListScreen onOpen={(replay) => go({ kind: 'replay', replay })} onBack={() => go({ kind: 'main' })} />;
+      case 'replay':
+        return <ReplayScreen replay={screen.replay} onBack={() => go({ kind: 'replays' })} />;
       case 'game':
         return (
           <LocalGameScreen

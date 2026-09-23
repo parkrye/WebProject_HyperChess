@@ -2,6 +2,7 @@ import {
   fileOf,
   isInCheck,
   rankOf,
+  THRONE_SQUARES,
   royalSquares,
   toAlgebraic,
   type Board as BoardData,
@@ -32,6 +33,8 @@ interface BoardProps {
   readonly flipPhase?: FlipPhase | null;
   /** 안개전에서 보이는 칸. null이면 모두 보인다 */
   readonly visible?: ReadonlySet<Square> | null;
+  /** 리플레이 양쪽 시점: 색별로 보이는 칸. 말은 모두 그리고, 각 색에게 안 보이는 칸에 옅은 안개를 겹친다 */
+  readonly haze?: Readonly<Record<Color, ReadonlySet<Square>>> | null;
 }
 
 export type FlipPhase = 'out' | 'in';
@@ -157,7 +160,7 @@ function overlaySeen(overlay: Overlay, seen: (square: Square) => boolean): boole
   return overlay.to === undefined || seen(overlay.to);
 }
 
-export function Board({ state, stage, interaction, leftColor, busy, flipPhase, visible = null }: BoardProps) {
+export function Board({ state, stage, interaction, leftColor, busy, flipPhase, visible = null, haze = null }: BoardProps) {
   const seen = (square: Square) => square >= 0 && (!visible || visible.has(square));
   const board: BoardData = stage.board ?? state.board;
   const walls: readonly Wall[] = stage.walls ?? state.walls;
@@ -200,6 +203,7 @@ export function Board({ state, stage, interaction, leftColor, busy, flipPhase, v
             interaction.targetingSquares.includes(square) ? 'ability-target' : '',
             interaction.pickedSquares.includes(square) ? 'ability-picked' : '',
             seen(square) ? '' : 'fogged',
+            state.mode.throne && THRONE_SQUARES.includes(square) ? 'throne' : '',
           ].join(' ');
 
           return (
@@ -211,6 +215,7 @@ export function Board({ state, stage, interaction, leftColor, busy, flipPhase, v
               aria-label={toAlgebraic(square)}
               onClick={() => interaction.onSquare(square)}
             >
+              {haze && (['w', 'b'] as const).map((color) => (haze[color].has(square) ? null : <span key={color} className={`haze haze-${color}`} />))}
               {y === 7 && <span className="coord coord-bottom">{toAlgebraic(square)[1]}</span>}
               {x === 0 && <span className="coord coord-left">{toAlgebraic(square)[0]}</span>}
             </button>

@@ -1,5 +1,6 @@
-import { fromAlgebraic as sq, IllegalActionError, kingOnlyPlacement, standardPlacement } from '@hyperchess/engine';
+import { fromAlgebraic as sq, IllegalActionError, DRAFT_TIME_LIMIT_MS, kingOnlyPlacement, standardPlacement } from '@hyperchess/engine';
 import { describe, expect, it } from 'vitest';
+import { replayStates } from '@hyperchess/protocol';
 import { RoomError, RoomManager } from '../src/rooms';
 
 const move = (from: string, to: string) => ({ type: 'move' as const, move: { from: sq(from), to: sq(to) } });
@@ -271,7 +272,7 @@ describe('RoomManager', () => {
     manager.setReady('s2', true);
     manager.setMode('s1', { deployment: 'chaos', fog: true });
     const snapshot = manager.snapshot(host.code);
-    expect(snapshot.mode).toEqual({ deployment: 'chaos', fog: true });
+    expect(snapshot.mode).toEqual({ deployment: 'chaos', fog: true, secret: false, throne: false });
     expect(snapshot.seats.b?.ready).toBe(false);
     expect(() => manager.setMode('s1', { deployment: 'nope', fog: false })).toThrow('잘못된 모드');
   });
@@ -317,5 +318,65 @@ describe('RoomManager', () => {
 
     manager.resign('s2');
     expect(manager.snapshot(host.code, 'w').game?.board.filter((p) => p?.color === 'b')).toHaveLength(16);
+  });
+
+  it('비밀 능력은 대기실부터 상대 능력을 가리고, 대국이 끝나면 드러낸다', () => {
+    const manager = new RoomManager();
+    const host = manager.create('s1', { name: '호스트' });
+    manager.join('s2', { code: host.code, name: '게스트' });
+    manager.setColor('s1', 'w');
+    manager.setAbility('s1', 'haste');
+    manager.setAbility('s2', 'rewind');
+    manager.setMode('s1', { deployment: 'standard', secret: true });
+    expect(manager.snapshot(host.code, 'w').seats.b).toMatchObject({ abilityHidden: true, abilityId: 'random' });
+    expect(manager.snapshot(host.code, 'b').seats.b).toMatchObject({ abilityHidden: false, abilityId: 'rewind' });
+
+    manager.setReady('s1', true);
+    manager.setReady('s2', true);
+    const white = manager.snapshot(host.code, 'w');
+    expect(white.game?.players.b.abilityId).toBeNull();
+    expect(white.game?.players.w.abilityId).toBe('haste');
+
+    manager.resign('s2');
+    expect(manager.snapshot(host.code, 'w').game?.players.b.abilityId).toBe('rewind');
+    expect(manager.snapshot(host.code, 'w').seats.b?.abilityHidden).toBe(false);
+  });
+
+  it('편성 제한 시간이 지나면 안 낸 쪽을 표준 배치로 채워 시작한다', () => {
+    let now = 1_000;
+    const manager = new RoomManager({ now: () => now });
+    const host = manager.create('s1', { name: '호스트' });
+    manager.join('s2', { code: host.code, name: '게스트' });
+    manager.setColor('s1', 'w');
+    manager.setMode('s1', { deployment: 'draft' });
+    manager.setReady('s1', true);
+    manager.setReady('s2', true);
+    expect(manager.snapshot(host.code).draftDeadline).toBe(1_000 + DRAFT_TIME_LIMIT_MS);
+    manager.submitDraft('s1', kingOnlyPlacement('w'));
+
+    now += DRAFT_TIME_LIMIT_MS;
+    expect(manager.expireDraft(host.code)).toBe(false);
+    now = manager.draftExpiry(host.code)!;
+    expect(manager.expireDraft(host.code)).toBe(true);
+    const started = manager.snapshot(host.code);
+    expect(started.status).toBe('playing');
+    expect(started.draftDeadline).toBeNull();
+    expect(started.game?.board.filter((p) => p?.color === 'b')).toHaveLength(16);
+  });
+
+  it('끝난 대국에만 리플레이를 싣고, 그 리플레이로 같은 결과가 재현된다', () => {
+    const { manager, host } = setupRoom();
+    manager.act('s1', move('e2', 'e4'));
+    manager.act('s2', move('e7', 'e5'));
+    expect(manager.snapshot(host.code).replay).toBeNull();
+
+    manager.resign('s2');
+    const snapshot = manager.snapshot(host.code);
+    const replay = snapshot.replay!;
+    expect(replay.steps.map((step) => step.kind)).toEqual(['action', 'action', 'resign']);
+    const states = replayStates(replay);
+    expect(states).toHaveLength(4);
+    expect(states[3].result).toEqual(snapshot.game?.result);
+    expect(states[3].board).toEqual(snapshot.game?.board);
   });
 });

@@ -1,4 +1,7 @@
 import { listAbilities, type Action, type Color, type DrawVote, type GameMode, type GameState, type Placement } from '@hyperchess/engine';
+import type { ReplayData } from './replay';
+
+export * from './replay';
 
 /** 능력 선택값: 능력 id 또는 무작위 (게임 시작 시 결정) */
 export const RANDOM_ABILITY = 'random';
@@ -64,7 +67,8 @@ export function toGameRecord(state: GameState, source: ResultSource, { difficult
   };
 }
 
-export const isStandardMode = (mode: GameMode | undefined): boolean => !mode || (mode.deployment === 'standard' && !mode.fog);
+export const isStandardMode = (mode: GameMode | undefined): boolean =>
+  !mode || (mode.deployment === 'standard' && !mode.fog && !mode.secret && !mode.throne);
 
 export interface AbilityStat {
   /** null은 능력 없음 */
@@ -159,8 +163,10 @@ export type ColorPreference = Color | 'random';
 
 export interface SeatInfo {
   readonly name: string;
-  /** 게임이 시작되면 결정된 능력, 시작 전 무작위 선택이면 'random' */
+  /** 게임이 시작되면 결정된 능력, 시작 전 무작위 선택이면 'random' (가려졌으면 'random') */
   readonly abilityId: string;
+  /** 비밀 능력 모드에서 받는 사람에게 가려진 능력인지 */
+  readonly abilityHidden: boolean;
   /** 대기실에서 고른 색 (게임이 시작되면 실제 자리가 곧 색이다) */
   readonly colorChoice: ColorPreference;
   /** 무작위로 결정된 능력인지 */
@@ -183,8 +189,12 @@ export interface RoomSnapshot {
   readonly seats: Readonly<Record<Color, SeatInfo | null>>;
   /** 대기실에서 정한 게임 모드. 누구나 바꿀 수 있고, 바뀌면 양쪽 준비가 풀린다 */
   readonly mode: GameMode;
+  /** 징병 편성 제한 시각 (서버 시각 epoch ms). 편성 중이 아니면 null */
+  readonly draftDeadline: number | null;
   /** 안개전이 진행 중이면 받는 사람 시점으로 가린 상태다 */
   readonly game: GameState | null;
+  /** 끝난 대국의 리플레이 (진행 중에는 가린 정보가 새지 않도록 null) */
+  readonly replay: ReplayData | null;
   /** 재대결에 동의한 색 */
   readonly rematchVotes: readonly Color[];
   /** 스냅샷을 만든 서버 시각 (클라이언트 시계 보정용, epoch ms) */
