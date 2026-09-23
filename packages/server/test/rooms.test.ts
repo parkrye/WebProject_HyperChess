@@ -1,5 +1,6 @@
 import { fromAlgebraic as sq, IllegalActionError, DRAFT_TIME_LIMIT_MS, kingOnlyPlacement, standardPlacement } from '@hyperchess/engine';
 import { describe, expect, it } from 'vitest';
+import { replayStates } from '@hyperchess/protocol';
 import { RoomError, RoomManager } from '../src/rooms';
 
 const move = (from: string, to: string) => ({ type: 'move' as const, move: { from: sq(from), to: sq(to) } });
@@ -361,5 +362,21 @@ describe('RoomManager', () => {
     expect(started.status).toBe('playing');
     expect(started.draftDeadline).toBeNull();
     expect(started.game?.board.filter((p) => p?.color === 'b')).toHaveLength(16);
+  });
+
+  it('끝난 대국에만 리플레이를 싣고, 그 리플레이로 같은 결과가 재현된다', () => {
+    const { manager, host } = setupRoom();
+    manager.act('s1', move('e2', 'e4'));
+    manager.act('s2', move('e7', 'e5'));
+    expect(manager.snapshot(host.code).replay).toBeNull();
+
+    manager.resign('s2');
+    const snapshot = manager.snapshot(host.code);
+    const replay = snapshot.replay!;
+    expect(replay.steps.map((step) => step.kind)).toEqual(['action', 'action', 'resign']);
+    const states = replayStates(replay);
+    expect(states).toHaveLength(4);
+    expect(states[3].result).toEqual(snapshot.game?.result);
+    expect(states[3].board).toEqual(snapshot.game?.board);
   });
 });

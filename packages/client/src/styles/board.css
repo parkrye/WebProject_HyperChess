@@ -334,3 +334,16 @@
   background: radial-gradient(circle, rgb(255 215 107 / 24%), transparent 72%);
   box-shadow: inset 0 0 0 2px rgb(255 215 107 / 70%);
 }
+
+/* 리플레이 양쪽 시점: 각 색에게 안 보이는 칸에 옅은 안개. 백의 안개는 밝게, 흑의 안개는 어둡게 */
+.haze {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.haze-w {
+  background: repeating-linear-gradient(45deg, rgb(230 236 255 / 26%) 0 4px, rgb(230 236 255 / 12%) 4px 8px);
+}
+.haze-b {
+  background: repeating-linear-gradient(-45deg, rgb(20 14 40 / 42%) 0 4px, rgb(20 14 40 / 24%) 4px 8px);
+}

@@ -1,4 +1,7 @@
 import { listAbilities, type Action, type Color, type DrawVote, type GameMode, type GameState, type Placement } from '@hyperchess/engine';
+import type { ReplayData } from './replay';
+
+export * from './replay';
 
 /** 능력 선택값: 능력 id 또는 무작위 (게임 시작 시 결정) */
 export const RANDOM_ABILITY = 'random';
@@ -190,6 +193,8 @@ export interface RoomSnapshot {
   readonly draftDeadline: number | null;
   /** 안개전이 진행 중이면 받는 사람 시점으로 가린 상태다 */
   readonly game: GameState | null;
+  /** 끝난 대국의 리플레이 (진행 중에는 가린 정보가 새지 않도록 null) */
+  readonly replay: ReplayData | null;
   /** 재대결에 동의한 색 */
   readonly rematchVotes: readonly Color[];
   /** 스냅샷을 만든 서버 시각 (클라이언트 시계 보정용, epoch ms) */

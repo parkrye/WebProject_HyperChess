@@ -19,15 +19,16 @@ export function useAnimatedGame(initial: GameState | (() => GameState), speed?: 
   const latest = useRef(state);
   const queue = useRef<Promise<void>>(Promise.resolve());
 
+  /** instant: 연출 없이 바로 반영 (리플레이에서 앞뒤로 건너뛸 때) */
   const present = useCallback(
-    (next: GameState) => {
+    (next: GameState, { instant = false }: { instant?: boolean } = {}) => {
       queue.current = queue.current.then(async () => {
         const before = latest.current;
         latest.current = next;
         const event = next.log[next.log.length - 1];
         const isNewEvent = next.log.length > 0 && !sameEvent(event, before.log[before.log.length - 1]);
 
-        if (!event || !isNewEvent || speed?.current === 0) {
+        if (!event || !isNewEvent || instant || speed?.current === 0) {
           setState(next);
           return;
         }

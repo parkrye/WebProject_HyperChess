@@ -6,6 +6,7 @@ import { AbilityPicker } from '../components/AbilityPicker';
 import { AbilityReveal } from '../components/AbilityReveal';
 import { DraftBoard } from '../components/DraftBoard';
 import { ModePicker } from '../components/ModePicker';
+import { SaveReplayButton } from '../components/SaveReplayButton';
 import { ChatPanel } from '../components/ChatPanel';
 import { GameView } from '../components/GameView';
 import { Page } from '../components/Page';
@@ -473,6 +474,17 @@ function OnlineGame({ room, snapshot, game, you, onLeave }: OnlineGameProps) {
             <button type="button" className="btn btn-primary" disabled={votedRematch || !opponent?.connected} onClick={() => void room.rematch()}>
               {votedRematch ? '상대 응답 대기 중' : opponentVoted ? '재대결 수락' : '재대결 신청'}
             </button>
+            {snapshot.replay && (
+              <SaveReplayButton
+                entry={() => ({
+                  source: 'online',
+                  names: { w: seats.w.name, b: seats.b.name },
+                  viewer: you,
+                  result: game.result,
+                  data: snapshot.replay!,
+                })}
+              />
+            )}
             <button type="button" className="btn btn-ghost" onClick={onLeave}>
               나가기
             </button>

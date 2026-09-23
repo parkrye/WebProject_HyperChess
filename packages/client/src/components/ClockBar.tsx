@@ -30,12 +30,15 @@ interface ClockBarProps {
   readonly leftColor: Color;
   readonly seats?: Readonly<Record<Color, SeatLabel>>;
   readonly offsetMs?: number;
+  /** 이 시각에 멈춘 시계를 보인다 (리플레이) */
+  readonly frozenNow?: number;
 }
 
 /** 게임 상단 시계: 좌우 플레이어의 전체 남은 시간 + 현재 차례의 남은 시간 */
-export function ClockBar({ state, leftColor, seats, offsetMs = 0 }: ClockBarProps) {
+export function ClockBar({ state, leftColor, seats, offsetMs = 0, frozenNow }: ClockBarProps) {
   const ongoing = state.result.kind === 'ongoing';
-  const now = useNow(offsetMs, ongoing && state.clock !== null);
+  const ticking = useNow(offsetMs, ongoing && state.clock !== null && frozenNow === undefined);
+  const now = frozenNow ?? ticking;
   const view = clockView(state, now);
   if (!view || !state.clock) return null;
 

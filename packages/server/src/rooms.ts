@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import {
-  applyAction,
   abilityRevealed,
   chaosPlacement,
   checkTimeout,
@@ -10,15 +9,12 @@ import {
   draftError,
   drawOfferDue,
   fogView,
-  openDrawOffer,
   opposite,
   parseGameMode,
   placementFen,
-  resign,
   standardPlacement,
   STANDARD_MODE,
   STANDARD_TIME_CONTROL,
-  voteDraw,
   type Action,
   type Color,
   type DrawVote,
@@ -38,9 +34,12 @@ import {
   type JoinResult,
   type JoinRoomRequest,
   type ResumeRequest,
+  applyReplayStep,
   isAbilityChoice,
   RANDOM_ABILITY,
   resolveAbilityChoice,
+  type ReplaySetup,
+  type ReplayStep,
   type RoomSnapshot,
 } from '@hyperchess/protocol';
 
@@ -91,6 +90,9 @@ interface Room {
   draftDeadline: number | null;
   /** 이번 게임에서 둔 행동 순서 (기록용) */
   actions: Action[];
+  /** 이번 게임의 리플레이: 시작 설정과 상태를 바꾼 걸음들 */
+  replaySetup: ReplaySetup | null;
+  replaySteps: ReplayStep[];
   rematchVotes: Set<Color>;
   /** 채팅 일련번호 (보관하지 않고 번호만 이어 붙인다) */
   chatSeq: number;
@@ -142,6 +144,8 @@ export class RoomManager {
       drafts: null,
       draftDeadline: null,
       actions: [],
+      replaySetup: null,
+      replaySteps: [],
       rematchVotes: new Set(),
       chatSeq: 0,
       abandonedAt: null,
@@ -200,7 +204,7 @@ export class RoomManager {
     const room = this.rooms.get(binding.code);
     if (!room) return null;
 
-    if (room.game && room.game.result.kind === 'ongoing') this.updateGame(room, resign(room.game, binding.color));
+    if (room.game && room.game.result.kind === 'ongoing') this.step(room, { kind: 'resign', color: binding.color, at: this.now() });
     this.disconnect(socketId);
     if (!room.game) {
       room.seats[binding.color] = null;
@@ -294,10 +298,11 @@ export class RoomManager {
     const { room, color } = this.requireSeat(socketId);
     if (!room.game) throw new RoomError('게임이 시작되지 않았습니다');
     if (room.game.turn !== color) throw new RoomError('상대 차례입니다');
-    const next = applyAction(room.game, action, this.now());
+    const at = this.now();
+    this.step(room, { kind: 'action', action, at });
     room.actions.push(action);
     // 말 변동 없이 오래 끌었으면 이 수를 끝으로 무승부 제안을 띄운다
-    this.updateGame(room, drawOfferDue(next) ? openDrawOffer(next, this.now()) : next);
+    if (drawOfferDue(room.game)) this.step(room, { kind: 'drawOffer', at });
     return room.code;
   }
 
@@ -306,14 +311,14 @@ export class RoomManager {
     const { room, color } = this.requireSeat(socketId);
     if (!room.game?.draw.offer) throw new RoomError('무승부 제안이 없습니다');
     if (room.game.draw.offer.votes[color]) throw new RoomError('이미 답했습니다');
-    this.updateGame(room, voteDraw(room.game, color, vote, this.now()));
+    this.step(room, { kind: 'drawVote', color, vote, at: this.now() });
     return room.code;
   }
 
   resign(socketId: string): string {
     const { room, color } = this.requireSeat(socketId);
     if (!room.game) throw new RoomError('게임이 시작되지 않았습니다');
-    this.updateGame(room, resign(room.game, color));
+    this.step(room, { kind: 'resign', color, at: this.now() });
     return room.code;
   }
 
@@ -368,6 +373,7 @@ export class RoomManager {
       mode: room.mode,
       draftDeadline: room.draftDeadline,
       game: shown,
+      replay: game && game.result.kind !== 'ongoing' && room.replaySetup ? { version: 1, setup: room.replaySetup, steps: room.replaySteps } : null,
       rematchVotes: [...room.rematchVotes],
       serverTime: this.now(),
     };
@@ -402,9 +408,9 @@ export class RoomManager {
   expireClock(code: string): boolean {
     const room = this.rooms.get(code);
     if (!room?.game) return false;
-    const next = checkTimeout(room.game, this.now());
-    if (next === room.game) return false;
-    this.updateGame(room, next);
+    const at = this.now();
+    if (checkTimeout(room.game, at) === room.game) return false;
+    this.step(room, { kind: 'timeout', at });
     return true;
   }
 
@@ -431,6 +437,13 @@ export class RoomManager {
 
   get roomCount(): number {
     return this.rooms.size;
+  }
+
+  /** 상태를 바꾸는 한 걸음을 적용하고 리플레이에 남긴다 */
+  private step(room: Room, step: ReplayStep) {
+    if (!room.game) throw new RoomError('게임이 시작되지 않았습니다');
+    this.updateGame(room, applyReplayStep(room.game, step));
+    room.replaySteps.push(step);
   }
 
   /** 게임 상태를 바꾸고, 이번에 끝났으면 onGameEnd를 알린다 */
@@ -492,13 +505,16 @@ export class RoomManager {
       seat.ready = false;
     }
     room.actions = [];
-    room.game = createGame({
+    const fen = this.startFen(room);
+    room.replaySetup = {
       abilities: { w: w.abilityId, b: b.abilityId },
-      timeControl: STANDARD_TIME_CONTROL,
-      now: this.now(),
       mode: room.mode,
-      fen: this.startFen(room),
-    });
+      ...(fen ? { fen } : {}),
+      timeControl: STANDARD_TIME_CONTROL,
+      startedAt: this.now(),
+    };
+    room.replaySteps = [];
+    room.game = createGame({ ...room.replaySetup, now: room.replaySetup.startedAt });
     room.drafts = null;
     room.draftDeadline = null;
   }

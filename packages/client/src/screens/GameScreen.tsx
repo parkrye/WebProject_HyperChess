@@ -5,6 +5,7 @@ import { useAiPlayers } from '../ai/useAiOpponent';
 import { AbilityReveal } from '../components/AbilityReveal';
 import { DraftBoard } from '../components/DraftBoard';
 import { Page } from '../components/Page';
+import { SaveReplayButton } from '../components/SaveReplayButton';
 import { GameView } from '../components/GameView';
 import { aiDraftPlacement, chaosFen } from '../game/deployment';
 import { useLocalGame } from '../game/useGame';
@@ -105,7 +106,7 @@ function LocalGameBoard({ config, fen, onRestart, onMenu }: LocalGameScreenProps
     () => ({ abilities: config.abilities, timeControl: STANDARD_TIME_CONTROL, mode: config.mode, fen }),
     [config.abilities, config.mode, fen],
   );
-  const { state, busy, stageView, dispatch, actions, vote, giveUp } = useLocalGame(setup);
+  const { state, busy, stageView, dispatch, actions, vote, giveUp, replay } = useLocalGame(setup);
   const { ai } = config;
   const aiPlayers = useMemo(() => (ai ? { [ai.color]: ai.difficulty } : {}), [ai]);
   // 무승부 제안에 답하는 동안에는 AI도 수를 고르지 않는다
@@ -156,6 +157,15 @@ function LocalGameBoard({ config, fen, onRestart, onMenu }: LocalGameScreenProps
           <button type="button" className="btn btn-primary" onClick={onRestart}>
             다시 하기
           </button>
+          <SaveReplayButton
+            entry={() => ({
+              source: ai ? 'ai' : 'local',
+              names: { w: seats?.w?.name ?? COLOR_NAME.w, b: seats?.b?.name ?? COLOR_NAME.b },
+              viewer: myColor,
+              result: state.result,
+              data: replay(),
+            })}
+          />
           <button type="button" className="btn btn-ghost" onClick={onMenu}>
             메뉴로
           </button>

@@ -3,7 +3,7 @@ import { uiSprite } from '../assets/sprites';
 import { MenuCard } from '../components/MenuCard';
 import { Page } from '../components/Page';
 
-export type MenuTarget = 'single' | 'online' | 'guide';
+export type MenuTarget = 'single' | 'online' | 'guide' | 'replays';
 
 interface MainScreenProps {
   readonly onSelect: (target: MenuTarget) => void;
@@ -29,13 +29,8 @@ export function MainScreen({ onSelect, onBack }: MainScreenProps) {
           ]}
           onClick={() => onSelect('online')}
         />
-        <MenuCard
-          label="능력 설명"
-          hint="16가지 능력의 효과를 예시로 본다"
-          wide
-          art={[{ type: 'q', color: 'w' }]}
-          onClick={() => onSelect('guide')}
-        />
+        <MenuCard label="능력 설명" hint="16가지 능력의 효과를 예시로 본다" art={[{ type: 'q', color: 'w' }]} onClick={() => onSelect('guide')} />
+        <MenuCard label="리플레이" hint="저장한 대국을 다시 본다" art={[{ type: 'r', color: 'b' }]} onClick={() => onSelect('replays')} />
       </nav>
     </Page>
   );
