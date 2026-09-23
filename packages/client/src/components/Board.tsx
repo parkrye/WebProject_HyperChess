@@ -30,6 +30,8 @@ interface BoardProps {
   readonly busy: boolean;
   /** 좌우 뒤집기 연출 단계 (out: 접히는 중, in: 뒤집힌 채 펼쳐지는 중) */
   readonly flipPhase?: FlipPhase | null;
+  /** 안개전에서 보이는 칸. null이면 모두 보인다 */
+  readonly visible?: ReadonlySet<Square> | null;
 }
 
 export type FlipPhase = 'out' | 'in';
@@ -149,13 +151,20 @@ function OverlayView({ overlay, leftColor }: { overlay: Overlay; leftColor: Colo
   );
 }
 
-export function Board({ state, stage, interaction, leftColor, busy, flipPhase }: BoardProps) {
+/** 가려진 칸에서 일어나는 연출은 그리지 않는다 (위치가 드러난다) */
+function overlaySeen(overlay: Overlay, seen: (square: Square) => boolean): boolean {
+  if (overlay.square !== undefined && !seen(overlay.square)) return false;
+  return overlay.to === undefined || seen(overlay.to);
+}
+
+export function Board({ state, stage, interaction, leftColor, busy, flipPhase, visible = null }: BoardProps) {
+  const seen = (square: Square) => square >= 0 && (!visible || visible.has(square));
   const board: BoardData = stage.board ?? state.board;
   const walls: readonly Wall[] = stage.walls ?? state.walls;
   const animating = busy || stage.board !== null;
   const turnSpec = abilityUi(state.players[state.turn].abilityId ?? '');
 
-  const lastSquares = animating ? [] : eventSquares(state.log[state.log.length - 1]);
+  const lastSquares = animating ? [] : eventSquares(state.log[state.log.length - 1]).filter(seen);
   const lastEvent = state.log[state.log.length - 1];
   const lastTint = lastEvent?.kind === 'ability' ? abilityUi(lastEvent.abilityId).color : null;
   const checkSquares = !animating && isInCheck(state, state.turn) ? royalSquares(state, state.turn) : [];
@@ -163,7 +172,7 @@ export function Board({ state, stage, interaction, leftColor, busy, flipPhase }:
   const hasteActive = !animating && state.turnState.movesAllowed > 1 && state.result.kind === 'ongoing';
 
   const pieces = board
-    .map((piece, square) => (piece ? { piece, square } : null))
+    .map((piece, square) => (piece && seen(square) ? { piece, square } : null))
     .filter((entry): entry is { piece: Piece; square: Square } => entry !== null)
     .sort((a, b) => (a.piece.id < b.piece.id ? -1 : 1));
 
@@ -190,6 +199,7 @@ export function Board({ state, stage, interaction, leftColor, busy, flipPhase }:
             checkSquares.includes(square) ? 'in-check' : '',
             interaction.targetingSquares.includes(square) ? 'ability-target' : '',
             interaction.pickedSquares.includes(square) ? 'ability-picked' : '',
+            seen(square) ? '' : 'fogged',
           ].join(' ');
 
           return (
@@ -254,7 +264,7 @@ export function Board({ state, stage, interaction, leftColor, busy, flipPhase }:
       </div>
 
       <div className="board-fx">
-        {stage.overlays.map((overlay) => (
+        {stage.overlays.filter((overlay) => overlaySeen(overlay, seen)).map((overlay) => (
           <OverlayView key={overlay.id} overlay={overlay} leftColor={leftColor} />
         ))}
       </div>

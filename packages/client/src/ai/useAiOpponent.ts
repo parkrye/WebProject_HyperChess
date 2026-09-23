@@ -2,6 +2,7 @@ import type { Difficulty } from '@hyperchess/ai';
 import type { Action, Color, GameState } from '@hyperchess/engine';
 import { useEffect, useRef, useState } from 'react';
 import type { AiRequest, AiResponse } from './ai.worker';
+import { aiSightState, fallbackAction, isPlayable, type RoyalMemory } from './fogSight';
 
 /** 너무 빨리 두면 연출을 따라가기 어려워 최소 대기 시간을 둔다 */
 const MIN_THINK_MS = 450;
@@ -31,6 +32,8 @@ export function useAiPlayers(
   const workerRef = useRef<Worker | null>(null);
   const requestId = useRef(0);
   const [thinking, setThinking] = useState(false);
+  /** 안개전: AI 색별로 마지막으로 본 적 왕족 자리 */
+  const royalMemory = useRef<Record<Color, RoyalMemory>>({ w: new Map(), b: new Map() });
   const hasAi = Object.keys(players).length > 0;
 
   useEffect(() => {
@@ -63,13 +66,19 @@ export function useAiPlayers(
       window.setTimeout(() => {
         if (cancelled) return;
         setThinking(false);
-        if ('action' in response) dispatch(response.action);
-        else console.error('[ai]', response.error);
+        if (!('action' in response)) {
+          console.error('[ai]', response.error);
+          return;
+        }
+        // 안개전은 가린 국면에서 골랐으므로 실제로 둘 수 없는 수일 수 있다
+        const action = !state.mode.fog || isPlayable(state, response.action) ? response.action : fallbackAction(state);
+        if (action) dispatch(action);
       }, delay);
     };
 
     worker.addEventListener('message', onMessage);
-    worker.postMessage({ id, state, difficulty: difficulty! } satisfies AiRequest);
+    const sight = aiSightState(state, state.turn, royalMemory.current[state.turn]);
+    worker.postMessage({ id, state: sight, difficulty: difficulty! } satisfies AiRequest);
 
     return () => {
       cancelled = true;

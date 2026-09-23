@@ -1,9 +1,12 @@
-import { opposite, STANDARD_TIME_CONTROL, type Color, type DrawVote } from '@hyperchess/engine';
+import { opposite, placementFen, STANDARD_TIME_CONTROL, type Color, type DrawVote, type Placement } from '@hyperchess/engine';
 import { toGameRecord } from '@hyperchess/protocol';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAiPlayers } from '../ai/useAiOpponent';
 import { AbilityReveal } from '../components/AbilityReveal';
+import { DraftBoard } from '../components/DraftBoard';
+import { Page } from '../components/Page';
 import { GameView } from '../components/GameView';
+import { aiDraftPlacement, chaosFen } from '../game/deployment';
 import { useLocalGame } from '../game/useGame';
 import { COLOR_NAME, DIFFICULTY_LABEL } from '../abilityUi/text';
 import { reportResult } from '../stats/reportResult';
@@ -15,12 +18,22 @@ interface LocalGameScreenProps {
   readonly onMenu: () => void;
 }
 
-/** 무작위 능력이 있으면 공개 연출을 먼저 보여준 뒤 대국을 시작한다 (시계도 공개 후 시작) */
+const COLORS: readonly Color[] = ['w', 'b'];
+
+/**
+ * 무작위 능력이 있으면 공개 연출을 먼저 보여주고, 징병전이면 편성을 받은 뒤 대국을 시작한다 (시계도 그 뒤에 시작).
+ * 혼돈 배치는 판마다 새로 뽑는다 (다시 하기는 이 화면을 새로 띄운다).
+ */
 export function LocalGameScreen(props: LocalGameScreenProps) {
   const { config } = props;
   const needsReveal = Object.values(config.randomized).some(Boolean);
   const [revealed, setRevealed] = useState(!needsReveal);
   const finishReveal = useCallback(() => setRevealed(true), []);
+  const [chaos] = useState(() => (config.mode.deployment === 'chaos' ? chaosFen() : null));
+  // AI 편성은 미리 정해 둔다
+  const [drafts, setDrafts] = useState<Partial<Record<Color, Placement>>>(() =>
+    config.mode.deployment === 'draft' && config.ai ? { [config.ai.color]: aiDraftPlacement(config.ai.color) } : {},
+  );
 
   if (!revealed) {
     const names = config.ai
@@ -32,12 +45,60 @@ export function LocalGameScreen(props: LocalGameScreenProps) {
       </div>
     );
   }
-  return <LocalGameBoard {...props} />;
+
+  if (config.mode.deployment === 'draft') {
+    const pending = COLORS.find((color) => !drafts[color]);
+    if (pending) {
+      // 핫시트에서 두 번째로 편성하는 쪽은 앞사람의 편성을 보지 않도록 한 번 가린다
+      const handoff = !config.ai && pending === 'b';
+      return (
+        <DraftPhase
+          key={pending}
+          color={pending}
+          handoff={handoff}
+          onDone={(placement) => setDrafts((prev) => ({ ...prev, [pending]: placement }))}
+          onMenu={props.onMenu}
+        />
+      );
+    }
+  }
+
+  const fen = chaos ?? (drafts.w && drafts.b ? placementFen(drafts.w, drafts.b) : undefined);
+  return <LocalGameBoard {...props} fen={fen} />;
+}
+
+interface DraftPhaseProps {
+  readonly color: Color;
+  readonly handoff: boolean;
+  readonly onDone: (placement: Placement) => void;
+  readonly onMenu: () => void;
+}
+
+function DraftPhase({ color, handoff, onDone, onMenu }: DraftPhaseProps) {
+  const [open, setOpen] = useState(!handoff);
+  return (
+    <Page title={`징병 · ${COLOR_NAME[color]} 편성`} onBack={onMenu} backLabel="나가기">
+      {open ? (
+        <DraftBoard color={color} onDone={onDone} />
+      ) : (
+        <div className="handoff-card handoff-inline">
+          <strong>{COLOR_NAME[color]} 편성 차례</strong>
+          <p>상대가 화면을 보지 않을 때 누르세요.</p>
+          <button type="button" className="btn btn-primary btn-large" onClick={() => setOpen(true)}>
+            편성 시작
+          </button>
+        </div>
+      )}
+    </Page>
+  );
 }
 
 /** 한 기기에서 진행하는 대국: 핫시트 또는 AI 대전 */
-function LocalGameBoard({ config, onRestart, onMenu }: LocalGameScreenProps) {
-  const setup = useMemo(() => ({ abilities: config.abilities, timeControl: STANDARD_TIME_CONTROL }), [config.abilities]);
+function LocalGameBoard({ config, fen, onRestart, onMenu }: LocalGameScreenProps & { readonly fen?: string }) {
+  const setup = useMemo(
+    () => ({ abilities: config.abilities, timeControl: STANDARD_TIME_CONTROL, mode: config.mode, fen }),
+    [config.abilities, config.mode, fen],
+  );
   const { state, busy, stageView, dispatch, actions, vote, giveUp } = useLocalGame(setup);
   const { ai } = config;
   const aiPlayers = useMemo(() => (ai ? { [ai.color]: ai.difficulty } : {}), [ai]);

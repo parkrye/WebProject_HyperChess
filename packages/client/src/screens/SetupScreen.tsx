@@ -1,5 +1,5 @@
 import type { Difficulty } from '@hyperchess/ai';
-import { opposite, type Color } from '@hyperchess/engine';
+import { opposite, STANDARD_MODE, type Color, type GameMode } from '@hyperchess/engine';
 import { RANDOM_ABILITY, resolveAbilityChoice } from '@hyperchess/protocol';
 import { useState, type CSSProperties } from 'react';
 import { abilityUi } from '../abilityUi/specs';
@@ -8,6 +8,7 @@ import type { AiConfig } from '../ai/useAiOpponent';
 import { useBgm } from '../audio/bgm';
 import { AbilityIconView } from '../components/AbilityIconView';
 import { AbilityPicker } from '../components/AbilityPicker';
+import { ModePicker } from '../components/ModePicker';
 import { Page } from '../components/Page';
 import type { ArenaConfig } from './ArenaScreen';
 import { SETUP_TITLE } from './SingleMenuScreen';
@@ -20,6 +21,7 @@ export interface LocalGameConfig {
   /** 무작위로 결정된 색 */
   readonly randomized: Partial<Record<Color, boolean>>;
   readonly ai: AiConfig | null;
+  readonly mode: GameMode;
 }
 
 /** 선택값(무작위 포함)을 실제 능력으로 결정한다 */
@@ -35,12 +37,15 @@ export interface SetupPrefs {
   readonly local: AbilityChoice;
   readonly ai: { readonly me: string; readonly ai: string; readonly color: Color | 'random'; readonly difficulty: Difficulty };
   readonly arena: ArenaConfig;
+  /** 로컬 2인·AI 대전 공통 게임 모드 */
+  readonly mode: GameMode;
 }
 
 export const DEFAULT_SETUP_PREFS: SetupPrefs = {
   local: { w: 'telekinesis', b: 'rewind' },
   ai: { me: 'telekinesis', ai: 'haste', color: 'w', difficulty: 'normal' },
   arena: { choices: { w: RANDOM_ABILITY, b: RANDOM_ABILITY }, difficulty: { w: 'normal', b: 'normal' } },
+  mode: STANDARD_MODE,
 };
 
 export type SetupMode = 'local' | 'ai' | 'arena';
@@ -99,14 +104,14 @@ export function SetupScreen({ mode, prefs: initialPrefs, onStart, onStartArena, 
       return;
     }
     if (!isAi) {
-      onStart({ ...resolveChoices(prefs.local), ai: null }, prefs);
+      onStart({ ...resolveChoices(prefs.local), ai: null, mode: prefs.mode }, prefs);
       return;
     }
     const { me, ai, color, difficulty } = prefs.ai;
     const myColor: Color = color === 'random' ? (Math.random() < 0.5 ? 'w' : 'b') : color;
     const aiColor = opposite(myColor);
     const choices = { [myColor]: me, [aiColor]: ai } as AbilityChoice;
-    onStart({ ...resolveChoices(choices), ai: { color: aiColor, difficulty } }, prefs);
+    onStart({ ...resolveChoices(choices), ai: { color: aiColor, difficulty }, mode: prefs.mode }, prefs);
   };
 
   return (
@@ -166,6 +171,8 @@ export function SetupScreen({ mode, prefs: initialPrefs, onStart, onStartArena, 
           ))}
         </div>
       )}
+
+      {!isArena && <ModePicker mode={prefs.mode} onChange={(mode) => setPrefs((prev) => ({ ...prev, mode }))} />}
 
       <div className="player-picks">
         {slots.map(({ key, label }) => {

@@ -1,6 +1,6 @@
-import { getAbility, isInCheck, opposite, type Action, type Color, type DrawVote, type GameState } from '@hyperchess/engine';
-import { useRef, useState, type ReactNode } from 'react';
-import { COLOR_NAME } from '../abilityUi/text';
+import { getAbility, isInCheck, opposite, visibleSquares, type Action, type Color, type DrawVote, type GameState, type Square } from '@hyperchess/engine';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { COLOR_NAME, modeLabel } from '../abilityUi/text';
 import type { StageView } from '../game/useStage';
 import { useInteraction } from '../game/useInteraction';
 import { useBgm, type BgmTrack } from '../audio/bgm';
@@ -47,13 +47,27 @@ const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve,
 export function GameView(props: GameViewProps) {
   const { state, busy, stageView, dispatch, myColor } = props;
   const offer = state.draw.offer;
+  const ongoing = state.result.kind === 'ongoing';
+
+  // 안개전 핫시트: 차례가 넘어가면 화면을 가리고, 다음 사람이 누르면 그 사람의 시야로 연다
+  const hotseatFog = myColor === null && !props.spectator && state.mode.fog;
+  const [viewer, setViewer] = useState<Color>(state.turn);
+  const handoff = hotseatFog && ongoing && !busy && viewer !== state.turn;
+  const sightColor = myColor ?? (hotseatFog ? viewer : null);
+  const visible = useMemo<ReadonlySet<Square> | null>(() => {
+    // 대국이 끝나면 모두 드러낸다
+    if (!state.mode.fog || !ongoing || sightColor === null) return null;
+    return handoff ? new Set() : visibleSquares(state, sightColor);
+  }, [state, ongoing, sightColor, handoff]);
+
   // 무승부 제안에 답하기 전에는 보드도 능력도 건드릴 수 없다
-  const canAct = !props.spectator && !offer && (myColor === null || state.turn === myColor);
-  const interaction = useInteraction(state, dispatch, busy, canAct);
-  // AI 대전/온라인은 항상 내가 왼쪽. 로컬 2인은 백이 왼쪽이고 수동으로만 바꾼다
+  const canAct = !props.spectator && !offer && !handoff && (myColor === null || state.turn === myColor);
+  const interaction = useInteraction(state, dispatch, busy, canAct, visible);
+  // AI 대전/온라인은 항상 내가 왼쪽. 로컬 2인은 백이 왼쪽이고 수동으로만 바꾼다 (안개전은 보는 사람이 왼쪽)
   const [localLeft, setLocalLeft] = useState<Color>('w');
   const [flipPhase, setFlipPhase] = useState<FlipPhase | null>(null);
-  const left: Color = myColor ?? localLeft;
+  const left: Color = myColor ?? (hotseatFog ? viewer : localLeft);
+  const mode = modeLabel(state.mode);
 
   /** 보드를 세로축으로 돌려 반쯤(옆면) 됐을 때 좌우를 바꾸고, 반대쪽 옆면에서 다시 펼친다 */
   const flipBoard = async () => {
@@ -99,6 +113,7 @@ export function GameView(props: GameViewProps) {
           나가기
         </button>
         <span className="game-status" aria-live="polite">
+          {mode && <span className="mode-chip">{mode}</span>}
           {status}
         </span>
         <span className="game-header-actions">
@@ -108,7 +123,7 @@ export function GameView(props: GameViewProps) {
             </button>
           )}
           <SoundToggle />
-          {myColor !== null ? null : (
+          {myColor !== null || hotseatFog ? null : (
             <button type="button" className="btn btn-ghost btn-icon" onClick={flipBoard} aria-label="보드 좌우 뒤집기">
               <img className="ui-icon" src={uiIconSprite('flip')} alt="" draggable={false} />
             </button>
@@ -121,7 +136,7 @@ export function GameView(props: GameViewProps) {
       <div className="game-layout">
         <div className="board-row">
           <PlayerBar className="side-left" state={state} color={left} interaction={interaction} seat={props.seats?.[left]} randomized={props.randomized?.[left]} />
-          <Board state={state} stage={stageView} interaction={interaction} leftColor={left} busy={busy} flipPhase={flipPhase} />
+          <Board state={state} stage={stageView} interaction={interaction} leftColor={left} busy={busy} flipPhase={flipPhase} visible={visible} />
           <PlayerBar className="side-right" state={state} color={right} interaction={interaction} seat={props.seats?.[right]} randomized={props.randomized?.[right]} />
         </div>
         <aside className="under-board">
@@ -133,6 +148,18 @@ export function GameView(props: GameViewProps) {
           {props.sidebar}
         </aside>
       </div>
+
+      {handoff && (
+        <div className="handoff" role="dialog" aria-modal="true" aria-label="차례 넘기기">
+          <div className="handoff-card">
+            <strong>{COLOR_NAME[state.turn]} 차례</strong>
+            <p>상대가 화면을 보지 않을 때 누르세요.</p>
+            <button type="button" className="btn btn-primary btn-large" onClick={() => setViewer(state.turn)}>
+              {COLOR_NAME[state.turn]} 시야 열기
+            </button>
+          </div>
+        </div>
+      )}
 
       <PromotionDialog state={state} interaction={interaction} />
       {props.onDrawVote && !props.spectator && <DrawOfferDialog state={state} askColor={askColor} onVote={props.onDrawVote} />}

@@ -17,8 +17,17 @@ export interface PendingPromotion {
   readonly options: readonly GeneratedMove[];
 }
 
-/** canAct: 이 화면의 사용자가 현재 차례를 조작할 수 있는지 (온라인에서 상대 차례면 false) */
-export function useInteraction(state: GameState, dispatch: (action: Action) => void, busy: boolean, canAct = true) {
+/**
+ * canAct: 이 화면의 사용자가 현재 차례를 조작할 수 있는지 (온라인에서 상대 차례면 false)
+ * visible: 안개전에서 보이는 칸. 가린 국면에서는 안 보이는 말에 막힌 수도 갈 수 있는 것처럼 나오므로 보이는 칸으로 가는 수만 남긴다
+ */
+export function useInteraction(
+  state: GameState,
+  dispatch: (action: Action) => void,
+  busy: boolean,
+  canAct = true,
+  visible: ReadonlySet<Square> | null = null,
+) {
   const [selected, setSelected] = useState<Square | null>(null);
   const [picks, setPicks] = useState<Picks | null>(null);
   const [promotion, setPromotion] = useState<PendingPromotion | null>(null);
@@ -30,7 +39,10 @@ export function useInteraction(state: GameState, dispatch: (action: Action) => v
   }, [state]);
 
   const ongoing = state.result.kind === 'ongoing' && canAct;
-  const moves = useMemo(() => (ongoing ? legalMoves(state) : []), [state, ongoing]);
+  const moves = useMemo(
+    () => (ongoing ? legalMoves(state).filter((move) => !visible || visible.has(move.to)) : []),
+    [state, ongoing, visible],
+  );
   const abilityOptions = useMemo(() => (ongoing ? legalAbilityOptions(state) : []), [state, ongoing]);
 
   const abilityId = state.players[state.turn].abilityId;

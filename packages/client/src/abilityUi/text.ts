@@ -4,7 +4,9 @@ import {
   type AbilityDefinition,
   type Color,
   type DrawReason,
+  type Deployment,
   type DrawVote,
+  type GameMode,
   type GameResult,
   type GameState,
   type RecoveryRule,
@@ -14,6 +16,22 @@ import type { Difficulty } from '@hyperchess/ai';
 import { RANDOM_ABILITY } from '@hyperchess/protocol';
 
 export const COLOR_NAME: Record<Color, string> = { w: '백', b: '흑' };
+
+export const DEPLOYMENT_LABEL: Readonly<Record<Deployment, string>> = { standard: '표준', draft: '징병', chaos: '혼돈' };
+
+export const DEPLOYMENT_DESCRIPTION: Readonly<Record<Deployment, string>> = {
+  standard: '평소의 체스 배치로 시작한다.',
+  draft: '예산으로 말을 사서 직접 배치한다. 첫 줄엔 아무 말이나, 둘째·셋째 줄엔 폰만. 킹은 기본으로 있다.',
+  chaos: '킹을 뺀 모든 말이 무작위로 정해진다.',
+};
+
+export const FOG_DESCRIPTION = '내 말과 내 말이 갈 수 있는 칸만 보인다. 체크를 건 말은 드러나고, 체크를 못 피하면 진다.';
+
+/** 모드 이름. 표준이면 null (따로 표시하지 않는다) */
+export function modeLabel(mode: GameMode): string | null {
+  const parts = [mode.deployment === 'standard' ? null : `${DEPLOYMENT_LABEL[mode.deployment]}전`, mode.fog ? '안개전' : null].filter(Boolean);
+  return parts.length ? parts.join(' · ') : null;
+}
 
 export const DIFFICULTY_LABEL: Readonly<Record<Difficulty, string>> = { easy: '쉬움', normal: '보통', hard: '어려움' };
 

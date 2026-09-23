@@ -312,3 +312,19 @@
     opacity: 0;
   }
 }
+
+/* 안개전: 보이지 않는 칸 */
+.square.fogged::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 30% 35%, rgb(90 84 112 / 45%), transparent 60%),
+    radial-gradient(circle at 75% 70%, rgb(70 66 92 / 40%), transparent 55%),
+    rgb(22 19 32 / 86%);
+}
+.square.fogged .coord {
+  opacity: 0.35;
+}
