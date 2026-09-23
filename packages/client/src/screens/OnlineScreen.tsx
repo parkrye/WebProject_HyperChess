@@ -356,6 +356,8 @@ function WaitingRoom({ room, snapshot, you, onLeave }: WaitingRoomProps) {
 function DraftingRoom({ room, snapshot, you, onLeave }: WaitingRoomProps) {
   useBgm('lobby');
   const drafted = snapshot.seats[you]?.drafted ?? false;
+  // 편성 화면이 뜰 때의 서버 시각 차이로 고정한다 (스냅샷마다 바뀌면 남은 시간이 흔들린다)
+  const [clockOffset] = useState(() => snapshot.serverTime - Date.now());
   const opponentDrafted = snapshot.seats[you === 'w' ? 'b' : 'w']?.drafted ?? false;
 
   return (
@@ -369,7 +371,12 @@ function DraftingRoom({ room, snapshot, you, onLeave }: WaitingRoomProps) {
           <p>상대가 편성을 마치면 대국이 시작됩니다.</p>
         </div>
       ) : (
-        <DraftBoard color={you} onDone={(placement) => void room.submitDraft(placement)} />
+        <DraftBoard
+          color={you}
+          // 서버 시각을 이 기기 시계로 옮기고, 서버가 대신 채우기 전에 내도록 1초 먼저 끝낸다
+          deadline={snapshot.draftDeadline === null ? undefined : snapshot.draftDeadline - clockOffset - 1000}
+          onDone={(placement) => void room.submitDraft(placement)}
+        />
       )}
       <ChatPanel messages={room.messages} you={you} onSend={(text) => void room.sendChat(text)} />
     </Page>

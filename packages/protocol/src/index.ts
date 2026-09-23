@@ -186,6 +186,8 @@ export interface RoomSnapshot {
   readonly seats: Readonly<Record<Color, SeatInfo | null>>;
   /** 대기실에서 정한 게임 모드. 누구나 바꿀 수 있고, 바뀌면 양쪽 준비가 풀린다 */
   readonly mode: GameMode;
+  /** 징병 편성 제한 시각 (서버 시각 epoch ms). 편성 중이 아니면 null */
+  readonly draftDeadline: number | null;
   /** 안개전이 진행 중이면 받는 사람 시점으로 가린 상태다 */
   readonly game: GameState | null;
   /** 재대결에 동의한 색 */

@@ -1,4 +1,4 @@
-import { fromAlgebraic as sq, IllegalActionError, kingOnlyPlacement, standardPlacement } from '@hyperchess/engine';
+import { fromAlgebraic as sq, IllegalActionError, DRAFT_TIME_LIMIT_MS, kingOnlyPlacement, standardPlacement } from '@hyperchess/engine';
 import { describe, expect, it } from 'vitest';
 import { RoomError, RoomManager } from '../src/rooms';
 
@@ -339,5 +339,27 @@ describe('RoomManager', () => {
     manager.resign('s2');
     expect(manager.snapshot(host.code, 'w').game?.players.b.abilityId).toBe('rewind');
     expect(manager.snapshot(host.code, 'w').seats.b?.abilityHidden).toBe(false);
+  });
+
+  it('편성 제한 시간이 지나면 안 낸 쪽을 표준 배치로 채워 시작한다', () => {
+    let now = 1_000;
+    const manager = new RoomManager({ now: () => now });
+    const host = manager.create('s1', { name: '호스트' });
+    manager.join('s2', { code: host.code, name: '게스트' });
+    manager.setColor('s1', 'w');
+    manager.setMode('s1', { deployment: 'draft' });
+    manager.setReady('s1', true);
+    manager.setReady('s2', true);
+    expect(manager.snapshot(host.code).draftDeadline).toBe(1_000 + DRAFT_TIME_LIMIT_MS);
+    manager.submitDraft('s1', kingOnlyPlacement('w'));
+
+    now += DRAFT_TIME_LIMIT_MS;
+    expect(manager.expireDraft(host.code)).toBe(false);
+    now = manager.draftExpiry(host.code)!;
+    expect(manager.expireDraft(host.code)).toBe(true);
+    const started = manager.snapshot(host.code);
+    expect(started.status).toBe('playing');
+    expect(started.draftDeadline).toBeNull();
+    expect(started.game?.board.filter((p) => p?.color === 'b')).toHaveLength(16);
   });
 });

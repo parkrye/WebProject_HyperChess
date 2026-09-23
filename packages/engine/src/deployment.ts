@@ -10,6 +10,8 @@ export const DRAFT_BUDGET = 39;
 export const DRAFT_COST: Readonly<Record<Exclude<PieceType, 'k'>, number>> = { p: 1, n: 3, b: 3, r: 5, q: 9 };
 /** 배치할 수 있는 줄 수 (첫 줄은 모든 말, 나머지는 폰만) */
 export const DRAFT_RANKS = 3;
+/** 징병·배치 제한 시간. 넘기면 그때까지의 편성으로 낸다 */
+export const DRAFT_TIME_LIMIT_MS = 90_000;
 
 const KING_FILE = 4;
 const BACK_RANK: Readonly<Record<Color, number>> = { w: 0, b: 7 };

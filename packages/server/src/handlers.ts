@@ -21,12 +21,13 @@ const clockTimers = new Map<string, NodeJS.Timeout>();
 function scheduleClock(io: GameServer, rooms: RoomManager, code: string) {
   clearTimeout(clockTimers.get(code));
   clockTimers.delete(code);
-  const deadline = rooms.clockDeadline(code);
+  // 대국 시계와 징병 편성 시간 중 먼저 오는 쪽에 맞춘다 (둘이 동시에 걸리는 일은 없다)
+  const deadline = rooms.clockDeadline(code) ?? rooms.draftExpiry(code);
   if (deadline === null) return;
 
   const timer = setTimeout(() => {
     clockTimers.delete(code);
-    if (rooms.expireClock(code)) broadcastRoom(io, rooms, code);
+    if (rooms.expireClock(code) || rooms.expireDraft(code)) broadcastRoom(io, rooms, code);
     else scheduleClock(io, rooms, code);
   }, Math.max(0, deadline - Date.now()) + 50);
   clockTimers.set(code, timer);

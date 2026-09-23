@@ -1360,3 +1360,15 @@ button {
 .draft-grid .square.dark {
   background: #5b4f78;
 }
+.draft-budget {
+  display: flex;
+  gap: 0.8rem;
+  align-items: baseline;
+}
+.draft-timer {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+.draft-timer.is-warning {
+  color: var(--danger);
+}

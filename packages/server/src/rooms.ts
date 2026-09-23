@@ -4,6 +4,7 @@ import {
   abilityRevealed,
   chaosPlacement,
   checkTimeout,
+  DRAFT_TIME_LIMIT_MS,
   concealAbilities,
   createGame,
   draftError,
@@ -14,6 +15,7 @@ import {
   parseGameMode,
   placementFen,
   resign,
+  standardPlacement,
   STANDARD_MODE,
   STANDARD_TIME_CONTROL,
   voteDraw,
@@ -47,6 +49,8 @@ const COLORS: readonly Color[] = ['w', 'b'];
 const PIECE_TYPES: readonly PieceType[] = ['p', 'n', 'b', 'r', 'q', 'k'];
 /** 징병 편성에 올 수 있는 최대 말 수 (세 줄 × 8칸) */
 const MAX_PLACEMENT = 24;
+/** 제한 시간이 지나면 클라이언트가 스스로 내므로, 서버는 조금 더 기다린 뒤 안 낸 쪽을 표준 배치로 채운다 */
+const DRAFT_GRACE_MS = 3_000;
 
 export class RoomError extends Error {}
 
@@ -83,6 +87,8 @@ interface Room {
   mode: GameMode;
   /** 징병전 편성을 받는 중이면 색별로 낸 편성, 아니면 null */
   drafts: Partial<Record<Color, Placement>> | null;
+  /** 편성 제한 시각 (편성 중이 아니면 null) */
+  draftDeadline: number | null;
   /** 이번 게임에서 둔 행동 순서 (기록용) */
   actions: Action[];
   rematchVotes: Set<Color>;
@@ -134,6 +140,7 @@ export class RoomManager {
       game: null,
       mode: STANDARD_MODE,
       drafts: null,
+      draftDeadline: null,
       actions: [],
       rematchVotes: new Set(),
       chatSeq: 0,
@@ -199,6 +206,7 @@ export class RoomManager {
       room.seats[binding.color] = null;
       // 편성 중에 떠나면 대기실로 돌아간다
       room.drafts = null;
+      room.draftDeadline = null;
     }
     room.rematchVotes.delete(binding.color);
 
@@ -358,10 +366,27 @@ export class RoomManager {
       status,
       seats: { w: seatInfo('w'), b: seatInfo('b') },
       mode: room.mode,
+      draftDeadline: room.draftDeadline,
       game: shown,
       rematchVotes: [...room.rematchVotes],
       serverTime: this.now(),
     };
+  }
+
+  /** 편성 제한 시간이 지나 서버가 대신 채울 시각. 편성 중이 아니면 null */
+  draftExpiry(code: string): number | null {
+    const deadline = this.rooms.get(code)?.draftDeadline;
+    return deadline == null ? null : deadline + DRAFT_GRACE_MS;
+  }
+
+  /** 편성 제한 시간이 지났으면 안 낸 쪽을 표준 배치로 채우고 시작한다. 시작했으면 true */
+  expireDraft(code: string): boolean {
+    const room = this.rooms.get(code);
+    const expiry = this.draftExpiry(code);
+    if (!room?.drafts || expiry === null || this.now() < expiry) return false;
+    for (const color of COLORS) room.drafts[color] ??= standardPlacement(color);
+    this.startGame(room);
+    return true;
   }
 
   /** 진행 중인 게임에서 현재 차례가 시간 초과되는 시각. 없으면 null */
@@ -436,6 +461,7 @@ export class RoomManager {
       if (seat) seat.ready = false;
     }
     room.drafts = {};
+    room.draftDeadline = this.now() + DRAFT_TIME_LIMIT_MS;
   }
 
   /**
@@ -474,6 +500,7 @@ export class RoomManager {
       fen: this.startFen(room),
     });
     room.drafts = null;
+    room.draftDeadline = null;
   }
 
   /** 모드에 따른 시작 FEN (표준이면 없음). 혼돈은 판마다 새로 뽑는다 */

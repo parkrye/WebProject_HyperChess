@@ -5,6 +5,7 @@ export {
   DRAFT_BUDGET,
   DRAFT_COST,
   DRAFT_RANKS,
+  DRAFT_TIME_LIMIT_MS,
   chaosPlacement,
   deploySquare,
   draftError,

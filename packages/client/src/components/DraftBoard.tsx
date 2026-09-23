@@ -2,6 +2,7 @@ import {
   DRAFT_BUDGET,
   DRAFT_COST,
   DRAFT_RANKS,
+  DRAFT_TIME_LIMIT_MS,
   deploySquare,
   draftError,
   fileOf,
@@ -15,8 +16,9 @@ import {
   type Placement,
   type Square,
 } from '@hyperchess/engine';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { COLOR_NAME } from '../abilityUi/text';
+import { formatClock } from './ClockBar';
 import { PieceSprite } from './PieceSprite';
 
 type Buyable = keyof typeof DRAFT_COST;
@@ -28,18 +30,46 @@ type Tool = Buyable | 'k';
 
 interface DraftBoardProps {
   readonly color: Color;
-  /** 편성을 마치면 호출 */
+  /** 편성을 마치면 호출. 제한 시간이 지나면 그때까지의 편성으로 호출한다 */
   readonly onDone: (placement: Placement) => void;
+  /** 제한 시각 (이 기기 시계 기준 epoch ms). 없으면 지금부터 DRAFT_TIME_LIMIT_MS */
+  readonly deadline?: number;
+}
+
+const TIME_WARNING_MS = 15_000;
+
+/** 남은 시간. 0이 되면 한 번만 onExpire를 부른다 */
+function useCountdown(deadline: number, onExpire: () => void): number {
+  const [now, setNow] = useState(() => Date.now());
+  const expire = useRef(onExpire);
+  expire.current = onExpire;
+  const fired = useRef(false);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const remaining = Math.max(0, deadline - now);
+  useEffect(() => {
+    if (remaining > 0 || fired.current) return;
+    fired.current = true;
+    expire.current();
+  }, [remaining]);
+  return remaining;
 }
 
 /**
  * 징병 편성판. 게임 화면처럼 내 진영이 왼쪽에 오도록 줄을 열로, 파일을 행으로 그린다.
  * 빈칸을 누르면 고른 말을 사서 두고, 산 말을 다시 누르면 판다. 킹을 누른 뒤 첫 줄 빈칸을 누르면 옮긴다.
  */
-export function DraftBoard({ color, onDone }: DraftBoardProps) {
+export function DraftBoard({ color, onDone, deadline }: DraftBoardProps) {
   const [placement, setPlacement] = useState<Placement>(() => standardPlacement(color));
   const [tool, setTool] = useState<Tool>('p');
   const [hint, setHint] = useState<string | null>(null);
+  const [limit] = useState(() => deadline ?? Date.now() + DRAFT_TIME_LIMIT_MS);
+  // 편성판은 언제나 규칙에 맞는 상태만 만들므로 시간이 다 되면 그대로 낸다
+  const remaining = useCountdown(deadline ?? limit, () => onDone(placement));
 
   const spent = placementCost(placement);
   const error = draftError(color, placement);
@@ -91,6 +121,9 @@ export function DraftBoard({ color, onDone }: DraftBoardProps) {
       <div className="draft-budget">
         <span>
           {COLOR_NAME[color]} 편성 · 남은 예산 <strong>{DRAFT_BUDGET - spent}</strong> / {DRAFT_BUDGET}
+        </span>
+        <span className={`draft-timer ${remaining <= TIME_WARNING_MS ? 'is-warning' : ''}`} aria-label="남은 편성 시간">
+          {formatClock(remaining)}
         </span>
       </div>
 
