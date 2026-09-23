@@ -1,5 +1,6 @@
 import {
   applyAction,
+  concealAbilities,
   fogView,
   IllegalActionError,
   legalMoves,
@@ -15,11 +16,16 @@ import {
 export type RoyalMemory = Map<string, Square>;
 
 /**
- * 안개전에서 AI가 탐색할 국면: color 시점으로 가린 뒤, 안 보이는 적 왕족은 마지막으로 본 칸에 둔다.
+ * AI가 탐색할 국면. 비밀 능력이면 드러나지 않은 상대 능력을 지운다.
+ * 안개전이면 color 시점으로 가린 뒤, 안 보이는 적 왕족은 마지막으로 본 칸에 둔다.
  * 왕족이 사라지면 엔진이 곧바로 승패를 내 버리므로 탐색이 성립하지 않기 때문이다.
  * 한 번도 못 본 왕족은 실제 자리에 둔다 (시작 배치의 킹 자리 정도는 안다고 본다).
  */
 export function aiSightState(state: GameState, color: Color, memory: RoyalMemory): GameState {
+  return concealAbilities(fogSight(state, color, memory), color);
+}
+
+function fogSight(state: GameState, color: Color, memory: RoyalMemory): GameState {
   if (!state.mode.fog) return state;
   const view = fogView(state, color);
   const board = view.board.slice();

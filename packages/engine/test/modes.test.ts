@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   DRAFT_BUDGET,
   HIDDEN_SQUARE,
+  THRONE_HOLD_TURNS,
+  abilityRevealed,
+  applyAction,
+  concealAbilities,
+  parseGameMode,
   chaosPlacement,
   createGame,
   deploySquare,
@@ -14,6 +19,7 @@ import {
   placementFen,
   standardPlacement,
   START_FEN,
+  STANDARD_MODE,
   visibleSquares,
   type GameSetup,
   type GameState,
@@ -21,7 +27,7 @@ import {
 } from '../src';
 import { move, setResource, sq } from './helpers';
 
-const FOG = { deployment: 'standard', fog: true } as const;
+const FOG = { ...STANDARD_MODE, fog: true };
 const fogGame = (fen: string, abilities: GameSetup['abilities'] = {}): GameState => createGame({ fen, mode: FOG, abilities });
 
 describe('징병 배치', () => {
@@ -144,5 +150,73 @@ describe('안개전', () => {
     const visible = visibleSquares(state, 'w');
     expect(options.length).toBeGreaterThan(0);
     expect(options.every((params) => visible.has(Number(params.square)))).toBe(true);
+  });
+});
+
+describe('왕좌 점령', () => {
+  const THRONE = { ...STANDARD_MODE, throne: true };
+
+  it('왕좌에 머문 채 자기 턴을 정해진 번 맞으면 이긴다', () => {
+    // 백 킹이 e4 옆, 흑은 멀리서 제자리걸음
+    let state = createGame({ fen: '7k/p7/8/8/8/4K3/P7/8 w - - 0 1', mode: THRONE });
+    state = move(state, 'e3', 'e4');
+    const shuffle = [['h8', 'g8'], ['g8', 'h8'], ['h8', 'g8']];
+    const steps = [['e4', 'd4'], ['d4', 'e4']];
+    for (let i = 0; i < THRONE_HOLD_TURNS - 1; i++) {
+      state = move(state, shuffle[i][0], shuffle[i][1]);
+      expect(state.throne.w).toBe(i + 1);
+      expect(state.result.kind).toBe('ongoing');
+      // 왕좌 안에서 옮겨도 이어서 센다
+      state = move(state, steps[i % 2][0], steps[i % 2][1]);
+    }
+    state = move(state, shuffle[THRONE_HOLD_TURNS - 1][0], shuffle[THRONE_HOLD_TURNS - 1][1]);
+    expect(state.result).toEqual({ kind: 'win', winner: 'w', reason: 'throne' });
+  });
+
+  it('왕좌를 벗어나면 처음부터 다시 센다', () => {
+    let state = createGame({ fen: '7k/p7/8/8/8/4K3/P7/8 w - - 0 1', mode: THRONE });
+    state = move(state, 'e3', 'e4');
+    state = move(state, 'h8', 'g8');
+    expect(state.throne.w).toBe(1);
+    state = move(state, 'e4', 'e3');
+    state = move(state, 'g8', 'h8');
+    expect(state.throne.w).toBe(0);
+  });
+
+  it('모드가 꺼져 있으면 세지 않는다', () => {
+    let state = createGame({ fen: '7k/p7/8/8/8/4K3/P7/8 w - - 0 1' });
+    state = move(state, 'e3', 'e4');
+    state = move(state, 'h8', 'g8');
+    expect(state.throne.w).toBe(0);
+  });
+});
+
+describe('비밀 능력', () => {
+  const SECRET = { ...STANDARD_MODE, secret: true };
+
+  it('상대 능력은 쓰기 전까지 가려지고, 쓰면 드러난다', () => {
+    let state = setResource(createGame({ mode: SECRET, abilities: { w: 'haste', b: 'rewind' } }), 'w', 99);
+    const view = concealAbilities(state, 'b');
+    expect(view.players.w.abilityId).toBeNull();
+    expect(view.players.w.meter.resource).toBe(0);
+    expect(view.players.b.abilityId).toBe('rewind');
+    expect(abilityRevealed(state, 'w')).toBe(false);
+
+    state = applyAction(state, { type: 'ability', params: {} });
+    expect(abilityRevealed(state, 'w')).toBe(true);
+    expect(concealAbilities(state, 'b').players.w.abilityId).toBe('haste');
+  });
+
+  it('모드가 꺼져 있으면 가리지 않는다', () => {
+    const state = createGame({ abilities: { w: 'haste', b: null } });
+    expect(concealAbilities(state, 'b')).toBe(state);
+  });
+});
+
+describe('모드 값 읽기', () => {
+  it('빠진 규칙은 꺼진 것으로 보고, 잘못된 값은 거부한다', () => {
+    expect(parseGameMode({ deployment: 'draft', fog: true })).toEqual({ deployment: 'draft', fog: true, secret: false, throne: false });
+    expect(parseGameMode({ deployment: 'nope' })).toBeNull();
+    expect(parseGameMode({ deployment: 'standard', throne: 'yes' })).toBeNull();
   });
 });

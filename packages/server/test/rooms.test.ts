@@ -271,7 +271,7 @@ describe('RoomManager', () => {
     manager.setReady('s2', true);
     manager.setMode('s1', { deployment: 'chaos', fog: true });
     const snapshot = manager.snapshot(host.code);
-    expect(snapshot.mode).toEqual({ deployment: 'chaos', fog: true });
+    expect(snapshot.mode).toEqual({ deployment: 'chaos', fog: true, secret: false, throne: false });
     expect(snapshot.seats.b?.ready).toBe(false);
     expect(() => manager.setMode('s1', { deployment: 'nope', fog: false })).toThrow('잘못된 모드');
   });
@@ -317,5 +317,27 @@ describe('RoomManager', () => {
 
     manager.resign('s2');
     expect(manager.snapshot(host.code, 'w').game?.board.filter((p) => p?.color === 'b')).toHaveLength(16);
+  });
+
+  it('비밀 능력은 대기실부터 상대 능력을 가리고, 대국이 끝나면 드러낸다', () => {
+    const manager = new RoomManager();
+    const host = manager.create('s1', { name: '호스트' });
+    manager.join('s2', { code: host.code, name: '게스트' });
+    manager.setColor('s1', 'w');
+    manager.setAbility('s1', 'haste');
+    manager.setAbility('s2', 'rewind');
+    manager.setMode('s1', { deployment: 'standard', secret: true });
+    expect(manager.snapshot(host.code, 'w').seats.b).toMatchObject({ abilityHidden: true, abilityId: 'random' });
+    expect(manager.snapshot(host.code, 'b').seats.b).toMatchObject({ abilityHidden: false, abilityId: 'rewind' });
+
+    manager.setReady('s1', true);
+    manager.setReady('s2', true);
+    const white = manager.snapshot(host.code, 'w');
+    expect(white.game?.players.b.abilityId).toBeNull();
+    expect(white.game?.players.w.abilityId).toBe('haste');
+
+    manager.resign('s2');
+    expect(manager.snapshot(host.code, 'w').game?.players.b.abilityId).toBe('rewind');
+    expect(manager.snapshot(host.code, 'w').seats.b?.abilityHidden).toBe(false);
   });
 });

@@ -16,6 +16,7 @@ export {
   type Placement,
 } from './deployment';
 export { HIDDEN_SQUARE, fogView, visibleSquares } from './fog';
+export { abilityRevealed, concealAbilities } from './secret';
 export { attacks, isSquareAttacked, isWall } from './movegen';
 export { anyRoyalAttacked, diffBoards, isInCheck, isRoyal, legalMoves, royalSquares, usesCheckRule } from './rules';
 export {
@@ -24,6 +25,8 @@ export {
   IllegalActionError,
   JUDGE_VALUE,
   STANDARD_TIME_CONTROL,
+  THRONE_HOLD_TURNS,
+  THRONE_SQUARES,
   applyAction,
   checkTimeout,
   clockView,

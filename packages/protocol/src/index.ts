@@ -64,7 +64,8 @@ export function toGameRecord(state: GameState, source: ResultSource, { difficult
   };
 }
 
-export const isStandardMode = (mode: GameMode | undefined): boolean => !mode || (mode.deployment === 'standard' && !mode.fog);
+export const isStandardMode = (mode: GameMode | undefined): boolean =>
+  !mode || (mode.deployment === 'standard' && !mode.fog && !mode.secret && !mode.throne);
 
 export interface AbilityStat {
   /** null은 능력 없음 */
@@ -159,8 +160,10 @@ export type ColorPreference = Color | 'random';
 
 export interface SeatInfo {
   readonly name: string;
-  /** 게임이 시작되면 결정된 능력, 시작 전 무작위 선택이면 'random' */
+  /** 게임이 시작되면 결정된 능력, 시작 전 무작위 선택이면 'random' (가려졌으면 'random') */
   readonly abilityId: string;
+  /** 비밀 능력 모드에서 받는 사람에게 가려진 능력인지 */
+  readonly abilityHidden: boolean;
   /** 대기실에서 고른 색 (게임이 시작되면 실제 자리가 곧 색이다) */
   readonly colorChoice: ColorPreference;
   /** 무작위로 결정된 능력인지 */

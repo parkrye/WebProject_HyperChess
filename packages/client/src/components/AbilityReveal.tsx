@@ -1,7 +1,8 @@
 import { listAbilities, type Color } from '@hyperchess/engine';
+import { RANDOM_ABILITY } from '@hyperchess/protocol';
 import { useEffect, useState, type CSSProperties } from 'react';
 import { abilityUi } from '../abilityUi/specs';
-import { abilityName, COLOR_NAME } from '../abilityUi/text';
+import { abilityName, COLOR_NAME, SECRET_ABILITY_NAME } from '../abilityUi/text';
 import { AbilityIconView } from './AbilityIconView';
 
 const SPIN_MS = 1800;
@@ -12,11 +13,13 @@ interface AbilityRevealProps {
   readonly abilities: Readonly<Record<Color, string>>;
   readonly randomized: Readonly<Partial<Record<Color, boolean>>>;
   readonly names?: Readonly<Partial<Record<Color, string>>>;
+  /** 비밀 능력: 이 화면에서 보여 주지 않는 색 */
+  readonly hidden?: Readonly<Partial<Record<Color, boolean>>>;
   readonly onDone: () => void;
 }
 
 /** 무작위로 정해진 능력을 슬롯머신처럼 돌리다가 공개한다 */
-export function AbilityReveal({ abilities, randomized, names, onDone }: AbilityRevealProps) {
+export function AbilityReveal({ abilities, randomized, names, hidden = {}, onDone }: AbilityRevealProps) {
   const pool = listAbilities().map((a) => a.id);
   const [tick, setTick] = useState(0);
   const [settled, setSettled] = useState(false);
@@ -36,8 +39,9 @@ export function AbilityReveal({ abilities, randomized, names, onDone }: AbilityR
   }, [onDone]);
 
   const card = (color: Color, offset: number) => {
-    const spinning = randomized[color] && !settled;
-    const shown = spinning ? pool[(tick + offset) % pool.length] : abilities[color];
+    const secret = !!hidden[color];
+    const spinning = randomized[color] && !settled && !secret;
+    const shown = secret ? RANDOM_ABILITY : spinning ? pool[(tick + offset) % pool.length] : abilities[color];
     const spec = abilityUi(shown);
     return (
       <div
@@ -48,10 +52,10 @@ export function AbilityReveal({ abilities, randomized, names, onDone }: AbilityR
         <span className="reveal-player">
           <span className={`player-dot dot-${color}`} />
           {names?.[color] ?? COLOR_NAME[color]}
-          {randomized[color] && <span className="reveal-tag">무작위</span>}
+          {randomized[color] && !secret && <span className="reveal-tag">무작위</span>}
         </span>
         <AbilityIconView icon={spec.icon} size={96} className="reveal-icon" />
-        <strong className="reveal-name">{abilityName(shown)}</strong>
+        <strong className="reveal-name">{secret ? SECRET_ABILITY_NAME : abilityName(shown)}</strong>
       </div>
     );
   };

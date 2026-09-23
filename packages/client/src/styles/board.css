@@ -328,3 +328,9 @@
 .square.fogged .coord {
   opacity: 0.35;
 }
+
+/* 왕좌 점령: 중앙 4칸 (안개가 덮이면 안개 막 아래로 들어간다) */
+.board .square.throne {
+  background: radial-gradient(circle, rgb(255 215 107 / 24%), transparent 72%);
+  box-shadow: inset 0 0 0 2px rgb(255 215 107 / 70%);
+}

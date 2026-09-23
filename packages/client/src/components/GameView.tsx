@@ -1,4 +1,4 @@
-import { getAbility, isInCheck, opposite, visibleSquares, type Action, type Color, type DrawVote, type GameState, type Square } from '@hyperchess/engine';
+import { abilityRevealed, getAbility, isInCheck, opposite, visibleSquares, type Action, type Color, type DrawVote, type GameState, type Square } from '@hyperchess/engine';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { COLOR_NAME, modeLabel } from '../abilityUi/text';
 import type { StageView } from '../game/useStage';
@@ -49,8 +49,8 @@ export function GameView(props: GameViewProps) {
   const offer = state.draw.offer;
   const ongoing = state.result.kind === 'ongoing';
 
-  // 안개전 핫시트: 차례가 넘어가면 화면을 가리고, 다음 사람이 누르면 그 사람의 시야로 연다
-  const hotseatFog = myColor === null && !props.spectator && state.mode.fog;
+  // 안개전·비밀 능력 핫시트: 차례가 넘어가면 화면을 가리고, 다음 사람이 누르면 그 사람의 시점으로 연다
+  const hotseatFog = myColor === null && !props.spectator && (state.mode.fog || state.mode.secret);
   const [viewer, setViewer] = useState<Color>(state.turn);
   const handoff = hotseatFog && ongoing && !busy && viewer !== state.turn;
   const sightColor = myColor ?? (hotseatFog ? viewer : null);
@@ -59,6 +59,9 @@ export function GameView(props: GameViewProps) {
     if (!state.mode.fog || !ongoing || sightColor === null) return null;
     return handoff ? new Set() : visibleSquares(state, sightColor);
   }, [state, ongoing, sightColor, handoff]);
+  // 비밀 능력: 보는 사람의 것이 아니고 아직 쓰지 않은 능력은 가린다 (차례 넘기기 중에는 둘 다)
+  const abilityHidden = (color: Color) =>
+    state.mode.secret && sightColor !== null && (handoff || color !== sightColor) && !abilityRevealed(state, color);
 
   // 무승부 제안에 답하기 전에는 보드도 능력도 건드릴 수 없다
   const canAct = !props.spectator && !offer && !handoff && (myColor === null || state.turn === myColor);
@@ -135,16 +138,16 @@ export function GameView(props: GameViewProps) {
 
       <div className="game-layout">
         <div className="board-row">
-          <PlayerBar className="side-left" state={state} color={left} interaction={interaction} seat={props.seats?.[left]} randomized={props.randomized?.[left]} />
+          <PlayerBar className="side-left" state={state} color={left} interaction={interaction} seat={props.seats?.[left]} randomized={props.randomized?.[left]} abilityHidden={abilityHidden(left)} />
           <Board state={state} stage={stageView} interaction={interaction} leftColor={left} busy={busy} flipPhase={flipPhase} visible={visible} />
-          <PlayerBar className="side-right" state={state} color={right} interaction={interaction} seat={props.seats?.[right]} randomized={props.randomized?.[right]} />
+          <PlayerBar className="side-right" state={state} color={right} interaction={interaction} seat={props.seats?.[right]} randomized={props.randomized?.[right]} abilityHidden={abilityHidden(right)} />
         </div>
         <aside className="under-board">
           {/* 알림 유무와 관계없이 한 줄 자리를 유지해 아래 패널이 밀리지 않게 한다 */}
           <p className={`notice notice-slot ${props.notice ? '' : 'is-empty'}`} title={props.notice ?? undefined}>
             {props.notice ?? '\u00a0'}
           </p>
-          <AbilityPanel state={state} color={myColor ?? state.turn} interaction={interaction} busy={busy} />
+          {!handoff && <AbilityPanel state={state} color={myColor ?? state.turn} interaction={interaction} busy={busy} />}
           {props.sidebar}
         </aside>
       </div>

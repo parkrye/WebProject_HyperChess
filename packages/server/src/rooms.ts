@@ -1,14 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import {
   applyAction,
+  abilityRevealed,
   chaosPlacement,
   checkTimeout,
+  concealAbilities,
   createGame,
   draftError,
   drawOfferDue,
   fogView,
   openDrawOffer,
   opposite,
+  parseGameMode,
   placementFen,
   resign,
   STANDARD_MODE,
@@ -16,7 +19,6 @@ import {
   voteDraw,
   type Action,
   type Color,
-  type Deployment,
   type DrawVote,
   type GameMode,
   type GameState,
@@ -42,7 +44,6 @@ import {
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const COLORS: readonly Color[] = ['w', 'b'];
-const DEPLOYMENTS: readonly Deployment[] = ['standard', 'draft', 'chaos'];
 const PIECE_TYPES: readonly PieceType[] = ['p', 'n', 'b', 'r', 'q', 'k'];
 /** 징병 편성에 올 수 있는 최대 말 수 (세 줄 × 8칸) */
 const MAX_PLACEMENT = 24;
@@ -225,7 +226,7 @@ export class RoomManager {
   /** 대기실에서 게임 모드를 바꾼다. 누구나 바꿀 수 있고, 바뀌면 양쪽 준비가 풀린다 */
   setMode(socketId: string, mode: unknown): string {
     const { room } = this.requireWaitingSeat(socketId);
-    const parsed = parseMode(mode);
+    const parsed = parseGameMode(mode);
     if (!parsed) throw new RoomError('잘못된 모드입니다');
     room.mode = parsed;
     for (const color of COLORS) {
@@ -327,14 +328,19 @@ export class RoomManager {
   /** viewer: 받는 사람의 색. 안개전이 진행 중이면 그 시점으로 가린 상태를 담는다 */
   snapshot(code: string, viewer: Color | null = null): RoomSnapshot {
     const room = this.requireRoom(code);
+    // 비밀 능력: 받는 사람이 아닌 쪽의 능력은 대기실에서부터 가리고, 대국 중에는 쓸 때까지 가린다
+    const abilityHidden = (color: Color) =>
+      viewer !== null && color !== viewer && (room.game ? !abilityRevealed(room.game, color) : room.mode.secret);
     const seatInfo = (color: Color) => {
       const seat = room.seats[color];
+      const hidden = abilityHidden(color);
       return seat
         ? {
             name: seat.name,
-            abilityId: seat.abilityId,
+            abilityId: hidden ? RANDOM_ABILITY : seat.abilityId,
+            abilityHidden: hidden,
             colorChoice: seat.colorChoice,
-            randomized: seat.choice === RANDOM_ABILITY,
+            randomized: !hidden && seat.choice === RANDOM_ABILITY,
             connected: seat.socketId !== null,
             rating: seat.userId ? this.ratingOf(seat.userId) : null,
             ready: seat.ready,
@@ -344,8 +350,9 @@ export class RoomManager {
     };
     const status = room.drafts ? 'drafting' : !room.game ? 'waiting' : room.game.result.kind === 'ongoing' ? 'playing' : 'finished';
     const { game } = room;
-    // 끝난 대국은 모두 드러낸다. 시점이 없으면(관전) 진행 중인 안개전은 보내지 않는다
-    const shown = !game || game.result.kind !== 'ongoing' || !game.mode.fog ? game : viewer ? fogView(game, viewer) : null;
+    // 끝난 대국은 모두 드러낸다. 시점이 없으면(관전) 진행 중인 안개전·비밀 능력 대국은 보내지 않는다
+    const hidesInfo = !!game && game.result.kind === 'ongoing' && (game.mode.fog || game.mode.secret);
+    const shown = !game || !hidesInfo ? game : viewer ? concealAbilities(fogView(game, viewer), viewer) : null;
     return {
       code: room.code,
       status,
@@ -528,12 +535,6 @@ export class RoomManager {
   }
 }
 
-function parseMode(value: unknown): GameMode | null {
-  if (typeof value !== 'object' || value === null) return null;
-  const m = value as Record<string, unknown>;
-  if (!DEPLOYMENTS.includes(m.deployment as Deployment) || typeof m.fog !== 'boolean') return null;
-  return { deployment: m.deployment as Deployment, fog: m.fog };
-}
 
 /** 모양만 확인한다. 규칙은 draftError가 본다 */
 function parsePlacement(value: unknown): Placement | null {

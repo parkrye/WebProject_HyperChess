@@ -1224,9 +1224,12 @@ button {
 .mode-row .segmented {
   min-width: min(100%, 240px);
 }
-.mode-row .mode-fog {
-  min-width: 120px;
-  flex: 0 0 auto;
+.mode-row .mode-rules {
+  min-width: min(100%, 300px);
+}
+.throne-tag {
+  color: #ffd76b;
+  border-color: color-mix(in srgb, #ffd76b 55%, transparent);
 }
 .mode-description {
   margin: 0;

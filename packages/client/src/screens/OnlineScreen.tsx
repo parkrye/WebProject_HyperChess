@@ -1,7 +1,7 @@
 import { type Action, type Color, type GameState } from '@hyperchess/engine';
 import { NAME_MAX_LENGTH, RANDOM_ABILITY, ROOM_CODE_LENGTH, type ColorPreference, type RoomSnapshot } from '@hyperchess/protocol';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { abilityName, COLOR_NAME } from '../abilityUi/text';
+import { abilityName, COLOR_NAME, SECRET_ABILITY_NAME } from '../abilityUi/text';
 import { AbilityPicker } from '../components/AbilityPicker';
 import { AbilityReveal } from '../components/AbilityReveal';
 import { DraftBoard } from '../components/DraftBoard';
@@ -293,7 +293,7 @@ function WaitingRoom({ room, snapshot, you, onLeave }: WaitingRoomProps) {
                     <strong>{seat.name}</strong>
                     {slot === you && <span className="seat-tag">나</span>}
                     <span className="seat-tag">{colorChoiceName(seat.colorChoice)}</span>
-                    <span className="seat-ability">{abilityName(seat.abilityId)}</span>
+                    <span className="seat-ability">{seat.abilityHidden ? SECRET_ABILITY_NAME : abilityName(seat.abilityId)}</span>
                     <span className={`seat-ready ${seat.ready ? 'is-ready' : ''}`}>{seat.ready ? '준비 완료' : '준비 전'}</span>
                   </>
                 ) : (
@@ -477,6 +477,7 @@ function OnlineGame({ room, snapshot, game, you, onLeave }: OnlineGameProps) {
           abilities={{ w: game.players.w.abilityId ?? '', b: game.players.b.abilityId ?? '' }}
           randomized={randomized}
           names={{ w: seats.w.name, b: seats.b.name }}
+          hidden={{ w: snapshot.seats.w?.abilityHidden, b: snapshot.seats.b?.abilityHidden }}
           onDone={finishReveal}
         />
       )}

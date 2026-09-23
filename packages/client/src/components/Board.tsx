@@ -2,6 +2,7 @@ import {
   fileOf,
   isInCheck,
   rankOf,
+  THRONE_SQUARES,
   royalSquares,
   toAlgebraic,
   type Board as BoardData,
@@ -200,6 +201,7 @@ export function Board({ state, stage, interaction, leftColor, busy, flipPhase, v
             interaction.targetingSquares.includes(square) ? 'ability-target' : '',
             interaction.pickedSquares.includes(square) ? 'ability-picked' : '',
             seen(square) ? '' : 'fogged',
+            state.mode.throne && THRONE_SQUARES.includes(square) ? 'throne' : '',
           ].join(' ');
 
           return (

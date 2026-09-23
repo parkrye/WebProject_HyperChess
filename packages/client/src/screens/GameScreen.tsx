@@ -41,7 +41,7 @@ export function LocalGameScreen(props: LocalGameScreenProps) {
       : undefined;
     return (
       <div className="game">
-        <AbilityReveal abilities={config.abilities} randomized={config.randomized} names={names} onDone={finishReveal} />
+        <AbilityReveal abilities={config.abilities} randomized={config.randomized} names={names} hidden={secretReveal(config)} onDone={finishReveal} />
       </div>
     );
   }
@@ -65,6 +65,12 @@ export function LocalGameScreen(props: LocalGameScreenProps) {
 
   const fen = chaos ?? (drafts.w && drafts.b ? placementFen(drafts.w, drafts.b) : undefined);
   return <LocalGameBoard {...props} fen={fen} />;
+}
+
+/** 비밀 능력: AI 대전은 AI 능력을, 핫시트는 둘 다 공개 화면에서 가린다 (각자 자기 차례에 본다) */
+function secretReveal(config: LocalGameScreenProps['config']): Partial<Record<Color, boolean>> {
+  if (!config.mode.secret) return {};
+  return config.ai ? { [config.ai.color]: true } : { w: true, b: true };
 }
 
 interface DraftPhaseProps {
