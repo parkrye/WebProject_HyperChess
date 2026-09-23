@@ -1,18 +1,27 @@
 import { randomUUID } from 'node:crypto';
 import {
   applyAction,
+  chaosPlacement,
   checkTimeout,
   createGame,
+  draftError,
   drawOfferDue,
+  fogView,
   openDrawOffer,
   opposite,
+  placementFen,
   resign,
+  STANDARD_MODE,
   STANDARD_TIME_CONTROL,
   voteDraw,
   type Action,
   type Color,
+  type Deployment,
   type DrawVote,
+  type GameMode,
   type GameState,
+  type PieceType,
+  type Placement,
 } from '@hyperchess/engine';
 import {
   CHAT_MAX_LENGTH,
@@ -33,6 +42,10 @@ import {
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const COLORS: readonly Color[] = ['w', 'b'];
+const DEPLOYMENTS: readonly Deployment[] = ['standard', 'draft', 'chaos'];
+const PIECE_TYPES: readonly PieceType[] = ['p', 'n', 'b', 'r', 'q', 'k'];
+/** 징병 편성에 올 수 있는 최대 말 수 (세 줄 × 8칸) */
+const MAX_PLACEMENT = 24;
 
 export class RoomError extends Error {}
 
@@ -65,6 +78,10 @@ interface Room {
   /** 자리는 그냥 두 칸이다. 실제 색은 둘 다 준비했을 때 선택값으로 정해진다 */
   seats: Record<Color, Seat | null>;
   game: GameState | null;
+  /** 대기실에서 정한 게임 모드 */
+  mode: GameMode;
+  /** 징병전 편성을 받는 중이면 색별로 낸 편성, 아니면 null */
+  drafts: Partial<Record<Color, Placement>> | null;
   /** 이번 게임에서 둔 행동 순서 (기록용) */
   actions: Action[];
   rematchVotes: Set<Color>;
@@ -114,6 +131,8 @@ export class RoomManager {
       code,
       seats: { w: seat, b: null },
       game: null,
+      mode: STANDARD_MODE,
+      drafts: null,
       actions: [],
       rematchVotes: new Set(),
       chatSeq: 0,
@@ -175,7 +194,11 @@ export class RoomManager {
 
     if (room.game && room.game.result.kind === 'ongoing') this.updateGame(room, resign(room.game, binding.color));
     this.disconnect(socketId);
-    if (!room.game) room.seats[binding.color] = null;
+    if (!room.game) {
+      room.seats[binding.color] = null;
+      // 편성 중에 떠나면 대기실로 돌아간다
+      room.drafts = null;
+    }
     room.rematchVotes.delete(binding.color);
 
     // 상대가 떠나면 기다리던 사람의 준비는 풀린다
@@ -196,6 +219,33 @@ export class RoomManager {
     if (!isAbilityChoice(abilityId)) throw new RoomError('존재하지 않는 능력입니다');
     seat.choice = abilityId;
     seat.abilityId = abilityId;
+    return room.code;
+  }
+
+  /** 대기실에서 게임 모드를 바꾼다. 누구나 바꿀 수 있고, 바뀌면 양쪽 준비가 풀린다 */
+  setMode(socketId: string, mode: unknown): string {
+    const { room } = this.requireWaitingSeat(socketId);
+    const parsed = parseMode(mode);
+    if (!parsed) throw new RoomError('잘못된 모드입니다');
+    room.mode = parsed;
+    for (const color of COLORS) {
+      const seat = room.seats[color];
+      if (seat) seat.ready = false;
+    }
+    return room.code;
+  }
+
+  /** 징병전 편성을 낸다. 양쪽이 내면 대국이 시작된다 */
+  submitDraft(socketId: string, placement: unknown): string {
+    const { room, color } = this.requireSeat(socketId);
+    if (!room.drafts) throw new RoomError('편성을 받는 중이 아닙니다');
+    if (room.drafts[color]) throw new RoomError('이미 편성을 냈습니다');
+    const parsed = parsePlacement(placement);
+    if (!parsed) throw new RoomError('잘못된 편성입니다');
+    const error = draftError(color, parsed);
+    if (error) throw new RoomError(error);
+    room.drafts[color] = parsed;
+    if (room.drafts.w && room.drafts.b) this.startGame(room);
     return room.code;
   }
 
@@ -270,11 +320,12 @@ export class RoomManager {
     this.swapSeats(room);
     room.rematchVotes.clear();
     room.game = null;
-    this.startGame(room);
+    this.beginMatch(room);
     return room.code;
   }
 
-  snapshot(code: string): RoomSnapshot {
+  /** viewer: 받는 사람의 색. 안개전이 진행 중이면 그 시점으로 가린 상태를 담는다 */
+  snapshot(code: string, viewer: Color | null = null): RoomSnapshot {
     const room = this.requireRoom(code);
     const seatInfo = (color: Color) => {
       const seat = room.seats[color];
@@ -287,15 +338,20 @@ export class RoomManager {
             connected: seat.socketId !== null,
             rating: seat.userId ? this.ratingOf(seat.userId) : null,
             ready: seat.ready,
+            drafted: !!room.drafts?.[color],
           }
         : null;
     };
-    const status = !room.game ? 'waiting' : room.game.result.kind === 'ongoing' ? 'playing' : 'finished';
+    const status = room.drafts ? 'drafting' : !room.game ? 'waiting' : room.game.result.kind === 'ongoing' ? 'playing' : 'finished';
+    const { game } = room;
+    // 끝난 대국은 모두 드러낸다. 시점이 없으면(관전) 진행 중인 안개전은 보내지 않는다
+    const shown = !game || game.result.kind !== 'ongoing' || !game.mode.fog ? game : viewer ? fogView(game, viewer) : null;
     return {
       code: room.code,
       status,
       seats: { w: seatInfo('w'), b: seatInfo('b') },
-      game: room.game,
+      mode: room.mode,
+      game: shown,
       rematchVotes: [...room.rematchVotes],
       serverTime: this.now(),
     };
@@ -359,7 +415,20 @@ export class RoomManager {
     const { w, b } = room.seats;
     if (!w || !b || !w.ready || !b.ready) return;
     this.assignColors(room);
-    this.startGame(room);
+    this.beginMatch(room);
+  }
+
+  /** 색이 정해진 뒤: 징병전이면 편성을 받고, 아니면 바로 시작한다 */
+  private beginMatch(room: Room) {
+    if (room.mode.deployment !== 'draft') {
+      this.startGame(room);
+      return;
+    }
+    for (const color of COLORS) {
+      const seat = room.seats[color];
+      if (seat) seat.ready = false;
+    }
+    room.drafts = {};
   }
 
   /**
@@ -390,7 +459,21 @@ export class RoomManager {
       seat.ready = false;
     }
     room.actions = [];
-    room.game = createGame({ abilities: { w: w.abilityId, b: b.abilityId }, timeControl: STANDARD_TIME_CONTROL, now: this.now() });
+    room.game = createGame({
+      abilities: { w: w.abilityId, b: b.abilityId },
+      timeControl: STANDARD_TIME_CONTROL,
+      now: this.now(),
+      mode: room.mode,
+      fen: this.startFen(room),
+    });
+    room.drafts = null;
+  }
+
+  /** 모드에 따른 시작 FEN (표준이면 없음). 혼돈은 판마다 새로 뽑는다 */
+  private startFen(room: Room): string | undefined {
+    if (room.mode.deployment === 'chaos') return placementFen(chaosPlacement('w', this.random), chaosPlacement('b', this.random));
+    if (room.mode.deployment === 'draft' && room.drafts?.w && room.drafts.b) return placementFen(room.drafts.w, room.drafts.b);
+    return undefined;
   }
 
   /** 좌석을 맞바꾸고 소켓 연결을 따라 옮긴다 */
@@ -431,7 +514,7 @@ export class RoomManager {
   /** 아직 대국이 시작되지 않은 방의 내 자리 */
   private requireWaitingSeat(socketId: string): { room: Room; color: Color; seat: Seat } {
     const { room, color } = this.requireSeat(socketId);
-    if (room.game) throw new RoomError('대기 중에만 바꿀 수 있습니다');
+    if (room.game || room.drafts) throw new RoomError('대기 중에만 바꿀 수 있습니다');
     const seat = room.seats[color];
     if (!seat) throw new RoomError('참가 중인 방이 없습니다');
     return { room, color, seat };
@@ -443,6 +526,24 @@ export class RoomManager {
     if (!binding || !room) throw new RoomError('참가 중인 방이 없습니다');
     return { room, color: binding.color };
   }
+}
+
+function parseMode(value: unknown): GameMode | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const m = value as Record<string, unknown>;
+  if (!DEPLOYMENTS.includes(m.deployment as Deployment) || typeof m.fog !== 'boolean') return null;
+  return { deployment: m.deployment as Deployment, fog: m.fog };
+}
+
+/** 모양만 확인한다. 규칙은 draftError가 본다 */
+function parsePlacement(value: unknown): Placement | null {
+  if (!Array.isArray(value) || value.length > MAX_PLACEMENT) return null;
+  const entries = value.map((entry) => {
+    const e = entry as Record<string, unknown> | null;
+    if (!e || !Number.isInteger(e.square) || !PIECE_TYPES.includes(e.type as PieceType)) return null;
+    return { square: e.square as number, type: e.type as PieceType };
+  });
+  return entries.every((entry) => entry !== null) ? (entries as Placement) : null;
 }
 
 const normalizeCode = (code: string) => String(code ?? '').trim().toUpperCase();

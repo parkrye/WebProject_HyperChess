@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { abilityName, COLOR_NAME } from '../abilityUi/text';
 import { AbilityPicker } from '../components/AbilityPicker';
 import { AbilityReveal } from '../components/AbilityReveal';
+import { DraftBoard } from '../components/DraftBoard';
+import { ModePicker } from '../components/ModePicker';
 import { ChatPanel } from '../components/ChatPanel';
 import { GameView } from '../components/GameView';
 import { Page } from '../components/Page';
@@ -65,6 +67,7 @@ export function OnlineScreen({ onBack, onSingle }: OnlineScreenProps) {
   };
 
   if (snapshot && you) {
+    if (snapshot.status === 'drafting') return <DraftingRoom room={room} snapshot={snapshot} you={you} onLeave={leave} />;
     if (!snapshot.game) return <WaitingRoom room={room} snapshot={snapshot} you={you} onLeave={leave} />;
     return <OnlineGame key={`${snapshot.code}-${you}`} room={room} snapshot={snapshot} game={snapshot.game} you={you} onLeave={leave} />;
   }
@@ -321,6 +324,9 @@ function WaitingRoom({ room, snapshot, you, onLeave }: WaitingRoomProps) {
         </div>
         <p className="online-card-hint">{clash ? '둘 다 같은 색을 골랐어요. 시작할 때 무작위로 갈립니다' : '색과 능력은 준비하면 잠깁니다'}</p>
 
+        <ModePicker mode={snapshot.mode} disabled={ready} onChange={(mode) => void room.setMode(mode)} />
+        <p className="online-card-hint">모드는 누구나 바꿀 수 있고, 바꾸면 둘 다 준비가 풀립니다</p>
+
         <button
           type="button"
           className={`btn ${ready ? 'btn-ghost' : 'btn-primary'}`}
@@ -339,6 +345,32 @@ function WaitingRoom({ room, snapshot, you, onLeave }: WaitingRoomProps) {
         onSelect={(abilityId) => void room.setAbility(abilityId)}
       />
 
+      <ChatPanel messages={room.messages} you={you} onSend={(text) => void room.sendChat(text)} />
+    </Page>
+  );
+}
+
+/* ---------- 징병 편성 ---------- */
+
+/** 징병전: 색이 정해진 뒤 각자 편성을 낸다. 상대 편성은 대국이 시작될 때까지 보이지 않는다 */
+function DraftingRoom({ room, snapshot, you, onLeave }: WaitingRoomProps) {
+  useBgm('lobby');
+  const drafted = snapshot.seats[you]?.drafted ?? false;
+  const opponentDrafted = snapshot.seats[you === 'w' ? 'b' : 'w']?.drafted ?? false;
+
+  return (
+    <Page title={`징병 · ${COLOR_NAME[you]} 편성`} onBack={onLeave} backLabel="나가기">
+      <p className={`notice notice-slot ${room.error ? 'notice-error' : ''}`} role="status">
+        {room.error ?? (opponentDrafted ? '상대는 편성을 마쳤습니다' : '상대가 편성하는 중…')}
+      </p>
+      {drafted ? (
+        <div className="handoff-card handoff-inline">
+          <strong>편성 완료</strong>
+          <p>상대가 편성을 마치면 대국이 시작됩니다.</p>
+        </div>
+      ) : (
+        <DraftBoard color={you} onDone={(placement) => void room.submitDraft(placement)} />
+      )}
       <ChatPanel messages={room.messages} you={you} onSend={(text) => void room.sendChat(text)} />
     </Page>
   );

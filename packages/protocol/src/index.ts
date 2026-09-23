@@ -1,4 +1,4 @@
-import { listAbilities, type Action, type Color, type DrawVote, type GameMode, type GameState } from '@hyperchess/engine';
+import { listAbilities, type Action, type Color, type DrawVote, type GameMode, type GameState, type Placement } from '@hyperchess/engine';
 
 /** 능력 선택값: 능력 id 또는 무작위 (게임 시작 시 결정) */
 export const RANDOM_ABILITY = 'random';
@@ -170,14 +170,20 @@ export interface SeatInfo {
   readonly rating: number | null;
   /** 대기실에서 준비를 마쳤는지 (준비하면 능력을 바꿀 수 없다) */
   readonly ready: boolean;
+  /** 징병전 편성을 냈는지 (편성 내용은 대국이 시작될 때까지 서로 모른다) */
+  readonly drafted: boolean;
 }
 
-export type RoomStatus = 'waiting' | 'playing' | 'finished';
+/** drafting: 징병전에서 양쪽이 편성을 내는 중 */
+export type RoomStatus = 'waiting' | 'drafting' | 'playing' | 'finished';
 
 export interface RoomSnapshot {
   readonly code: string;
   readonly status: RoomStatus;
   readonly seats: Readonly<Record<Color, SeatInfo | null>>;
+  /** 대기실에서 정한 게임 모드. 누구나 바꿀 수 있고, 바뀌면 양쪽 준비가 풀린다 */
+  readonly mode: GameMode;
+  /** 안개전이 진행 중이면 받는 사람 시점으로 가린 상태다 */
   readonly game: GameState | null;
   /** 재대결에 동의한 색 */
   readonly rematchVotes: readonly Color[];
@@ -244,6 +250,10 @@ export interface ClientToServerEvents {
   'room:ability': (abilityId: string, ack: (result: Ack<null>) => void) => void;
   /** 대기실에서 내 색 선택 (준비 전에만) */
   'room:color': (color: ColorPreference, ack: (result: Ack<null>) => void) => void;
+  /** 대기실에서 게임 모드 변경 (양쪽 준비가 풀린다) */
+  'room:mode': (mode: GameMode, ack: (result: Ack<null>) => void) => void;
+  /** 징병전 편성 제출. 양쪽이 내면 대국이 시작된다 */
+  'room:draft': (placement: Placement, ack: (result: Ack<null>) => void) => void;
   /** 대기실 준비 토글. 양쪽이 준비하면 대국이 시작된다 */
   'room:ready': (ready: boolean, ack: (result: Ack<null>) => void) => void;
   /** 방 채팅 (대기실·대국 중) */

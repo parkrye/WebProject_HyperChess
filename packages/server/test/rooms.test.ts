@@ -1,4 +1,4 @@
-import { fromAlgebraic as sq, IllegalActionError } from '@hyperchess/engine';
+import { fromAlgebraic as sq, IllegalActionError, kingOnlyPlacement, standardPlacement } from '@hyperchess/engine';
 import { describe, expect, it } from 'vitest';
 import { RoomError, RoomManager } from '../src/rooms';
 
@@ -262,5 +262,60 @@ describe('RoomManager', () => {
     manager.act('s2', move('d2', 'd4'));
     manager.resign('s1');
     expect(recorded).toEqual([2, 1]);
+  });
+
+  it('모드를 바꾸면 양쪽 준비가 풀린다', () => {
+    const manager = new RoomManager();
+    const host = manager.create('s1', { name: '호스트' });
+    manager.join('s2', { code: host.code, name: '게스트' });
+    manager.setReady('s2', true);
+    manager.setMode('s1', { deployment: 'chaos', fog: true });
+    const snapshot = manager.snapshot(host.code);
+    expect(snapshot.mode).toEqual({ deployment: 'chaos', fog: true });
+    expect(snapshot.seats.b?.ready).toBe(false);
+    expect(() => manager.setMode('s1', { deployment: 'nope', fog: false })).toThrow('잘못된 모드');
+  });
+
+  it('징병전은 양쪽 편성을 받은 뒤 그 배치로 시작한다', () => {
+    const manager = new RoomManager();
+    const host = manager.create('s1', { name: '호스트' });
+    manager.join('s2', { code: host.code, name: '게스트' });
+    manager.setColor('s1', 'w');
+    manager.setMode('s2', { deployment: 'draft', fog: false });
+    manager.setReady('s1', true);
+    manager.setReady('s2', true);
+    expect(manager.snapshot(host.code).status).toBe('drafting');
+
+    // 흑 자리에 백 편성을 내면 거부
+    expect(() => manager.submitDraft('s2', standardPlacement('w'))).toThrow(RoomError);
+    manager.submitDraft('s1', kingOnlyPlacement('w'));
+    const waiting = manager.snapshot(host.code);
+    expect(waiting.seats.w?.drafted).toBe(true);
+    expect(waiting.game).toBeNull();
+    expect(() => manager.submitDraft('s1', kingOnlyPlacement('w'))).toThrow('이미');
+
+    manager.submitDraft('s2', standardPlacement('b'));
+    const started = manager.snapshot(host.code);
+    expect(started.status).toBe('playing');
+    expect(started.game?.board.filter((p) => p?.color === 'w')).toHaveLength(1);
+    expect(started.game?.startFen).toBe('rnbqkbnr/pppppppp/8/8/8/8/8/4K3 w kq - 0 1');
+  });
+
+  it('안개전은 받는 사람 시점으로 가린 상태를 보낸다', () => {
+    const manager = new RoomManager();
+    const host = manager.create('s1', { name: '호스트' });
+    manager.join('s2', { code: host.code, name: '게스트' });
+    manager.setColor('s1', 'w');
+    manager.setMode('s1', { deployment: 'standard', fog: true });
+    manager.setReady('s1', true);
+    manager.setReady('s2', true);
+
+    const white = manager.snapshot(host.code, 'w').game;
+    expect(white?.fogView?.viewer).toBe('w');
+    expect(white?.board.filter((p) => p?.color === 'b')).toHaveLength(0);
+    expect(manager.snapshot(host.code).game).toBeNull();
+
+    manager.resign('s2');
+    expect(manager.snapshot(host.code, 'w').game?.board.filter((p) => p?.color === 'b')).toHaveLength(16);
   });
 });

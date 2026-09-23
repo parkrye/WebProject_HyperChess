@@ -34,16 +34,15 @@ function scheduleClock(io: GameServer, rooms: RoomManager, code: string) {
 
 export function broadcastRoom(io: GameServer, rooms: RoomManager, code: string | null) {
   if (!code) return;
-  let snapshot;
   try {
-    snapshot = rooms.snapshot(code);
+    // 안개전은 받는 사람마다 가린 상태가 다르다
+    for (const { socketId, color } of rooms.connectedSeats(code)) io.to(socketId).emit('room:state', rooms.snapshot(code, color), color);
   } catch {
     // 방이 사라졌으면 타이머만 정리
     clearTimeout(clockTimers.get(code));
     clockTimers.delete(code);
     return;
   }
-  for (const { socketId, color } of rooms.connectedSeats(code)) io.to(socketId).emit('room:state', snapshot, color);
   scheduleClock(io, rooms, code);
 }
 
@@ -115,6 +114,8 @@ export function registerHandlers(io: GameServer, socket: GameSocket, { rooms, us
 
   socket.on('room:ability', (abilityId, ack) => respond(ack, () => ({ code: rooms.setAbility(socket.id, String(abilityId)), data: null })));
   socket.on('room:color', (color, ack) => respond(ack, () => ({ code: rooms.setColor(socket.id, color), data: null })));
+  socket.on('room:mode', (mode, ack) => respond(ack, () => ({ code: rooms.setMode(socket.id, mode), data: null })));
+  socket.on('room:draft', (placement, ack) => respond(ack, () => ({ code: rooms.submitDraft(socket.id, placement), data: null })));
   socket.on('room:ready', (ready, ack) => respond(ack, () => ({ code: rooms.setReady(socket.id, ready === true), data: null })));
 
   socket.on('chat:send', (text, ack) =>

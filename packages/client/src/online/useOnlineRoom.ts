@@ -1,4 +1,4 @@
-import type { Action, Color, DrawVote } from '@hyperchess/engine';
+import type { Action, Color, DrawVote, GameMode, Placement } from '@hyperchess/engine';
 import type {
   Ack,
   ChatMessage,
@@ -163,6 +163,8 @@ export function useOnlineRoom() {
     setAbility: (abilityId: string) => run((s) => s.emitWithAck('room:ability', abilityId)),
     setReady: (ready: boolean) => run((s) => s.emitWithAck('room:ready', ready)),
     setColor: (color: ColorPreference) => run((s) => s.emitWithAck('room:color', color)),
+    setMode: (mode: GameMode) => run((s) => s.emitWithAck('room:mode', mode)),
+    submitDraft: (placement: Placement) => run((s) => s.emitWithAck('room:draft', placement)),
     act: (action: Action) => run((s) => s.emitWithAck('game:action', action)),
     resign: () => run((s) => s.emitWithAck('game:resign')),
     voteDraw: (vote: DrawVote) => run((s) => s.emitWithAck('game:draw', vote)),
