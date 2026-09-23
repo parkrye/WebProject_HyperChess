@@ -28,7 +28,11 @@ interface BoardProps {
   /** 보드 왼쪽에 진영이 놓이는 색 */
   readonly leftColor: Color;
   readonly busy: boolean;
+  /** 좌우 뒤집기 연출 단계 (out: 접히는 중, in: 뒤집힌 채 펼쳐지는 중) */
+  readonly flipPhase?: FlipPhase | null;
 }
+
+export type FlipPhase = 'out' | 'in';
 
 const SQUARES = Array.from({ length: 64 }, (_, i) => i);
 
@@ -145,7 +149,7 @@ function OverlayView({ overlay, leftColor }: { overlay: Overlay; leftColor: Colo
   );
 }
 
-export function Board({ state, stage, interaction, leftColor, busy }: BoardProps) {
+export function Board({ state, stage, interaction, leftColor, busy, flipPhase }: BoardProps) {
   const board: BoardData = stage.board ?? state.board;
   const walls: readonly Wall[] = stage.walls ?? state.walls;
   const animating = busy || stage.board !== null;
@@ -167,6 +171,7 @@ export function Board({ state, stage, interaction, leftColor, busy }: BoardProps
     'board',
     interaction.targeting ? 'is-targeting' : '',
     hasteActive ? 'is-haste' : '',
+    flipPhase ? `flip-${flipPhase}` : '',
   ].join(' ');
 
   return (

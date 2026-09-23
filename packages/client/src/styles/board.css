@@ -13,6 +13,71 @@
   -webkit-touch-callout: none;
   touch-action: manipulation;
 }
+/*
+ * 좌우 뒤집기: 보드를 세로축으로 돌려 얇아지다가(out) 옆면에서 좌우를 바꾸고,
+ * 뒤집힌 얇은 모습에서 원래 폭으로 펼친다(in). 말은 보드보다 반 박자 늦게 들렸다 내려앉아 입체감을 준다.
+ * 길이는 GameView의 FLIP_HALF_MS와 맞춘다.
+ */
+.board.flip-out {
+  animation: board-flip-out 260ms cubic-bezier(0.55, 0, 0.9, 0.5) forwards;
+}
+.board.flip-in {
+  animation: board-flip-in 260ms cubic-bezier(0.1, 0.5, 0.45, 1) forwards;
+}
+/* 좌우가 바뀌는 순간 말이 새 칸으로 미끄러지지 않게 한다 */
+.board.flip-in .piece {
+  transition: none;
+}
+.board.flip-out .piece-body {
+  animation: piece-flip-lift 260ms ease-in forwards;
+}
+.board.flip-in .piece-body {
+  animation: piece-flip-land 380ms cubic-bezier(0.2, 0.7, 0.3, 1.25) forwards;
+}
+@keyframes board-flip-out {
+  from {
+    transform: perspective(1400px) rotateY(0deg);
+    filter: brightness(1);
+  }
+  to {
+    transform: perspective(1400px) rotateY(88deg);
+    filter: brightness(0.55);
+  }
+}
+@keyframes board-flip-in {
+  from {
+    transform: perspective(1400px) rotateY(-88deg);
+    filter: brightness(0.55);
+  }
+  to {
+    transform: perspective(1400px) rotateY(0deg);
+    filter: brightness(1);
+  }
+}
+@keyframes piece-flip-lift {
+  from {
+    transform: translateY(0) scale(1);
+  }
+  to {
+    transform: translateY(-14%) scale(1.08) rotateY(-30deg);
+  }
+}
+@keyframes piece-flip-land {
+  from {
+    transform: translateY(-14%) scale(1.08) rotateY(30deg);
+  }
+  to {
+    transform: translateY(0) scale(1) rotateY(0deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .board.flip-out,
+  .board.flip-in,
+  .board.flip-out .piece-body,
+  .board.flip-in .piece-body {
+    animation-duration: 1ms;
+  }
+}
 .board.is-haste {
   box-shadow: 0 10px 40px rgb(0 0 0 / 45%), 0 0 0 3px #3fe0d0, 0 0 28px #3fe0d0;
 }

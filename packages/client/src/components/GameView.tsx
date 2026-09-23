@@ -8,7 +8,7 @@ import { uiIconSprite } from '../assets/sprites';
 import { AbilityPanel } from './AbilityPanel';
 import { SoundToggle } from './SoundToggle';
 import { ClockBar } from './ClockBar';
-import { Board } from './Board';
+import { Board, type FlipPhase } from './Board';
 import { DrawOfferDialog, PromotionDialog, ResultDialog } from './Dialogs';
 import { PlayerBar, type SeatLabel } from './PlayerBar';
 
@@ -39,6 +39,10 @@ export interface GameViewProps {
 }
 
 const COLORS: readonly Color[] = ['w', 'b'];
+/** board.css의 flip 애니메이션 길이와 맞춘다 */
+const FLIP_HALF_MS = 260;
+const FLIP_SETTLE_MS = 120;
+const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
 export function GameView(props: GameViewProps) {
   const { state, busy, stageView, dispatch, myColor } = props;
@@ -48,7 +52,19 @@ export function GameView(props: GameViewProps) {
   const interaction = useInteraction(state, dispatch, busy, canAct);
   // AI 대전/온라인은 항상 내가 왼쪽. 로컬 2인은 백이 왼쪽이고 수동으로만 바꾼다
   const [localLeft, setLocalLeft] = useState<Color>('w');
+  const [flipPhase, setFlipPhase] = useState<FlipPhase | null>(null);
   const left: Color = myColor ?? localLeft;
+
+  /** 보드를 세로축으로 돌려 반쯤(옆면) 됐을 때 좌우를 바꾸고, 반대쪽 옆면에서 다시 펼친다 */
+  const flipBoard = async () => {
+    if (flipPhase) return;
+    setFlipPhase('out');
+    await wait(FLIP_HALF_MS);
+    setLocalLeft(opposite);
+    setFlipPhase('in');
+    await wait(FLIP_HALF_MS + FLIP_SETTLE_MS);
+    setFlipPhase(null);
+  };
   const right = opposite(left);
 
   useBgm(useBattleTrack(state, myColor));
@@ -93,7 +109,7 @@ export function GameView(props: GameViewProps) {
           )}
           <SoundToggle />
           {myColor !== null ? null : (
-            <button type="button" className="btn btn-ghost btn-icon" onClick={() => setLocalLeft(opposite)} aria-label="보드 좌우 뒤집기">
+            <button type="button" className="btn btn-ghost btn-icon" onClick={flipBoard} aria-label="보드 좌우 뒤집기">
               <img className="ui-icon" src={uiIconSprite('flip')} alt="" draggable={false} />
             </button>
           )}
@@ -105,7 +121,7 @@ export function GameView(props: GameViewProps) {
       <div className="game-layout">
         <div className="board-row">
           <PlayerBar className="side-left" state={state} color={left} interaction={interaction} seat={props.seats?.[left]} randomized={props.randomized?.[left]} />
-          <Board state={state} stage={stageView} interaction={interaction} leftColor={left} busy={busy} />
+          <Board state={state} stage={stageView} interaction={interaction} leftColor={left} busy={busy} flipPhase={flipPhase} />
           <PlayerBar className="side-right" state={state} color={right} interaction={interaction} seat={props.seats?.[right]} randomized={props.randomized?.[right]} />
         </div>
         <aside className="under-board">
