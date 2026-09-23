@@ -1,4 +1,4 @@
-import { listAbilities, type Action, type Color, type DrawVote, type GameState } from '@hyperchess/engine';
+import { listAbilities, type Action, type Color, type DrawVote, type GameMode, type GameState } from '@hyperchess/engine';
 
 /** 능력 선택값: 능력 id 또는 무작위 (게임 시작 시 결정) */
 export const RANDOM_ABILITY = 'random';
@@ -29,6 +29,10 @@ export interface GameRecordInput {
   readonly reason: string;
   readonly plies: number;
   readonly difficulty?: Readonly<Partial<Record<Color, string>>>;
+  /** 표준이 아닌 모드면 그 모드 (없으면 표준). 능력 통계·레이팅에는 표준만 들어간다 */
+  readonly mode?: GameMode;
+  /** 표준이 아닌 국면에서 시작했으면 그 FEN */
+  readonly fen?: string;
   /** 시작 국면부터 둔 행동 순서 (학습 데이터용, 엔진이 결정적이라 모든 국면을 재현할 수 있다) */
   readonly actions?: readonly Action[];
 }
@@ -53,10 +57,14 @@ export function toGameRecord(state: GameState, source: ResultSource, { difficult
     winner: result.kind === 'win' ? result.winner : null,
     reason: result.reason,
     plies: state.log.length,
+    ...(isStandardMode(state.mode) ? {} : { mode: state.mode }),
+    ...(state.startFen ? { fen: state.startFen } : {}),
     ...(difficulty ? { difficulty } : {}),
     ...(actions ? { actions } : {}),
   };
 }
+
+export const isStandardMode = (mode: GameMode | undefined): boolean => !mode || (mode.deployment === 'standard' && !mode.fog);
 
 export interface AbilityStat {
   /** null은 능력 없음 */

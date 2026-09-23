@@ -138,8 +138,34 @@ export interface ClockState {
   readonly turnStartedAt: number;
 }
 
+/** 시작 배치 방식: 표준 · 징병(예산으로 직접 편성) · 혼돈(무작위) */
+export type Deployment = 'standard' | 'draft' | 'chaos';
+
+/** 게임 모드. 배치는 시작 국면만 정하고, 안개는 대국 규칙을 바꾼다 */
+export interface GameMode {
+  readonly deployment: Deployment;
+  /**
+   * 안개전: 내 말과 내 말이 갈 수 있는 칸만 보인다. 체크를 건 말은 드러난다.
+   * 자기 킹을 공격받게 두는 수도 둘 수 있고, 두고 나서 킹이 공격받고 있으면 그 자리에서 진다.
+   */
+  readonly fog: boolean;
+}
+
+export const STANDARD_MODE: GameMode = { deployment: 'standard', fog: false };
+
+/** 한 색의 시점으로 가린 상태에 붙는 표식 (서버가 보내는 안개전 상태) */
+export interface FogView {
+  readonly viewer: Color;
+  readonly visible: readonly Square[];
+}
+
 export interface GameState {
   readonly board: Board;
+  readonly mode: GameMode;
+  /** 표준이 아닌 국면에서 시작했으면 그 FEN (기록·재생용) */
+  readonly startFen?: string;
+  /** 한 색의 시점으로 가린 상태면 그 시야. 전체 상태면 없다 */
+  readonly fogView?: FogView;
   readonly walls: readonly Wall[];
   readonly turn: Color;
   readonly enPassant: EnPassant | null;

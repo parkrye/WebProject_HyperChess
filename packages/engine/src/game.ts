@@ -1,9 +1,11 @@
 import { getAbility } from './abilities/registry';
 import type { AbilityDefinition, RecoveryTrigger } from './abilities/types';
 import { parseFen, START_FEN } from './fen';
+import { paramsVisible, visibleSquares } from './fog';
 import { anyRoyalAttacked, diffBoards, executeMove, findLegalMove, hasLegalMove, isInCheck, isRoyal, royalSquares, usesCheckRule } from './rules';
 import {
   opposite,
+  STANDARD_MODE,
   type TimeControl,
   type AbilityMeter,
   type AbilityParams,
@@ -12,6 +14,7 @@ import {
   type DrawState,
   type DrawVote,
   type GameEvent,
+  type GameMode,
   type GameResult,
   type GameState,
   type Move,
@@ -29,6 +32,8 @@ export const STANDARD_TIME_CONTROL: TimeControl = { turnLimitMs: 2 * 60 * 1000, 
 export interface GameSetup {
   readonly abilities?: Partial<Record<Color, string | null>>;
   readonly fen?: string;
+  /** 게임 모드 (기본 표준). 배치는 fen으로 이미 반영되어 있어야 한다 */
+  readonly mode?: GameMode;
   /** 시간 제한 (없으면 무제한) */
   readonly timeControl?: TimeControl | null;
   /** 게임 시작 시각 (기본 Date.now()) */
@@ -53,6 +58,8 @@ export function createGame(setup: GameSetup = {}): GameState {
 
   const initial: GameState = {
     ...parsed,
+    mode: setup.mode ?? STANDARD_MODE,
+    ...(setup.fen && setup.fen !== START_FEN ? { startFen: setup.fen } : {}),
     walls: [],
     players: { w: createPlayer('w'), b: createPlayer('b') },
     captured: { w: [], b: [] },
@@ -164,7 +171,7 @@ function applyMove(state: GameState, move: Move): GameState {
     log: [...state.log, event],
   };
 
-  const royalResult = royalExtinctionResult(next);
+  const royalResult = royalExtinctionResult(next) ?? exposedKingResult(next, color);
   if (royalResult) return { ...next, result: royalResult };
 
   const hasExtraMove =
@@ -182,12 +189,16 @@ export function legalAbilityOptions(state: GameState, color: Color = state.turn)
   if (state.turnState.abilityUsed || state.turnState.movesMade > 0 || player.meter.cooldown > 0) return [];
 
   const definition = getAbility(player.abilityId);
-  return definition.candidates(state, color).filter((params) => isUsable(state, color, definition, params));
+  const visible = state.mode.fog ? visibleSquares(state, color) : null;
+  return definition
+    .candidates(state, color)
+    .filter((params) => (!visible || paramsVisible(params, visible)) && isUsable(state, color, definition, params));
 }
 
 function isUsable(state: GameState, color: Color, definition: AbilityDefinition, params: AbilityParams): boolean {
   if (definition.cost(state, color, params) > state.players[color].meter.resource) return false;
-  if (definition.timing === 'beforeMove') return true;
+  // 안개전은 자기 체크를 막지 않는다 (쓰고 나서 킹이 공격받고 있으면 진다)
+  if (definition.timing === 'beforeMove' || state.mode.fog) return true;
   return !isInCheck(definition.apply(state, color, params), color);
 }
 
@@ -242,7 +253,7 @@ function applyAbility(state: GameState, params: AbilityParams): GameState {
     log: [...applied.log, event],
   };
 
-  const royalResult = royalExtinctionResult(next);
+  const royalResult = royalExtinctionResult(next) ?? (definition.timing === 'beforeMove' ? null : exposedKingResult(next, color));
   if (royalResult) return { ...next, result: royalResult };
 
   if (definition.timing === 'insteadOfMove') {
@@ -431,6 +442,12 @@ function royalExtinctionResult(state: GameState): GameResult | null {
     }
   }
   return null;
+}
+
+/** 안개전: 행동을 마쳤는데 자기 킹이 공격받고 있으면 체크메이트로 진다 */
+function exposedKingResult(state: GameState, color: Color): GameResult | null {
+  if (!state.mode.fog || !isInCheck(state, color)) return null;
+  return { kind: 'win', winner: opposite(color), reason: 'checkmate' };
 }
 
 function noActionResult(state: GameState, color: Color): GameResult {

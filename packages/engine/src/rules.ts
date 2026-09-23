@@ -55,7 +55,8 @@ function moveGenContext(state: GameState, color: Color): MoveGenContext {
     walls: state.walls,
     enPassant: state.enPassant,
     noQueenPromotion: state.players[color].rules.noQueenPromotion,
-    castlingRequiresSafety: usesCheckRule(state, color),
+    // 안개전에서는 가려진 공격을 캐슬링 가능 여부로 알아낼 수 없게 검사하지 않는다
+    castlingRequiresSafety: usesCheckRule(state, color) && !state.mode.fog,
   };
 }
 
@@ -78,7 +79,8 @@ export function pseudoLegalMoves(state: GameState, color: Color): GeneratedMove[
  * royal 위치를 한 번만 계산하고, 체크 규칙이 없으면 검사를 생략한다.
  */
 function legalityChecker(state: GameState, color: Color): (move: GeneratedMove) => boolean {
-  if (state.players[color].rules.queensRoyal) return () => true;
+  // 안개전: 자기 킹을 공격받게 두는 수도 둘 수 있다 (두고 나서 공격받고 있으면 진다)
+  if (state.mode.fog || state.players[color].rules.queensRoyal) return () => true;
   const royals = royalSquares(state, color);
   if (royals.length !== 1) return () => true;
 

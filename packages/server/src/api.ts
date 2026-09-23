@@ -1,8 +1,11 @@
-import type { ResultSource } from '@hyperchess/protocol';
+import { isStandardMode, type GameRecord, type ResultSource } from '@hyperchess/protocol';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { parseGameRecord, type ResultStore } from './results';
 import { computeStats, summarizeCategories } from './stats';
 import { UserError, type UserStore } from './users';
+
+/** 능력 통계는 표준 모드 대국만 센다 (모드는 배치·규칙이 달라 능력 성적이 섞이면 안 된다) */
+const standardRecords = (records: readonly GameRecord[]) => records.filter((record) => isStandardMode(record.mode));
 
 const MAX_BODY_BYTES = 8 * 1024;
 /** 대국 기록은 수순을 담아 크다 */
@@ -62,10 +65,10 @@ const ROUTES: Readonly<Record<string, Route>> = {
   'GET /api/stats': async (_req, url, { results }) => {
     const sources = (url.searchParams.get('source') ?? '').split(',').filter(Boolean) as ResultSource[];
     const version = Number(url.searchParams.get('version'));
-    return [200, computeStats(results.all(), { sources, version: Number.isInteger(version) && version > 0 ? version : undefined })];
+    return [200, computeStats(standardRecords(results.all()), { sources, version: Number.isInteger(version) && version > 0 ? version : undefined })];
   },
 
-  'GET /api/stats/summary': async (_req, _url, { results }) => [200, summarizeCategories(results.all())],
+  'GET /api/stats/summary': async (_req, _url, { results }) => [200, summarizeCategories(standardRecords(results.all()))],
 
   'POST /api/auth/register': async (req, _url, { users }) => {
     const body = await readJson(req);

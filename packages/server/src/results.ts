@@ -1,4 +1,4 @@
-import { listAbilities } from '@hyperchess/engine';
+import { listAbilities, parseFen, type Deployment, type GameMode } from '@hyperchess/engine';
 import { CLIENT_RESULT_SOURCES, MAX_RECORD_ACTIONS, type GameRecord, type GameRecordInput, type ResultSource } from '@hyperchess/protocol';
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -7,6 +7,8 @@ import { isAction, isReplayable } from './actions';
 const MAX_PLIES = 10_000;
 const MAX_REASON_LENGTH = 32;
 const DIFFICULTIES = new Set(['easy', 'normal', 'hard']);
+const DEPLOYMENTS = new Set<Deployment>(['standard', 'draft', 'chaos']);
+const MAX_FEN_LENGTH = 100;
 
 const isColor = (value: unknown) => value === 'w' || value === 'b';
 const isAbilityOrNone = (value: unknown) => value === null || (typeof value === 'string' && listAbilities().some((a) => a.id === value));
@@ -26,12 +28,17 @@ export function parseGameRecord(input: unknown, allowed: readonly ResultSource[]
   if (!Number.isInteger(r.plies) || (r.plies as number) < 0 || (r.plies as number) > MAX_PLIES) return null;
   if (difficulty !== undefined && Object.entries(difficulty).some(([k, v]) => !isColor(k) || !DIFFICULTIES.has(v as string))) return null;
 
+  const mode = r.mode === undefined ? undefined : parseMode(r.mode);
+  if (mode === null) return null;
+  const fen = r.fen;
+  if (fen !== undefined && !isFen(fen)) return null;
+
   const players = { w: abilities.w as string | null, b: abilities.b as string | null };
   const actions = r.actions;
   if (actions !== undefined) {
     if (!Array.isArray(actions) || actions.length > MAX_RECORD_ACTIONS || !actions.every(isAction)) return null;
     // 규칙대로 재생되지 않는 수순은 학습 데이터를 오염시키므로 받지 않는다
-    if (!isReplayable(players, actions)) return null;
+    if (!isReplayable(players, actions, { mode, fen })) return null;
   }
 
   return {
@@ -41,9 +48,28 @@ export function parseGameRecord(input: unknown, allowed: readonly ResultSource[]
     winner: r.winner as GameRecordInput['winner'],
     reason: r.reason,
     plies: r.plies as number,
+    ...(mode ? { mode } : {}),
+    ...(fen !== undefined ? { fen } : {}),
     ...(difficulty ? { difficulty: difficulty as GameRecordInput['difficulty'] } : {}),
     ...(actions ? { actions: actions as GameRecordInput['actions'] } : {}),
   };
+}
+
+function parseMode(value: unknown): GameMode | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const m = value as Record<string, unknown>;
+  if (!DEPLOYMENTS.has(m.deployment as Deployment) || typeof m.fog !== 'boolean') return null;
+  return { deployment: m.deployment as Deployment, fog: m.fog };
+}
+
+function isFen(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length > MAX_FEN_LENGTH) return false;
+  try {
+    parseFen(value);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export interface ResultStoreOptions {

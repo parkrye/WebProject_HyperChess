@@ -38,6 +38,17 @@ describe('parseGameRecord', () => {
     expect(parseGameRecord({ ...valid, actions: [{ type: 'teleport' }] })).toBeNull();
     expect(parseGameRecord({ ...valid, actions: 'e2e4' })).toBeNull();
   });
+
+  it('모드 대국은 기록된 시작 국면에서 재생한다', () => {
+    // 퀸 하나와 킹만 둔 징병 배치: 표준 시작에서는 d1 퀸이 d4로 갈 수 없다
+    const fen = '4k3/8/8/8/8/8/8/3QK3 w - - 0 1';
+    const d1d4 = { type: 'move', move: { from: sq('d1'), to: sq('d4') } };
+    const mode = { deployment: 'draft', fog: true };
+    expect(parseGameRecord({ ...valid, mode, fen, actions: [d1d4] })?.fen).toBe(fen);
+    expect(parseGameRecord({ ...valid, mode, actions: [d1d4] })).toBeNull();
+    expect(parseGameRecord({ ...valid, mode: { deployment: 'nope', fog: false } })).toBeNull();
+    expect(parseGameRecord({ ...valid, fen: 'garbage' })).toBeNull();
+  });
 });
 
 describe('ResultStore', () => {

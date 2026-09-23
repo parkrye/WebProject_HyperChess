@@ -28,6 +28,8 @@ export const march: AbilityDefinition = {
   candidates(state, color) {
     if (advancingPawns(state, color).length === 0) return [];
     // 수 전 능력은 엔진이 자기 체크를 검사하지 않으므로 여기서 거른다
+    // 안개전은 자기 체크를 막지 않는다 (막으면 가려진 공격이 드러난다)
+    if (state.mode.fog) return [{}];
     return isInCheck(march.apply(state, color, {}), color) ? [] : [{}];
   },
 

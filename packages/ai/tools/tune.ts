@@ -22,7 +22,7 @@
  *   --min-version N          이 밸런스 버전 이상의 기록만 쓴다 (기본 전체, 규칙이 바뀐 옛 기록 제외용)
  */
 import { applyAction, createGame, isInCheck, type Action, type Color, type GameState } from '@hyperchess/engine';
-import type { GameRecord } from '@hyperchess/protocol';
+import { isStandardMode, type GameRecord } from '@hyperchess/protocol';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { constants, setPriority } from 'node:os';
 import { dirname, join, relative } from 'node:path';
@@ -119,6 +119,8 @@ function loadRecords(files: readonly string[]): PlayableRecord[] {
       try {
         const record = JSON.parse(line) as GameRecord;
         if (!record.actions?.length || (record.balanceVersion ?? 0) < settings.minVersion) continue;
+        // 모드 대국(징병·혼돈·안개)은 표준 시작에서 재생되지 않고 규칙도 달라 학습에서 뺀다
+        if (!isStandardMode(record.mode)) continue;
         records.push(record as PlayableRecord);
         count++;
       } catch {

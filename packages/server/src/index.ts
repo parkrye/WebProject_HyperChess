@@ -1,4 +1,4 @@
-import { toGameRecord, type ClientToServerEvents, type ServerToClientEvents } from '@hyperchess/protocol';
+import { isStandardMode, toGameRecord, type ClientToServerEvents, type ServerToClientEvents } from '@hyperchess/protocol';
 import { createServer } from 'node:http';
 import { networkInterfaces } from 'node:os';
 import { join } from 'node:path';
@@ -25,7 +25,8 @@ const rooms = new RoomManager({
     const record = toGameRecord(game, 'online', { actions: [...actions] });
     if (!record) return;
     results.add(record);
-    users.applyGame(players, record.winner);
+    // 레이팅은 표준 모드 대국만 반영한다
+    if (isStandardMode(record.mode)) users.applyGame(players, record.winner);
   },
   ratingOf: (userId) => users.ratingOf(userId),
 });

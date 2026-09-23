@@ -1,4 +1,4 @@
-import { applyAction, createGame, IllegalActionError, type Action, type Color, type DrawVote } from '@hyperchess/engine';
+import { applyAction, createGame, IllegalActionError, type Action, type Color, type DrawVote, type GameMode } from '@hyperchess/engine';
 
 const isPrimitive = (value: unknown) => typeof value === 'number' || typeof value === 'string';
 
@@ -21,8 +21,12 @@ export function isAction(value: unknown): value is Action {
 export const isDrawVote = (value: unknown): value is DrawVote => value === 'accept' || value === 'decline' || value === 'judge';
 
 /** 시작 국면에서 수순을 끝까지 재생할 수 있는지 (규칙 위반·끝난 뒤의 행동이 있으면 false) */
-export function isReplayable(abilities: Readonly<Record<Color, string | null>>, actions: readonly Action[]): boolean {
-  let state = createGame({ abilities });
+export function isReplayable(
+  abilities: Readonly<Record<Color, string | null>>,
+  actions: readonly Action[],
+  start: { readonly mode?: GameMode; readonly fen?: string } = {},
+): boolean {
+  let state = createGame({ abilities, ...start });
   try {
     for (const action of actions) state = applyAction(state, action, 0);
     return true;

@@ -1,6 +1,21 @@
 export * from './types';
 export * from './square';
 export { START_FEN, parseFen, toFen } from './fen';
+export {
+  DRAFT_BUDGET,
+  DRAFT_COST,
+  DRAFT_RANKS,
+  chaosPlacement,
+  deploySquare,
+  draftError,
+  kingOnlyPlacement,
+  placementCost,
+  placementFen,
+  relativeRank,
+  standardPlacement,
+  type Placement,
+} from './deployment';
+export { HIDDEN_SQUARE, fogView, visibleSquares } from './fog';
 export { attacks, isSquareAttacked, isWall } from './movegen';
 export { anyRoyalAttacked, diffBoards, isInCheck, isRoyal, legalMoves, royalSquares, usesCheckRule } from './rules';
 export {
