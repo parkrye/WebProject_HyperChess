@@ -5,6 +5,10 @@
 ![타이틀](screenshots/title.png)
 ![대국](screenshots/game.png)
 
+[![플레이 영상](https://img.youtube.com/vi/Ht-hSaX3Wgs/hqdefault.jpg)](https://youtu.be/Ht-hSaX3Wgs)
+
+▶ **플레이 영상**: https://youtu.be/Ht-hSaX3Wgs
+
 ## 플레이
 
 | 방법 | 내용 |
